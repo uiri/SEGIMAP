@@ -24,3 +24,7 @@ Cargo.lock
 *.fls
 *.log
 *.pdf
+
+# Umple
+umple.jar
+imapcd.gv
