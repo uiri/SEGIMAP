@@ -2,9 +2,11 @@
 
 \usepackage[utf8]{inputenc}
 
-\usepackage[ngerman]{babel}
-
 \usepackage[T1]{fontenc}
+
+\usepackage{svg}
+% Fix svg rendering
+\DeclareUnicodeCharacter{00A0}{ }
 
 \begin{document}
 
@@ -111,6 +113,13 @@ The server will also be able to communicate with IMAP clients on any platform.
 
 \section*{UML Class Diagram}
 
+\begin{figure}[H]
+    \centering
+    \includesvg[height=\textheight,width=\textwidth]{imapuml}
+    \caption{UML Class Diagram}
+\end{figure}
+
 \section*{List of Messages}
+
 
 \end{document}
