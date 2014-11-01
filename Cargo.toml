@@ -1,0 +1,10 @@
+[package]
+
+name = "segimap"
+version = "0.0.1"
+authors = []
+
+[[bin]]
+
+name = "segimap"
+path = "src/main.rs"
