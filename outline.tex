@@ -46,6 +46,28 @@ The problem being solved is the storage, retrieval, and manipulation of electron
 
 \section{Architecture}
 
+The programming language used to implement the system will be Rust - the new programming language currently under active development by Mozilla.
+
+Rust is a type-safe, memory-safe, concurrency-oriented systems language.
+This means that Rust is a good choice for a native application like an IMAP client or server for several reasons.
+Rust can ensure the client and server handle all possible IMAP states and command results, which ensures no crashes.
+Rust is incredibly performant, rivalling C on various benchmarks, which means that the server and client will be incredibly fast.
+Rust also provides a very powerful concurrency system, which will allow the server to handle very high numbers of connections simultaneously and easily, through the use of lightweight task threads.
+
+Rust is a fairly young language and not yet at version 1.0, but the project is expected to reach 1.0 by 2015.
+This means that until 2015, Rust is not stable and will have frequent breaking changes.
+To avoid frequent code breakages, our code will be built against Rust v0.12 (the latest stable release).
+
+We will use the Maildir format for persistent mail data storage.
+This means that mail data will be persistent via the filesystem, and not via a database.
+
+Our implementation will focus purely on the server aspect as IMAP (being a standardized protocol) allows the server to communicate with any pre-existing, compatible IMAP client.
+Because only the server will be written, UI and message display will not be a factor in the design.
+
+The server itself will be written entirely in Rust, and use the Rust compilation utilities: the Rust compiler (rustc), LLVM (the bytecode backend), the Cargo package manager (for dependency management).
+Due to Rust and IMAP's platform agnosticism, the server binaries will be entirely platform agnostic - running in Windows, OS X, and Linux without issue.
+The server will also be able to communicate with IMAP clients on any platform.
+
 \section{UML Class Diagram}
 
 \section{List of Messages}
