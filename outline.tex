@@ -36,15 +36,56 @@
 \end{minipage}
 \end{titlepage}
 
-\section{Problem Statement}
+\section*{Problem Statement}
 
 The problem being solved is the storage, retrieval, and manipulation of electronic mail on clients and servers.
 
-\section{Requirements}
+\section*{Requirements}
 
-\section{Use Cases}
+\section*{Use Cases}
 
-\section{Architecture}
+We have one type of user. Herein referred to as a user. A user may use multiple mail clients; each mail client is a different piece of software which acts as a client to the mail server.
+
+\begin{enumerate}
+
+\item As a user, I want my messages to be secure against other users reading them.
+
+  \begin{itemize}
+  \item Requires LOGIN command
+  \item STARTTLS would increase security.
+  \end{itemize}
+
+\item As a user, I want to receive and read my mail on both my laptop and my phone.
+
+  \begin{itemize}
+  \item Requires FETCH command
+  \item The server must be able to handle multiple clients logged in as one user at the same time.
+  \end{itemize}
+
+\item As a user, I want to be able to delete messages. I want to be able to see which messages are new and which messages I have already read.
+
+  \begin{itemize}
+  \item Requires CLOSE command
+  \item Requires the message to have various flags - Seen, Recent and Deleted
+  \end{itemize}
+
+\item As a user, I want to be able to create and delete mail folders. I want to be able to copy and move messages between folders.
+
+  \begin{itemize}
+  \item Requires COPY, CREATE and DELETE commands.
+  \item Requires support for a hierarchy of mail folders.
+  \end{itemize}
+
+\item As a user, I want to be able to search my messages.
+
+  \begin{itemize}
+  \item Requires SEARCH command.
+  \item This is probably a bonus.
+  \end{itemize}
+
+\end{enumerate}
+
+\section*{Architecture}
 
 The programming language used to implement the system will be Rust - the new programming language currently under active development by Mozilla.
 
@@ -68,8 +109,8 @@ The server itself will be written entirely in Rust, and use the Rust compilation
 Due to Rust and IMAP's platform agnosticism, the server binaries will be entirely platform agnostic - running in Windows, OS X, and Linux without issue.
 The server will also be able to communicate with IMAP clients on any platform.
 
-\section{UML Class Diagram}
+\section*{UML Class Diagram}
 
-\section{List of Messages}
+\section*{List of Messages}
 
 \end{document}
