@@ -1,6 +1,8 @@
 .DS_Store
 *~
 *#
+
+# Rust
 *.o
 *.so
 *.swp
@@ -10,5 +12,15 @@
 *.rlib
 *.dummy
 *.exe
+
+# Cargo
 /target/
 Cargo.lock
+
+# LaTeX
+*.aux
+*.dvi
+*.fdb_latexmk
+*.fls
+*.log
+*.pdf
