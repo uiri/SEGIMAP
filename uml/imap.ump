@@ -1,0 +1,45 @@
+class Owner {
+    1 -- * Folder;
+}
+
+class Folder {
+    isA Owner;
+
+    1 -- * Message;
+
+    name;
+}
+
+class User {
+    isA Owner;
+
+    Email email;
+    password;
+    mailDir;
+}
+
+class Email {
+    localPart;
+    domainPart;
+}
+
+class Message {
+    long uid;
+    int folderIndex;
+    headers;
+    body;
+    String[] flags;
+    dateReceived;
+    long size;
+    envelopeFrom;
+    envelopeTo;
+}
+
+class ClientConnection {
+    1 -- 0..1 Folder selected;
+    * -- 0..1 User;
+}
+
+class Server {
+    1 -- * User;
+}
