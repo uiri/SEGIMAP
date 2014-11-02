@@ -23,6 +23,7 @@
 *.fls
 *.log
 *.pdf
+*.sty
 
 # Umple
 umple.jar

@@ -44,38 +44,51 @@ The problem being solved is the storage, retrieval, and manipulation of electron
 
 \section*{Requirements}
 
-\section*{Use Cases}
+The system will utilize the Internet Message Access Protocol to allow clients to retrieve and manipulate electronic mail. The system will utilize the Local Message Transfer Protocol in order to receieve messages for storage. The system should permit the organization of mail into folders. The system should permit its clients to search through mail.
 
-We have one type of user. Herein referred to as a user. A user may use multiple mail clients; each mail client is a different piece of software which acts as a client to the mail server.
+The system should respond to all client requests within a reasonable time frame (one or two seconds). It should allow multiple clients to log in as the same user and manipulate that user's mail concurrently. The system's state should not be corrupted as a result of such concurrent usage. The system should be modular enough that it may be easily extended to speak SMTP, POP3 or any other future internet message protocol.
+
+The system will be designed to run on Unix-based and Unix-like systems. The system will utilize the filesystem for persistent storage of system configuration and user's messages.
+
+The system will be implemented in the  rust programming language. This programming language is fairly new --- not yet at version 1.0 --- and currently under active development by Mozilla. This means that rust is not currently stable and will have frequent breaking changes. To avoid these breakages, our code will be built against Rust v0.12 (the latest stable release as of November 1, 2014).
+
+There are many good reasons to choose Rust. It is a type-safe and memory-safe systems language appropriate for applications such as an IMAP server. It is incredibly performant, rivalling C on various benchmarks, while also providing a very powerful concurrency system, which will allow the server to handle very high numbers of connections simultaneously and easily, through the use of lightweight task threads.
+
+The system shall be complete by December 1, 2014. Some functional requirements may be dropped in order to comply with this hard deadline.
+
+\section*{Use Cases}
 
 \begin{enumerate}
 
 \item As a user, I want my messages to be secure against other users reading them.
 
   \begin{itemize}
-  \item Requires LOGIN command
-  \item STARTTLS would increase security.
+  \item A mail client should prompt the user for their username and password
+  \item A mail client should not be able to access any information about messages nor about folders without being authenticated and authorized.
+  \item A mail client whose authentication attempt fails should not learn whether or not the username was valid.
   \end{itemize}
 
 \item As a user, I want to receive and read my mail on both my laptop and my phone.
 
   \begin{itemize}
-  \item Requires FETCH command
-  \item The server must be able to handle multiple clients logged in as one user at the same time.
+  \item A user should be able to read messages on their laptop.
+  \item A user should be able to simultaneously read messages on their phone.
+  \item A user should be able to manipulate a message on their phone and have the result reflected on their laptop.
   \end{itemize}
 
 \item As a user, I want to be able to delete messages. I want to be able to see which messages are new and which messages I have already read.
 
   \begin{itemize}
-  \item Requires CLOSE command
-  \item Requires the message to have various flags - Seen, Recent and Deleted
+  \item A user should be able to mark messages for deletion.
+  \item A user should be able to tell which messages are new.
+  \item A user should be able to tell which messages they have already read.
   \end{itemize}
 
 \item As a user, I want to be able to create and delete mail folders. I want to be able to copy and move messages between folders.
 
   \begin{itemize}
-  \item Requires COPY, CREATE and DELETE commands.
-  \item Requires support for a hierarchy of mail folders.
+  \item A user should be able to create a new folder inside of any existing folder
+  \item A user should be able to delete any folder except for their root inbox folder
   \end{itemize}
 
 \item As a user, I want to be able to search my messages.
@@ -89,35 +102,15 @@ We have one type of user. Herein referred to as a user. A user may use multiple 
 
 \section*{Architecture}
 
-The programming language used to implement the system will be Rust - the new programming language currently under active development by Mozilla.
+We will use the Maildir format for persistent mail data storage. This means that messages will be persisted via the filesystem rather than via a database.
 
-Rust is a type-safe, memory-safe, concurrency-oriented systems language.
-This means that Rust is a good choice for a native application like an IMAP client or server for several reasons.
-Rust can ensure the client and server handle all possible IMAP states and command results, which ensures no crashes.
-Rust is incredibly performant, rivalling C on various benchmarks, which means that the server and client will be incredibly fast.
-Rust also provides a very powerful concurrency system, which will allow the server to handle very high numbers of connections simultaneously and easily, through the use of lightweight task threads.
+Our implementation will focus purely on the server aspect as IMAP (being a standardized protocol) allows the server to communicate with any pre-existing, compatible IMAP client. Because only the server will be written, UI and message display will not be a factor in the design.
 
-Rust is a fairly young language and not yet at version 1.0, but the project is expected to reach 1.0 by 2015.
-This means that until 2015, Rust is not stable and will have frequent breaking changes.
-To avoid frequent code breakages, our code will be built against Rust v0.12 (the latest stable release).
+The server itself will be written entirely in Rust, and use the Rust compilation utilities: the Rust compiler (rustc), LLVM (the bytecode backend), the Cargo package manager (for dependency management). Due to Rust and IMAP's platform agnosticism, the server binaries will be entirely platform agnostic - running in Windows, OS X, and Linux without issue. The server will also be able to communicate with IMAP clients on any platform.
 
-We will use the Maildir format for persistent mail data storage.
-This means that mail data will be persistent via the filesystem, and not via a database.
+The user authentication information will be store in flatfiles on the disk in the TOML format. This means that the rust-toml library will be used to parse the TOML files. The authentication information will consist of the user's username (their email), and a salted hash of their password, encrypted with the bcrypt cryptographic hashing algorithm, through the rust-crypto library.
 
-Our implementation will focus purely on the server aspect as IMAP (being a standardized protocol) allows the server to communicate with any pre-existing, compatible IMAP client.
-Because only the server will be written, UI and message display will not be a factor in the design.
-
-The server itself will be written entirely in Rust, and use the Rust compilation utilities: the Rust compiler (rustc), LLVM (the bytecode backend), the Cargo package manager (for dependency management).
-Due to Rust and IMAP's platform agnosticism, the server binaries will be entirely platform agnostic - running in Windows, OS X, and Linux without issue.
-The server will also be able to communicate with IMAP clients on any platform.
-
-The user authentication information will be store in flatfiles on the disk in the TOML format.
-This means that the rust-toml library will be used to parse the TOML files.
-The authentication information will consist of the user's username (their email), and a salted hash of their password, encrypted with the bcrypt cryptographic hashing algorithm, through the rust-crypto library.
-
-If time constraints permit, TLS authentication and encryption will be implemented using a suitable rust TLS library.
-Until then, authentication and IMAP interfacing will occur in plain-text.
-Typically, plain-text communication would be a glaring vulnerability in this scenario, but is considered acceptable as this software is not meant for public use.
+If time constraints permit, TLS authentication and encryption will be implemented using a suitable rust TLS library. Until then, authentication and IMAP interfacing will occur in plain-text. Typically, plain-text communication would be a glaring vulnerability in this scenario, but is considered acceptable as this software is not meant for public use.
 
 \section*{UML Class Diagram}
 
