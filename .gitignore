@@ -15,7 +15,6 @@
 
 # Cargo
 /target/
-Cargo.lock
 
 # LaTeX
 *.aux
