@@ -108,7 +108,7 @@ Our implementation will focus purely on the server aspect as IMAP (being a stand
 
 The server itself will be written entirely in Rust, and use the Rust compilation utilities: the Rust compiler (rustc), LLVM (the bytecode backend), the Cargo package manager (for dependency management). Due to Rust and IMAP's platform agnosticism, the server binaries will be entirely platform agnostic - running in Windows, OS X, and Linux without issue. The server will also be able to communicate with IMAP clients on any platform.
 
-The user authentication information will be store in flatfiles on the disk in the TOML format. This means that the rust-toml library will be used to parse the TOML files. The authentication information will consist of the user's username (their email), and a salted hash of their password, encrypted with the bcrypt cryptographic hashing algorithm, through the rust-crypto library.
+The user authentication information will be stored in flatfiles on the disk in the TOML format. This means that the rust-toml library will be used to parse the TOML files. The authentication information will consist of the user's username (their email), and a salted hash of their password, encrypted with the bcrypt cryptographic hashing algorithm, through the rust-crypto library.
 
 If time constraints permit, TLS authentication and encryption will be implemented using a suitable rust TLS library. Until then, authentication and IMAP interfacing will occur in plain-text. Typically, plain-text communication would be a glaring vulnerability in this scenario, but is considered acceptable as this software is not meant for public use.
 
