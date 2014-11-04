@@ -149,6 +149,21 @@ Preconditions: User has configured their mail client to log in
 
 \section*{Architecture}
 
+The server will have to handle many individual tasks.
+The server's core responsibility will be storing individual messages in folders, where the folders will be owned by certain users.
+The server will have to be able to search through these folders, search through the messages, be able to parse the messages into their equivalent Rust data structures, and perform operations on these messages and folders.
+The server will have to be able to listen to incoming connections from IMAP clients, be able to successfully understand these connections and respond to them to form an IMAP connection.
+The server will have to create and handle these connections concurrently, and be able to use these connections to respond to commands coming from the IMAP client.
+
+The IMAP client will need to be able to connect to a server.
+The IMAP client will need to be able to translate user actions into commands sent to the server.
+The IMAP client will also need to be able to understand responses from the server and represent the responses via local data structures.
+The client will need to be able to store a representation of the way messages are organized on the server.
+This representation will need to update based on responses from the server.
+The client will need to be able to provide the user with common features (search, display, filtering), which will all need to be implemented with commands.
+The exact implementation will vary depending on situation, but for this project, only the server will be implemented.
+This means that as long as the client implements the IMAP protocol sufficiently, the rest of the implementation details will not matter.
+
 We will use the Maildir format for persistent mail data storage. This means that messages will be persisted via the filesystem rather than via a database.
 
 Our implementation will focus purely on the server aspect as IMAP (being a standardized protocol) allows the server to communicate with any pre-existing, compatible IMAP client. Because only the server will be written, UI and message display will not be a factor in the design.
@@ -158,14 +173,6 @@ The server itself will be written entirely in Rust, and use the Rust compilation
 The user authentication information will be stored in flatfiles on the disk in the TOML format. This means that the rust-toml library will be used to parse the TOML files. The authentication information will consist of the user's username (their email), and a salted hash of their password, encrypted with the bcrypt cryptographic hashing algorithm, through the rust-crypto library.
 
 If time constraints permit, TLS authentication and encryption will be implemented using a suitable rust TLS library. Until then, authentication and IMAP interfacing will occur in plain-text. Typically, plain-text communication would be a glaring vulnerability in this scenario, but is considered acceptable as this software is not meant for public use.
-
-\section*{UML Class Diagram}
-
-\begin{figure}[H]
-    \centering
-    \includesvg[height=\textheight,width=\textwidth]{imapuml}
-    \caption{UML Class Diagram}
-\end{figure}
 
 \section*{List of Messages}
 
@@ -193,5 +200,13 @@ Server responses:
 \item BAD \$error
 \item BYE
 \end{itemize}
+
+\section*{UML Class Diagram}
+
+\begin{figure}[h]
+    \centering
+    \includesvg[height=\textheight,width=\textwidth]{imapuml}
+    \caption{UML Class Diagram}
+\end{figure}
 
 \end{document}
