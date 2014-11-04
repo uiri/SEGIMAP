@@ -1,5 +1,5 @@
 \documentclass[a4paper,12pt]{article}
-
+\usepackage{multicol}
 \usepackage[utf8]{inputenc}
 
 \usepackage[T1]{fontenc}
@@ -44,7 +44,7 @@ The problem being solved is the storage, retrieval, and manipulation of electron
 
 \section*{Requirements}
 
-The system will utilize the Internet Message Access Protocol to allow clients to retrieve and manipulate electronic mail. The system will utilize the Local Message Transfer Protocol in order to receieve messages for storage. The system should permit the organization of mail into folders. The system should permit its clients to search through mail.
+The system will utilize the Internet Message Access Protocol to allow clients to retrieve and manipulate electronic mail. The system will utilize the Local Message Transfer Protocol in order to receieve messages for storage. The system should permit the organization of mail into folders. % The system should permit its clients to search through mail.
 
 The system should respond to all client requests within a reasonable time frame (one or two seconds). It should allow multiple clients to log in as the same user and manipulate that user's mail concurrently. The system's state should not be corrupted as a result of such concurrent usage. The system should be modular enough that it may be easily extended to speak SMTP, POP3 or any other future internet message protocol.
 
@@ -56,47 +56,94 @@ There are many good reasons to choose Rust. It is a type-safe and memory-safe sy
 
 The system shall be complete by December 1, 2014. Some functional requirements may be dropped in order to comply with this hard deadline.
 
+\newpage
+
 \section*{Use Cases}
 
 \begin{enumerate}
 
-\item As a user, I want my messages to be secure against other users reading them.
+\item Login to the Mail Server
 
-  \begin{itemize}
-  \item A mail client should prompt the user for their username and password
-  \item A mail client should not be able to access any information about messages nor about folders without being authenticated and authorized.
-  \item A mail client whose authentication attempt fails should not learn whether or not the username was valid.
-  \end{itemize}
+Preconditions: User has not yet configured their mail client
 
-\item As a user, I want to receive and read my mail on both my laptop and my phone.
+  \begin{multicols}{2}
+    \begin{itemize}
+    \item User starts their mail client
+      \\
+    \item User enters server and login information
+      \vfill \columnbreak
+    \item Mail client prompts user for server and login information
+    \item Mail client successfully logs in and is able to perform authenticated commands
+    \end{itemize}
+  \end{multicols}
 
-  \begin{itemize}
-  \item A user should be able to read messages on their laptop.
-  \item A user should be able to simultaneously read messages on their phone.
-  \item A user should be able to manipulate a message on their phone and have the result reflected on their laptop.
-  \end{itemize}
 
-\item As a user, I want to be able to delete messages. I want to be able to see which messages are new and which messages I have already read.
+\item Read and Delete Individual Messages
 
-  \begin{itemize}
-  \item A user should be able to mark messages for deletion.
-  \item A user should be able to tell which messages are new.
-  \item A user should be able to tell which messages they have already read.
-  \end{itemize}
+Preconditions: User has configured their mail client to log in
 
-\item As a user, I want to be able to create and delete mail folders. I want to be able to copy and move messages between folders.
+  \begin{multicols}{2}
+    \begin{itemize}
+    \item User starts their mail client
+      \\
+    \item User selects a message to view
+      \vfill \columnbreak
+    \item Mail client displays a list of messages to the user
+    \item Mail client displays the contents and header of the selected message
+    \end{itemize}
+  \end{multicols}
 
-  \begin{itemize}
-  \item A user should be able to create a new folder inside of any existing folder
-  \item A user should be able to delete any folder except for their root inbox folder
-  \end{itemize}
+Preconditions: User can see at least one message
 
-\item As a user, I want to be able to search my messages.
+  \begin{multicols}{2}
+    \begin{itemize}
+    \item User uses their mail client's ``Delete Message'' function
+      \\
+    \item User exits the mail client or performs another triggering event
+      \vfill \columnbreak
+    \item Mail client marks the message for deletion on the server
+    \item Mail client tells the server to delete all the marked messages
+    \end{itemize}
+  \end{multicols}
 
-  \begin{itemize}
-  \item Requires SEARCH command.
-  \item This is probably a bonus.
-  \end{itemize}
+\item Create and Delete Folders
+
+Preconditions: User has configured their mail client to log in
+
+  \begin{multicols}{2}
+    \begin{itemize}
+    \item User uses their mail client's ``Create Folder'' function
+    \item User enters a folder name
+      \vfill \columnbreak
+    \item Mail client prompts the user for a folder name
+    \item Mail client creates the folder on the mail server
+    \end{itemize}
+  \end{multicols}
+
+Preconditions: User has configured their mail client to log in; User has created at least one folder.
+
+  \begin{multicols}{2}
+    \begin{itemize}
+    \item User selects a folder and uses their mail client's ``Delete Folder'' function
+      \vfill \columnbreak
+    \item Mail client deletes the folder on the mail server
+    \end{itemize}
+  \end{multicols}
+
+\item Mark messages as read
+
+Preconditions: User has configured their mail client to log in
+
+  \begin{multicols}{2}
+    \begin{itemize}
+    \item User opens their mail client
+      \\
+    \item User views a message or marks it as `read'
+      \vfill \columnbreak
+    \item Mail client clearly marks `unread' and `recent' messages
+    \item Mail client marks the message as `read' on the server
+    \end{itemize}
+  \end{multicols}
 
 \end{enumerate}
 
@@ -122,5 +169,29 @@ If time constraints permit, TLS authentication and encryption will be implemente
 
 \section*{List of Messages}
 
+Client commands:
+
+\$folder, \$username and \$password should be fairly obvious from context. \$msgid is the sequence number of a message in a selected folder. \$items indicate a range of possible values which indicate different subsets of a message. \$flags indicate a list of the possible flags which may be set on a message. \{\} indicate a list of possible values; () indicate optional values.
+
+\begin{itemize}
+\item LOGIN \$username \$password
+\item SELECT \$folder
+\item CREATE \$folder
+\item DELETE \$folder
+\item CLOSE
+\item FETCH \$msgid \$items
+\item STORE \{,+,-\}FLAGS(.SILENT) \$flags
+\end{itemize}
+
+Server responses:
+
+\$command is the client command being responded to. \$success is a success message; \$error is an error message.
+
+\begin{itemize}
+\item OK \$command \$success
+\item NO \$command \$error
+\item BAD \$error
+\item BYE
+\end{itemize}
 
 \end{document}
