@@ -7,22 +7,22 @@ extern crate serialize;
 extern crate toml;
 
 pub use config::Config;
-pub use conn::ClientConn;
 pub use email::Email;
-pub use user::User;
-pub use server::Server;
 pub use login::LoginData;
+pub use server::Server;
+pub use session::Session;
+pub use user::User;
 
 use std::io::{Listener, Acceptor, BufferedStream};
 use std::comm::channel;
 
 mod auth;
 mod config;
-mod conn;
 mod email;
 mod error;
 mod login;
 mod server;
+mod session;
 mod user;
 
 /// The file in which user data is stored.
@@ -55,8 +55,8 @@ fn main() {
                         let (req_sendr, req_recvr): (Sender<LoginData>, Receiver<LoginData>) = channel();
                         let (res_sendr, res_recvr): (Sender<Option<String>>, Receiver<Option<String>>) = channel();
                         spawn(proc() {
-                            let mut client_conn = ClientConn::new(BufferedStream::new(stream), req_sendr, res_recvr);
-                            client_conn.handle();
+                            let mut session = Session::new(BufferedStream::new(stream), req_sendr, res_recvr);
+                            session.handle();
                         });
                         for msg in req_recvr.iter() {
                             match serv.users.find(&msg.email) {

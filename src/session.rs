@@ -6,7 +6,7 @@ use std::comm::{Sender, Receiver};
 
 use login::LoginData;
 
-pub struct ClientConn {
+pub struct Session {
     stream: BufferedStream<TcpStream>,
     sendr: Sender<LoginData>,
     recvr: Receiver<Option<String>>,
@@ -14,9 +14,9 @@ pub struct ClientConn {
     // folder: Option<Folder>
 }
 
-impl ClientConn {
-    pub fn new(stream: BufferedStream<TcpStream>, sendr: Sender<LoginData>, recvr: Receiver<Option<String>>) -> ClientConn {
-        ClientConn {
+impl Session {
+    pub fn new(stream: BufferedStream<TcpStream>, sendr: Sender<LoginData>, recvr: Receiver<Option<String>>) -> Session {
+        Session {
             stream: stream,
             sendr: sendr,
             recvr: recvr,
