@@ -12,7 +12,7 @@ pub use user::User;
 pub use server::Server;
 pub use conn::ClientConn;
 
-use std::io::{Listener, Acceptor};
+use std::io::{Listener, Acceptor, BufferedStream};
 
 mod auth;
 mod config;
@@ -37,23 +37,23 @@ fn main() {
 
     let serv = Server::new(config, users);
     match serv.imap_listener() {
-          Err(_) => {
-                 println!("Error listening on IMAP port!");
-          }
-          Ok(v) => {
-                let mut acceptor = v.listen();
-                for stream in acceptor.incoming() {
-                    match stream {
-                          Err(e) => {
-                                 println!("Error accepting incoming connection!")
-                          }
-                          Ok(stream) => spawn(proc() {
-                              let mut client_conn = ClientConn::new(stream);
-                              client_conn.handle();
-                          })
+        Err(_) => {
+            println!("Error listening on IMAP port!");
+        }
+        Ok(v) => {
+            let mut acceptor = v.listen();
+            for stream in acceptor.incoming() {
+                match stream {
+                    Err(e) => {
+                        println!("Error accepting incoming connection!")
                     }
+                    Ok(stream) => spawn(proc() {
+                        let mut client_conn = ClientConn::new(BufferedStream::new(stream));
+                        client_conn.handle();
+                    })
                 }
-                drop(acceptor);
-          }
+            }
+            drop(acceptor);
+        }
     }
 }
