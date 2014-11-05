@@ -25,28 +25,6 @@ fn main() {
     // Load configuration.
     let config = Config::new();
 
-    // Load user data.
-    let mut users: Vec<User> = Vec::new();
-
-    // Save an example user data file.
-    users.push(User::new(
-        Email {
-            local_part: "nikitapekin".to_string(),
-            domain_part: "gmail.com".to_string()
-        },
-        "12345".to_string(),
-        "~/.maildir".to_string()
-    ));
-    users.push(User::new(
-        Email {
-            local_part: "willpearson".to_string(),
-            domain_part: "xqz.ca".to_string()
-        },
-        "54321".to_string(),
-        "~/.maildir".to_string()
-    ));
-    user::save_users("./users.json.example".to_string(), users);
-
     // Load the user data from the user data file.
     // TODO: figure out what to do for error handling.
     let users = user::load_users(USER_DATA_FILE.to_string()).unwrap();
