@@ -5,9 +5,9 @@ use toml::{decode_str, encode_str};
 
 #[deriving(Decodable, Encodable, Show)]
 pub struct Config {
-    host: String,
-    lmtp_port: u16,
-    imap_port: u16,
+    pub host: String,
+    pub lmtp_port: u16,
+    pub imap_port: u16,
     uid: String
 }
 

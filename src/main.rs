@@ -9,12 +9,18 @@ extern crate toml;
 pub use config::Config;
 pub use email::Email;
 pub use user::User;
+pub use server::Server;
+pub use conn::ClientConn;
+
+use std::io::{Listener, Acceptor};
 
 mod auth;
 mod config;
 mod email;
 mod error;
 mod user;
+mod server;
+mod conn;
 
 /// The file in which user data is stored.
 // TODO: add the ability for the user to specify the user data file as an
@@ -29,7 +35,25 @@ fn main() {
     // TODO: figure out what to do for error handling.
     let users = user::load_users(USER_DATA_FILE.to_string()).unwrap();
 
-    // Avoid unused variable notices temporarily.
-    println!("Config: {}", config);
-    println!("Users: {}", users);
+    let serv = Server::new(config, users);
+    match serv.imap_listener() {
+          Err(_) => {
+                 println!("Error listening on IMAP port!");
+          }
+          Ok(v) => {
+                let mut acceptor = v.listen();
+                for stream in acceptor.incoming() {
+                    match stream {
+                          Err(e) => {
+                                 println!("Error accepting incoming connection!")
+                          }
+                          Ok(stream) => spawn(proc() {
+                              let mut client_conn = ClientConn::new(stream);
+                              client_conn.handle();
+                          })
+                    }
+                }
+                drop(acceptor);
+          }
+    }
 }

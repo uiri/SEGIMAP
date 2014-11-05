@@ -12,7 +12,7 @@ use error::{
 #[deriving(Decodable, Encodable, Show)]
 pub struct User {
     /// The email address through which the user logs in.
-    email: Email,
+    pub email: Email,
     /// The authentication data the used to verify the user's identity.
     auth_data: AuthData,
     /// The root directory in which the user's mail is stored.
