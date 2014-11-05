@@ -1,6 +1,7 @@
 use std::io::TcpStream;
 use std::io::{Buffer, BufferedStream};
 use std::str::StrSlice;
+use std::ascii::AsciiStr;
 
 use user::User;
 
@@ -41,11 +42,10 @@ impl ClientConn {
     fn interpret(&mut self, command: &str) -> String {
         let mut args = command.split(' ');
         match args.nth(0) {
-            Some(cmd) => {
-                if cmd == "hello" {
-                    return "OK\n".to_string()
-                }
+            Some(cmd) if cmd.len() == "login".len() && cmd.to_ascii().eq_ignore_case("login".to_ascii()) => {
+                return "OK\n".to_string()
             }
+            Some(_) => {}
             None => {}
         }
         "BAD Invalid command\n".to_string()
