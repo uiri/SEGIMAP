@@ -50,33 +50,28 @@ impl Session {
         let tag = args.next().unwrap();
         let bad_res = format!("{} BAD Invalid command\r\n", tag);
         match args.next() {
-            Some(cmd) if cmd.len() == "login".len() && cmd.to_ascii().eq_ignore_case("login".to_ascii()) => {
-                match args.next() {
-                    Some(email) => {
-                        match args.next() {
-                            Some(password) => {
-                                let no_res  = format!("{} NO invalid username or password\r\n", tag);
-                                match LoginData::new(email.to_string(), password.to_string()) {
-                                    Some(login_data) => {
-                                        self.sendr.send(login_data);
-                                        self.maildir = self.recvr.recv();
-                                        match self.maildir {
-                                            Some(_) => {
-                                                return format!("{} OK logged in successfully as {}\r\n", tag, email);
-                                            }
-                                            None => { return no_res; }
-                                        }
-                                    }
-                                    None => { return no_res; }
+            Some(cmd) => {
+                if cmd.len() == "login".len() && cmd.to_ascii().eq_ignore_case("login".to_ascii()) {
+                    let login_args: Vec<&str> = args.collect();
+                    if login_args.len() < 2 { return bad_res; }
+                    let email = login_args[0];
+                    let password = login_args[1];
+                    let no_res  = format!("{} NO invalid username or password\r\n", tag);
+                    match LoginData::new(email.to_string(), password.to_string()) {
+                        Some(login_data) => {
+                            self.sendr.send(login_data);
+                            self.maildir = self.recvr.recv();
+                            match self.maildir {
+                                Some(_) => {
+                                    return format!("{} OK logged in successfully as {}\r\n", tag, email);
                                 }
+                                None => { return no_res; }
                             }
-                            None => { return bad_res; }
                         }
+                        None => { return no_res; }
                     }
-                    None => { return bad_res; }
                 }
             }
-            Some(_) => {}
             None => {}
         }
         bad_res
