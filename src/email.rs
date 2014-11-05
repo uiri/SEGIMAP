@@ -1,4 +1,5 @@
+#[deriving(Decodable, Encodable, Show)]
 pub struct Email {
-    local_part: String,
-    domain_part: String
+    pub local_part: String,
+    pub domain_part: String
 }
