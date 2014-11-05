@@ -9,7 +9,7 @@ use user::User;
 
 pub struct Server {
     conf: Config,
-    users: HashMap<Email, User>
+    pub users: HashMap<Email, User>
 }
 
 impl Server {

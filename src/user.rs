@@ -14,19 +14,19 @@ pub struct User {
     /// The email address through which the user logs in.
     pub email: Email,
     /// The authentication data the used to verify the user's identity.
-    auth_data: AuthData,
+    pub auth_data: AuthData,
     /// The root directory in which the user's mail is stored.
-    mail_dir: String
+    pub maildir: String
 }
 
 impl User {
     /// Creates a new user from a provided email, plaintext password, and root
     /// mail directory.
-    pub fn new(email: Email, password: String, mail_dir: String) -> User {
+    pub fn new(email: Email, password: String, maildir: String) -> User {
         User {
             email: email,
             auth_data: AuthData::new(password),
-            mail_dir: mail_dir
+            maildir: maildir
         }
     }
 }

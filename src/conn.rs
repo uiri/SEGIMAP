@@ -2,20 +2,25 @@ use std::io::TcpStream;
 use std::io::{Buffer, BufferedStream};
 use std::str::StrSlice;
 use std::ascii::AsciiStr;
+use std::comm::{Sender, Receiver};
 
-use user::User;
+use login::LoginData;
 
 pub struct ClientConn {
     stream: BufferedStream<TcpStream>,
-    user: Option<User>,
-    // folder: Folder
+    sendr: Sender<LoginData>,
+    recvr: Receiver<Option<String>>,
+    maildir: Option<String>,
+    // folder: Option<Folder>
 }
 
 impl ClientConn {
-    pub fn new(stream: BufferedStream<TcpStream>) -> ClientConn {
+    pub fn new(stream: BufferedStream<TcpStream>, sendr: Sender<LoginData>, recvr: Receiver<Option<String>>) -> ClientConn {
         ClientConn {
             stream: stream,
-            user: None
+            sendr: sendr,
+            recvr: recvr,
+            maildir: None
         }
     }
     pub fn handle(&mut self) {
@@ -39,15 +44,41 @@ impl ClientConn {
             }
         }
     }
+
     fn interpret(&mut self, command: &str) -> String {
-        let mut args = command.split(' ');
-        match args.nth(0) {
+        let mut args = command.trim().split(' ');
+        let tag = args.next().unwrap();
+        let bad_res = format!("{} BAD Invalid command\r\n", tag);
+        match args.next() {
             Some(cmd) if cmd.len() == "login".len() && cmd.to_ascii().eq_ignore_case("login".to_ascii()) => {
-                return "OK\n".to_string()
+                match args.next() {
+                    Some(email) => {
+                        match args.next() {
+                            Some(password) => {
+                                let no_res  = format!("{} NO invalid username or password\r\n", tag);
+                                match LoginData::new(email.to_string(), password.to_string()) {
+                                    Some(login_data) => {
+                                        self.sendr.send(login_data);
+                                        self.maildir = self.recvr.recv();
+                                        match self.maildir {
+                                            Some(_) => {
+                                                return format!("{} OK logged in successfully as {}\r\n", tag, email);
+                                            }
+                                            None => { return no_res; }
+                                        }
+                                    }
+                                    None => { return no_res; }
+                                }
+                            }
+                            None => { return bad_res; }
+                        }
+                    }
+                    None => { return bad_res; }
+                }
             }
             Some(_) => {}
             None => {}
         }
-        "BAD Invalid command\n".to_string()
+        bad_res
     }
 }
