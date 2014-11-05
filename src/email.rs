@@ -1,4 +1,4 @@
 pub struct Email {
-    localPart: String,
-    domainPart: String
+    local_part: String,
+    domain_part: String
 }
