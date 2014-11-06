@@ -6,6 +6,15 @@ use std::comm::{Sender, Receiver};
 
 use login::LoginData;
 
+macro_rules! return_on_err(
+    ($inp:expr) => {
+        match $inp {
+            Err(_) => { return; }
+            _ => {}
+        }
+    }
+)
+
 static GREET: &'static [u8] = b"* OK Server ready.\r\n";
 
 pub struct Session {
@@ -29,14 +38,8 @@ impl Session {
     }
 
     pub fn handle(&mut self) {
-        match self.stream.write(GREET) {
-            Err(_) => { return; }
-            _ => {}
-        }
-        match self.stream.flush() {
-            Err(_) => { return; }
-            _ => {}
-        }
+        return_on_err!(self.stream.write(GREET));
+        return_on_err!(self.stream.flush());
         loop {
             match self.stream.read_line() {
                 Ok(command) => {
@@ -44,14 +47,8 @@ impl Session {
                         return;
                     }
                     let res = self.interpret(command.as_slice());
-                    match self.stream.write(res.as_bytes()) {
-                        Err(_) => { return; }
-                        _ => {}
-                    }
-                    match self.stream.flush() {
-                        Err(_) => { return; }
-                        _ => {}
-                    }
+                    return_on_err!(self.stream.write(res.as_bytes()));
+                    return_on_err!(self.stream.flush());
                     if self.logout {
                         return;
                     }
