@@ -74,13 +74,13 @@ impl Session {
                         match LoginData::new(email.to_string(), password.to_string()) {
                             Some(login_data) => {
                                 self.sendr.send(login_data);
-                                self.maildir = self.recvr.recv();
-                                match self.maildir {
-                                    Some(_) => {
-                                        return format!("{} OK logged in successfully as {}\r\n", tag, email);
-                                    }
-                                    None => { return no_res; }
-                                }
+                            }
+                            None => { return no_res; }
+                        }
+                        self.maildir = self.recvr.recv();
+                        match self.maildir {
+                            Some(_) => {
+                                return format!("{} OK logged in successfully as {}\r\n", tag, email);
                             }
                             None => { return no_res; }
                         }
@@ -89,11 +89,84 @@ impl Session {
                         self.logout = true;
                         return format!("* BYE Server logging out\r\n{} OK Server logged out\r\n", tag);
                     }
+                    "select" => {
+                        let select_args: Vec<&str> = args.collect();
+                        if select_args.len() < 1 { return bad_res; }
+                        let mailbox_name = select_args[0];
+                        // match magic_mailbox_test(mailbox_name) {
+                        //     Some(mbox) => {
+                        //         self.folder = mbox;
+                        //     }
+                        //     None => {
+                        //         self.folder = None;
+                        //         return format!("{} NO error finding mailbox", tag);
+                        //     }
+                        // }
+                        /* Use self.folder here... */
+                        // * Flags
+                        // * <n> EXISTS
+                        // * <n> RECENT
+                        // * OK UNSEEN
+                        // * OK PERMANENTFLAGS
+                        // * OK UIDNEXT
+                        // * OK UIDVALIDITY
+                        return format!("{} OK unimplemented", tag);
+                    }
+                    "create" => {
+                        let create_args: Vec<&str> = args.collect();
+                        if create_args.len() < 1 { return bad_res; }
+                        let mailbox_name = create_args[0];
+                        // match magic_mailbox_create(mailbox_name.to_string()) {
+                        //     Ok(_) => {
+                        //         return format!("{} OK create completed", tag);
+                        //     }
+                        //     Err(_) => {
+                        //         return format!("{} OK create failed", tag);
+                        //     }
+                        // }
+                        return format!("{} OK unimplemented", tag);
+                    }
+                    "delete" => {
+                        let delete_args: Vec<&str> = args.collect();
+                        if delete_args.len() < 1 { return bad_res; }
+                        let mailbox_name = delete_args[0];
+                        // match magic_mailbox_delete(mailbox_name.to_string()) {
+                        //     Ok(_) => {
+                        //         return format!("{} OK delete completed", tag);
+                        //     }
+                        //     Err(_) => {
+                        //         return format!("{} OK delete failed", tag);
+                        //     }
+                        // }
+                        return format!("{} OK unimplemented", tag);
+                    }
+                    "close" => {
+                        // ignores list of expunge responses
+                        self.close();
+                        return format!("{} OK close completed", tag);
+                    }
+                    "expunge" => {
+                        // actually uses list of expunge responses
+                        self.close();
+                        return format!("{} OK expunge completed", tag);
+                    }
+                    "fetch" => {
+                        return format!("{} OK unimplemented", tag);
+                    }
                     _ => { return bad_res; }
                 }
             }
             None => {}
         }
         bad_res
+    }
+
+    // should generate list of sequence numbers that were deleted
+    fn close(&self) {
+        // match self.folder {
+        //     None => {return;}
+        //     _ => {}
+        // }
+        return;
     }
 }
