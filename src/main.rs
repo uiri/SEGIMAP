@@ -6,9 +6,12 @@ extern crate "rust-crypto" as crypto;
 extern crate serialize;
 extern crate toml;
 
+use std::io::File;
+
 pub use config::Config;
 pub use email::Email;
 pub use login::LoginData;
+pub use message::Message;
 pub use server::Server;
 pub use session::Session;
 pub use user::User;
@@ -22,6 +25,7 @@ mod email;
 mod error;
 mod folder;
 mod login;
+mod message;
 mod server;
 mod session;
 mod user;
@@ -38,6 +42,13 @@ fn main() {
     // Load the user data from the user data file.
     // TODO: figure out what to do for error handling.
     let users = user::load_users(USER_DATA_FILE.to_string()).unwrap();
+
+    let mail_file = File::open(&Path::new("./mail.example")).unwrap().read_to_end().unwrap();
+    let message = Message::parse(String::from_utf8_lossy(mail_file.as_slice()).to_string());
+
+    // Avoid unused variable notices temporarily.
+    println!("Config: {}", config);
+    println!("Users: {}", users);
 
     let serv = Arc::new(Server::new(config, users));
     match serv.imap_listener() {
