@@ -8,28 +8,31 @@ pub struct Folder {
 }
 
 macro_rules! make_vec_path(
-    ($path:ident, $inp:ident) => {
+    ($path:ident, $inp:ident, $next:expr) => ({
         match fs::readdir(&($path.join("$inp"))) {
             Err(_) => { return None; }
-            Ok(res) => { $inp = res; }
+            Ok(res) => {
+                let $inp = res;
+                $next
+            }
         }
-    };
+    });
 )
 
 impl Folder {
     pub fn new(name: String, path_str: String) -> Option<Folder> {
         let path = Path::new(path_str);
-        let mut cur = Vec::new();
-        make_vec_path!(path, cur);
-        let mut new = Vec::new();
-        make_vec_path!(path, new);
-        let mut tmp = Vec::new();
-        make_vec_path!(path, tmp);
-        return Some(Folder {
-            name: name,
-            cur: cur,
-            new: new,
-            tmp: tmp
-        });
+        make_vec_path!(path, cur,
+            make_vec_path!(path, new,
+                make_vec_path!(path, tmp,
+                    return Some(Folder {
+                        name: name,
+                        cur: cur,
+                        new: new,
+                        tmp: tmp
+                    })
+                )
+            )
+        );
     }
 }
