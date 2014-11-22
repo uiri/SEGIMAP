@@ -2,9 +2,12 @@ use std::io::TcpStream;
 use std::io::{Buffer, BufferedStream};
 use std::str::StrSlice;
 use std::ascii::OwnedAsciiExt;
-use std::comm::{Sender, Receiver};
+use std::sync::Arc;
 
 use login::LoginData;
+
+pub use folder::Folder;
+pub use server::Server;
 
 macro_rules! return_on_err(
     ($inp:expr) => {
@@ -19,21 +22,20 @@ static GREET: &'static [u8] = b"* OK Server ready.\r\n";
 
 pub struct Session {
     stream: BufferedStream<TcpStream>,
-    sendr: Sender<LoginData>,
-    recvr: Receiver<Option<String>>,
+    serv: Arc<Server>,
     logout: bool,
     maildir: Option<String>,
-    // folder: Option<Folder>
+    folder: Option<Folder>
 }
 
 impl Session {
-    pub fn new(stream: BufferedStream<TcpStream>, sendr: Sender<LoginData>, recvr: Receiver<Option<String>>) -> Session {
+    pub fn new(stream: BufferedStream<TcpStream>, serv: Arc<Server>) -> Session {
         Session {
             stream: stream,
-            sendr: sendr,
-            recvr: recvr,
+            serv: serv,
             logout: false,
-            maildir: None
+            maildir: None,
+            folder: None
         }
     }
 
@@ -73,11 +75,19 @@ impl Session {
                         let no_res  = format!("{} NO invalid username or password\r\n", tag);
                         match LoginData::new(email.to_string(), password.to_string()) {
                             Some(login_data) => {
-                                self.sendr.send(login_data);
+                                match self.serv.users.find(&login_data.email) {
+                                    Some(user) => {
+                                        if user.auth_data.verify_auth(login_data.password) {
+                                            self.maildir = Some(user.maildir.as_slice().to_string());
+                                        } else {
+                                            self.maildir = None;
+                                        }
+                                    }
+                                    None => { self.maildir = None; }
+                                }
                             }
                             None => { return no_res; }
                         }
-                        self.maildir = self.recvr.recv();
                         match self.maildir {
                             Some(_) => {
                                 return format!("{} OK logged in successfully as {}\r\n", tag, email);
@@ -163,10 +173,10 @@ impl Session {
 
     // should generate list of sequence numbers that were deleted
     fn close(&self) {
-        // match self.folder {
-        //     None => {return;}
-        //     _ => {}
-        // }
+        match self.folder {
+            None => {return;}
+            _ => {}
+        }
         return;
     }
 }

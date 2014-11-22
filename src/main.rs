@@ -14,12 +14,13 @@ pub use session::Session;
 pub use user::User;
 
 use std::io::{Listener, Acceptor, BufferedStream};
-use std::comm::channel;
+use std::sync::Arc;
 
 mod auth;
 mod config;
 mod email;
 mod error;
+mod folder;
 mod login;
 mod server;
 mod session;
@@ -38,7 +39,7 @@ fn main() {
     // TODO: figure out what to do for error handling.
     let users = user::load_users(USER_DATA_FILE.to_string()).unwrap();
 
-    let serv = Server::new(config, users);
+    let serv = Arc::new(Server::new(config, users));
     match serv.imap_listener() {
         Err(_) => {
             println!("Error listening on IMAP port!");
@@ -46,30 +47,16 @@ fn main() {
         Ok(v) => {
             let mut acceptor = v.listen();
             for stream in acceptor.incoming() {
-                
                 match stream {
                     Err(e) => {
                         println!("Error accepting incoming connection!")
                     }
                     Ok(stream) => {
-                        let (req_sendr, req_recvr): (Sender<LoginData>, Receiver<LoginData>) = channel();
-                        let (res_sendr, res_recvr): (Sender<Option<String>>, Receiver<Option<String>>) = channel();
+                        let session_serv = serv.clone();
                         spawn(proc() {
-                            let mut session = Session::new(BufferedStream::new(stream), req_sendr, res_recvr);
+                            let mut session = Session::new(BufferedStream::new(stream), session_serv);
                             session.handle();
                         });
-                        for msg in req_recvr.iter() {
-                            match serv.users.find(&msg.email) {
-                                Some(user) => {
-                                    if user.auth_data.verify_auth(msg.password) {
-                                        res_sendr.send(Some(user.maildir.as_slice().to_string()));
-                                    } else {
-                                        res_sendr.send(None);
-                                    }
-                                }
-                                None => { res_sendr.send(None); }
-                            }
-                        }
                     }
                 }
             }
