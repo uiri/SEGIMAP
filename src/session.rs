@@ -102,16 +102,18 @@ impl Session {
                     "select" => {
                         let select_args: Vec<&str> = args.collect();
                         if select_args.len() < 1 { return bad_res; }
+                        match self.maildir {
+                            None => { return bad_res; }
+                            _ => {}
+                        }
                         let mailbox_name = select_args[0];
-                        // match magic_mailbox_test(mailbox_name) {
-                        //     Some(mbox) => {
-                        //         self.folder = mbox;
-                        //     }
-                        //     None => {
-                        //         self.folder = None;
-                        //         return format!("{} NO error finding mailbox", tag);
-                        //     }
-                        // }
+                        self.folder =  self.select_mailbox(mailbox_name);
+                        match self.folder {
+                            None => {
+                                return format!("{} NO error finding mailbox", tag);
+                            }
+                            _ => {}
+                        }
                         /* Use self.folder here... */
                         // * Flags
                         // * <n> EXISTS
@@ -178,5 +180,15 @@ impl Session {
             _ => {}
         }
         return;
+    }
+
+    fn select_mailbox(&self, mailbox_name: &str) -> Option<Folder> {
+        match self.maildir {
+            None => {return None;}
+            Some(ref mdir) => {
+                let mbox_name = regex!("INBOX").replace(mailbox_name, ".");
+                return Folder::new("name".to_string(), None, Path::new(mdir.as_slice()).join(mbox_name));
+            }
+        }
     }
 }

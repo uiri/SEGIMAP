@@ -2,9 +2,10 @@ use std::io::fs;
 
 pub struct Folder {
     pub name: String,
-    pub cur: Vec<Path>,
-    pub new: Vec<Path>,
-    pub tmp: Vec<Path>
+    pub owner: Option<Box<Folder>>,
+    cur: Vec<Path>,
+    new: Vec<Path>,
+    tmp: Vec<Path>
 }
 
 macro_rules! make_vec_path(
@@ -20,13 +21,13 @@ macro_rules! make_vec_path(
 )
 
 impl Folder {
-    pub fn new(name: String, path_str: String) -> Option<Folder> {
-        let path = Path::new(path_str);
+    pub fn new(name: String, owner: Option<Box<Folder>>, path: Path) -> Option<Folder> {
         make_vec_path!(path, cur,
             make_vec_path!(path, new,
                 make_vec_path!(path, tmp,
                     return Some(Folder {
                         name: name,
+                        owner: owner,
                         cur: cur,
                         new: new,
                         tmp: tmp
