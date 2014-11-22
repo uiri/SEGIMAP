@@ -1,0 +1,83 @@
+Return-Path: <tcl@eecs.uottawa.ca>
+X-Original-To: will@localhost
+Delivered-To: will@localhost
+Received: from coruscant.xqz.ca (localhost [127.0.0.1])
+	by j.xqz.ca (Postfix) with ESMTP id D7FC91172055
+	for <will@localhost>; Sat,  1 Nov 2014 15:54:33 -0400 (EDT)
+Delivered-To: wpear089@g.uottawa.ca
+Received: from gmail-pop.l.google.com [64.233.181.108]
+	by coruscant.xqz.ca with POP3 (fetchmail-6.3.21)
+	for <will@localhost> (single-drop); Sat, 01 Nov 2014 15:54:33 -0400 (EDT)
+Received: by 10.140.96.70 with SMTP id j64csp13894qge;
+        Sat, 1 Nov 2014 12:34:24 -0700 (PDT)
+X-Received: by 10.43.161.199 with SMTP id mh7mr3219130icc.65.1414870464285;
+        Sat, 01 Nov 2014 12:34:24 -0700 (PDT)
+Received: from mx12.uottawa.ca (mx12.uottawa.ca. [137.122.6.150])
+        by mx.google.com with ESMTP id n6si3263846igk.26.2014.11.01.12.34.23
+        for <wpear089@g.uottawa.ca>;
+        Sat, 01 Nov 2014 12:34:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of tcl@eecs.uottawa.ca designates 137.122.6.246 as permitted sender) client-ip=137.122.6.246;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of tcl@eecs.uottawa.ca designates 137.122.6.246 as permitted sender) smtp.mail=tcl@eecs.uottawa.ca
+Received: from localhost (unknown [127.0.0.1])
+	by mx12.uottawa.ca (Postfix) with ESMTP id 68840110E4E
+	for <wpear089@g.uottawa.ca>; Sat,  1 Nov 2014 19:34:23 +0000 (UTC)
+X-Virus-Scanned: amavisd-new at uottawa.ca
+Received: from mx6.uottawa.ca ([137.122.6.246])
+	by localhost (mx12.uottawa.ca [137.122.6.150]) (amavisd-new, port 10024)
+	with ESMTP id XROogV9xTVul for <wpear089@g.uottawa.ca>;
+	Sat,  1 Nov 2014 15:34:23 -0400 (EDT)
+Received: from courriel.site.uottawa.ca (eecsmail.engineering.uottawa.ca [137.122.24.224])
+	by mx6.uottawa.ca (Postfix) with ESMTP id 5355B118015
+	for <wpear089@uottawa.ca>; Sat,  1 Nov 2014 15:34:23 -0400 (EDT)
+Received: from [10.0.1.6] (CPEb88d125bcf4a-CM0012c9db37d0.cpe.net.cable.rogers.com [99.224.154.97])
+	(authenticated bits=0)
+	by courriel.site.uottawa.ca (8.14.5/8.14.5) with ESMTP id sA1JYKmv036714
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-SHA bits=256 verify=NOT);
+	Sat, 1 Nov 2014 15:34:21 -0400 (EDT)
+	(envelope-from tcl@eecs.uottawa.ca)
+Date: Sat, 1 Nov 2014 15:34:20 -0400 (EDT)
+From: Timothy Lethbridge <tcl@eecs.uottawa.ca>
+X-X-Sender: tcl@tcl-76.local
+To: William Pearson <wpear089@uottawa.ca>
+cc: Opeyemi Adesina <opeyemi.adesina@gmail.com>
+Subject: Re: SEG2105A Assignment 5 Existing Client Software
+In-Reply-To: <20141101184814.GA14333@xqz.ca>
+Message-ID: <alpine.OSX.1.10.1411011534020.83131@tcl-76.local>
+References: <20141101184814.GA14333@xqz.ca>
+User-Agent: Alpine 1.10 (OSX 962 2008-03-14)
+MIME-Version: 1.0
+Content-Type: MULTIPART/MIXED; BOUNDARY="0-1655256208-1414870461=:83131"
+Received-On-Date: Sat Nov  1 15:54:33 EDT 2014
+
+  This message is in MIME format.  The first part should be readable text,
+  while the remaining parts are likely unreadable without MIME-aware tools.
+
+--0-1655256208-1414870461=:83131
+Content-Type: TEXT/PLAIN; charset=ISO-8859-15; format=flowed
+Content-Transfer-Encoding: 8BIT
+
+Yes,
+
+I will permit this. But IMAP and PHP are pretty complicated ...
+
+On Sat, 1 Nov 2014, William Pearson wrote:
+
+> Hi Dr Lethbridge,
+>
+> In the assignment description, you say that it is permissible to use a web browser as the client if our project is a web application. If the project is the server implementation of an existing protocol (e.g. IMAP, POP3, etc.), is it permissible to use an existing mail client for the client portion? Assuming, of course, that the server side is complicated enough to satisfy the other requirements of the project.
+>
+> Thanks,
+> -William
+>
+
+
+Timothy C. Lethbridge, PhD, P.Eng., I.S.P., CSDP
+Professor of Software Engineering and Computer Science
+/ Professeur Titulaire de génie logiciel et d'informatique
+and Vice-Dean (governance) / et vice-doyen (gouvernance)
+Faculté de genie / Faculty of Engineering
+University of Ottawa / Université d'Ottawa
+Tel: 613-562-5800x6685   Fax: 613-562-5664    Mobile: 613-252-1850
+http://www.eecs.uottawa.ca/~tcl
+--0-1655256208-1414870461=:83131--
