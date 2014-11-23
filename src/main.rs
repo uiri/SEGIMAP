@@ -56,15 +56,15 @@ fn main() {
 
     let serv = Arc::new(Server::new(config, users));
     match serv.imap_listener() {
-        Err(_) => {
-            println!("Error listening on IMAP port!");
+        Err(e) => {
+            error!("Error listening on IMAP port: {}", e);
         }
         Ok(v) => {
             let mut acceptor = v.listen();
             for stream in acceptor.incoming() {
                 match stream {
                     Err(e) => {
-                        println!("Error accepting incoming connection!")
+                        error!("Error accepting incoming connection: {}", e)
                     }
                     Ok(stream) => {
                         let session_serv = serv.clone();
