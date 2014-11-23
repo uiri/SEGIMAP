@@ -16,9 +16,11 @@ enum Flag {
 #[deriving(Show)]
 pub struct Message {
     uid: u32,
+    pub path: String,
     headers: HashMap<String, String>,
     body: Vec<MIMEPart>,
     flags: Vec<Flag>,
+    pub deleted: bool,
     raw_contents: String
 }
 
@@ -29,9 +31,9 @@ pub struct MIMEPart {
 }
 
 impl Message {
-    pub fn parse(path: &Path) -> ImapResult<Message> {
+    pub fn parse(arg_path: &Path) -> ImapResult<Message> {
         // Load the file contents.
-        let file = match File::open(path) {
+        let file = match File::open(arg_path) {
             Ok(mut file) => match file.read_to_end() {
                 Ok(contents) => contents,
                 Err(e) => return Err(Error::simple(InternalIoError(e), "Failed to read mail file."))
@@ -40,7 +42,7 @@ impl Message {
         };
         let raw_contents = String::from_utf8_lossy(file.as_slice()).to_string();
 
-        let mut path = path.filename_str().unwrap().splitn(1, ':');
+        let mut path = arg_path.filename_str().unwrap().splitn(1, ':');
         let filename = path.next().unwrap();
         let flags = path.next().unwrap();
 
@@ -156,9 +158,11 @@ impl Message {
 
         let message = Message {
             uid: uid,
+            path: arg_path.display().to_string(),
             headers: headers,
             body: body,
             flags: flags,
+            deleted: false,
             raw_contents: raw_contents.clone()
         };
 

@@ -95,9 +95,20 @@ impl Folder {
         self.recent
     }
 
-    pub fn close(&self) {
+    pub fn close(&self) -> Vec<uint> {
+        let mut result = Vec::new();
+        let mut index = 0u;
+        while index < self.messages.len() {
+            if self.messages[index].deleted {
+                match fs::unlink(&Path::new(self.messages[index].path.clone())) { _ => {} }
+                result.push(index);
+            } else {
+                index = index + 1;
+            }
+        }
         // Get rustc to STFU with this match block
         match fs::unlink(&self.path.join(".lock")) { _ => {} }
+        return result;
     }
 }
 

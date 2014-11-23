@@ -41,6 +41,12 @@ fn main() {
     // Load configuration.
     let config = Config::new();
 
+    // let mut users = Vec::new();
+    // users.push(User::new(Email::new("will".to_string(), "xqz.ca".to_string()), "54321".to_string(), "./maildir".to_string()));
+    // users.push(User::new(Email::new("nikitapekin".to_string(), "gmail.com".to_string()), "12345".to_string(), "./maildir".to_string()));
+
+    // user::save_users(USER_DATA_FILE.to_string(), users);
+
     // Load the user data from the user data file.
     // TODO: figure out what to do for error handling.
     let users = user::load_users(USER_DATA_FILE.to_string()).unwrap();
@@ -79,3 +85,4 @@ fn main() {
         }
     }
 }
+

@@ -67,12 +67,16 @@ impl Session {
         let bad_res = format!("{} BAD Invalid command\r\n", tag);
         match args.next() {
             Some(cmd) => {
+                warn!("Cmd: {}", command);
                 match cmd.to_string().into_ascii_lower().as_slice() {
+                    "capability" => {
+                        return format!("* CAPABILITY IMAP4rev1\n{} OK Capability successful\n", tag);
+                    }
                     "login" => {
                         let login_args: Vec<&str> = args.collect();
                         if login_args.len() < 2 { return bad_res; }
-                        let email = login_args[0];
-                        let password = login_args[1];
+                        let email = login_args[0].trim_chars('"');
+                        let password = login_args[1].trim_chars('"');
                         let no_res  = format!("{} NO invalid username or password\r\n", tag);
                         match LoginData::new(email.to_string(), password.to_string()) {
                             Some(login_data) => {
@@ -109,7 +113,7 @@ impl Session {
                     "select" => {
                         let select_args: Vec<&str> = args.collect();
                         if select_args.len() < 1 { return bad_res; }
-                        let mailbox_name = select_args[0];
+                        let mailbox_name = select_args[0].trim_chars('"'); // "
                         match self.maildir {
                             None => { return bad_res; }
                             _ => {}
@@ -138,7 +142,7 @@ impl Session {
                     "create" => {
                         let create_args: Vec<&str> = args.collect();
                         if create_args.len() < 1 { return bad_res; }
-                        let mailbox_name = create_args[0];
+                        let mailbox_name = create_args[0].trim_chars('"'); // "
                         // match magic_mailbox_create(mailbox_name.to_string()) {
                         //     Ok(_) => {
                         //         return format!("{} OK create completed", tag);
@@ -152,7 +156,7 @@ impl Session {
                     "delete" => {
                         let delete_args: Vec<&str> = args.collect();
                         if delete_args.len() < 1 { return bad_res; }
-                        let mailbox_name = delete_args[0];
+                        let mailbox_name = delete_args[0].trim_chars('"'); // "
                         // match magic_mailbox_delete(mailbox_name.to_string()) {
                         //     Ok(_) => {
                         //         return format!("{} OK delete completed", tag);
@@ -164,26 +168,28 @@ impl Session {
                         return format!("{} OK unimplemented\n", tag);
                     }
                     "close" => {
-                        match self.close() {
-                            Err(_) => { return bad_res; }
-                            Ok(_) => {
-                                return format!("{} OK close completed\n", tag);
-                            }
+                        return match self.close() {
+                            Err(_) => bad_res,
+                            Ok(_) => format!("{} OK close completed\n", tag)
                         }
                     }
                     "expunge" => {
                         match self.close() {
                             Err(_) => { return bad_res; }
-                            Ok(_) => {
-                                return format!("{} OK expunge completed", tag);
+                            Ok(v) => {
+                                let mut ok_res = String::new();
+                                for i in v.iter() {
+                                    ok_res = format!("{}* {} EXPUNGE\n", ok_res, i);
+                                }
+                                return format!("{}{} OK expunge completed", ok_res, tag);
                             }
                         }
                     }
                     "fetch" => {
                         let fetch_args: Vec<&str> = args.collect();
                         if fetch_args.len() < 2 { return bad_res; }
-                        let mailbox_name = fetch_args[0];
-                        let msg_parts = fetch_args[1];
+                        let mailbox_name = fetch_args[0].trim_chars('"');
+                        let msg_parts = fetch_args[1].trim_chars('"');
                         match self.folder {
                             None => { return bad_res; }
                             _ => {}
@@ -199,23 +205,16 @@ impl Session {
     }
 
     // should generate list of sequence numbers that were deleted
-    fn close(&self) -> Result<&str, Error> {
+    fn close(&self) -> Result<Vec<uint>, Error> {
         match self.folder {
             None => { Err(Error::simple(ImapStateError, "Not in selected state")) }
             Some(ref folder) => {
-                folder.close();
-                Ok("good")
+                Ok(folder.close())
             }
         }
     }
 
     pub fn select_mailbox(&self, mailbox_name: &str) -> Option<Folder> {
-        // match folder_service.find(&mailbox_name.to_string()) {
-        //     Some(folder) => {
-        //         return Some(*folder);
-        //     }
-        //     _ => {}
-        // }
         let mbox_name = regex!("INBOX").replace(mailbox_name, ".");
         match self.maildir {
             None => { None }
