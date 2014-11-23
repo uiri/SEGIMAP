@@ -80,15 +80,15 @@ impl Session {
                         let no_res  = format!("{} NO invalid username or password\r\n", tag);
                         match LoginData::new(email.to_string(), password.to_string()) {
                             Some(login_data) => {
-                                match self.serv.users.find(&login_data.email) {
+                                self.maildir = match self.serv.users.find(&login_data.email) {
                                     Some(user) => {
                                         if user.auth_data.verify_auth(login_data.password) {
-                                            self.maildir = Some(user.maildir.clone());
+                                            Some(user.maildir.clone())
                                         } else {
-                                            self.maildir = None;
+                                            None
                                         }
                                     }
-                                    None => { self.maildir = None; }
+                                    None => None
                                 }
                             }
                             None => { return no_res; }
