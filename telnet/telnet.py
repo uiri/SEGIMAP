@@ -7,7 +7,10 @@ port = "10000"
 username = "nikitapekin@gmail.com"
 password = "12345"
 
-os.remove('../maildir/.lock')
+try:
+    os.remove('../maildir/.lock')
+except OSError:
+    pass
 
 child = pexpect.spawn('telnet '+ ip + ' ' + port)
 
