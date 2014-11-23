@@ -1,4 +1,4 @@
-use sequence_set::{All, Number, Range, SequenceItem};
+use parser::{All, Number, Range, SequenceItem};
 
 #[export]
 sequence_set -> Vec<SequenceItem>

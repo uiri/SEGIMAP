@@ -1,6 +1,6 @@
-pub use self::sequence_set::sequence_set;
+pub use self::grammar::sequence_set;
 
-peg_file! sequence_set("sequence_set.rustpeg")
+peg_file! grammar("grammar.rustpeg")
 
 #[deriving(Clone, PartialEq, Show)]
 enum SequenceItem {
@@ -11,7 +11,7 @@ enum SequenceItem {
 
 #[cfg(test)]
 mod tests {
-    use super::sequence_set::sequence_set;
+    use super::sequence_set;
     use super::{All, Number, Range};
 
     #[test]
@@ -75,3 +75,4 @@ mod tests {
         assert_eq!(seq, expected);
     }
 }
+

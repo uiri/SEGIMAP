@@ -9,7 +9,7 @@ use login::LoginData;
 
 pub use folder::Folder;
 pub use server::Server;
-use sequence_set::sequence_set;
+use parser::sequence_set;
 
 macro_rules! return_on_err(
     ($inp:expr) => {
