@@ -34,6 +34,7 @@ imapuml.pdf_tex
 # segimtp
 config.toml
 *.json
+.lock
 
 # Python
 .venv
