@@ -1,8 +1,17 @@
 use std::collections::HashMap;
+use std::io::File;
 
 use error::{
-    Error, ImapResult, MessageDecodeError
+    Error, ImapResult, InternalIoError, MessageDecodeError
 };
+
+#[deriving(Show)]
+enum Flag {
+    Answered,
+    Draft,
+    Flagged,
+    Seen
+}
 
 #[deriving(Show)]
 pub struct Message {
@@ -10,7 +19,7 @@ pub struct Message {
     folder_index: u32,
     headers: HashMap<String, String>,
     body: Vec<MIMEPart>,
-    flags: Vec<String>,
+    flags: Vec<Flag>,
     size: u32,
     raw_contents: String
 }
@@ -22,12 +31,39 @@ pub struct MIMEPart {
 }
 
 impl Message {
-    pub fn parse(filename: String, raw_contents: String) -> ImapResult<Message> {
+    pub fn parse(path: &Path) -> ImapResult<Message> {
+        // Load the file contents.
+        let file = match File::open(path).unwrap().read_to_end() {
+            Ok(v) => v,
+            Err(e) => return Err(Error::simple(InternalIoError(e), "Failed to read mail file."))
+        };
+        let raw_contents = String::from_utf8_lossy(file.as_slice()).to_string();
+
+        let mut path = path.filename_str().unwrap().splitn(1, ':');
+        let filename = path.next().unwrap();
+        let flags = path.next().unwrap();
+
         // Retrieve the UID from the provided filename.
-        let uid = match from_str::<u32>(filename.as_slice()) {
+        let uid = match from_str::<u32>(filename) {
             Some(uid) => uid,
             None => return Err(Error::simple(MessageDecodeError, "Failed to retrieve UID from filename."))
         };
+        // Parse the flags from the filename.
+        let unparsed_flags = flags.splitn(1, ',').skip(1).next().unwrap();
+        let mut flags: Vec<Flag> = Vec::new();
+        for flag in unparsed_flags.chars() {
+            let flag = match flag {
+                'D' => Some(Draft),
+                'F' => Some(Flagged),
+                'R' => Some(Answered),
+                'S' => Some(Seen),
+                _ => None
+            };
+            match flag {
+                Some(flag) => flags.push(flag),
+                None => { }
+            };
+        }
 
         let header_boundary = raw_contents.as_slice().find_str("\n\n").unwrap();
         let raw_header = raw_contents.as_slice().slice_to(header_boundary);

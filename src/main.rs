@@ -10,8 +10,6 @@ extern crate regex;
 extern crate serialize;
 extern crate toml;
 
-use std::io::File;
-
 pub use config::Config;
 pub use email::Email;
 pub use login::LoginData;
@@ -47,13 +45,8 @@ fn main() {
     // TODO: figure out what to do for error handling.
     let users = user::load_users(USER_DATA_FILE.to_string()).unwrap();
 
-    let filename = "12345";
-    let mail_file = File::open(&Path::new(filename)).unwrap().read_to_end().unwrap();
-    let multipart_message = Message::parse(filename.to_string(), String::from_utf8_lossy(mail_file.as_slice()).to_string()).unwrap();
-
-    let filename = "54321";
-    let mail_file = File::open(&Path::new(filename)).unwrap().read_to_end().unwrap();
-    let html_message = Message::parse(filename.to_string(), String::from_utf8_lossy(mail_file.as_slice()).to_string()).unwrap();
+    let multipart_message = Message::parse(&Path::new("maildir/new/12345:2,FRS")).unwrap();
+    let html_message = Message::parse(&Path::new("maildir/cur/54321:2,FS")).unwrap();
 
     // Avoid unused variable notices temporarily.
     //println!("Config: {}", config);
