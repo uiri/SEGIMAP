@@ -18,7 +18,6 @@ pub use message::Message;
 pub use server::Server;
 pub use session::Session;
 pub use user::User;
-pub use sequence_set::SequenceSet;
 
 use std::io::{Listener, Acceptor, BufferedStream};
 use std::sync::Arc;

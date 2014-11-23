@@ -2,23 +2,17 @@ pub use self::sequence_set::sequence_set;
 
 peg_file! sequence_set("sequence_set.rustpeg")
 
-#[deriving(PartialEq, Show)]
+#[deriving(Clone, PartialEq, Show)]
 enum SequenceItem {
     Number(uint),
     Range(Box<SequenceItem>, Box<SequenceItem>),
     All
 }
 
-#[deriving(PartialEq, Show)]
-pub struct SequenceSet {
-    sequence_item: SequenceItem,
-    sequence_sets: Vec<SequenceSet>
-}
-
 #[cfg(test)]
 mod tests {
     use super::sequence_set::sequence_set;
-    use super::{All, Number, Range, SequenceSet};
+    use super::{All, Number, Range};
 
     #[test]
     fn test_invalid_sequences() {
@@ -38,10 +32,7 @@ mod tests {
         let seq = sequence_set("4324");
         assert!(seq.is_ok());
         let seq = seq.unwrap();
-        let expected = SequenceSet {
-            sequence_item: Number(4324),
-            sequence_sets: Vec::new()
-        };
+        let expected = vec![Number(4324)];
         assert_eq!(seq, expected);
     }
 
@@ -50,10 +41,7 @@ mod tests {
         let seq = sequence_set("*");
         assert!(seq.is_ok());
         let seq = seq.unwrap();
-        let expected = SequenceSet {
-            sequence_item: All,
-            sequence_sets: Vec::new()
-        };
+        let expected = vec![All];
         assert_eq!(seq, expected);
     }
 
@@ -62,10 +50,7 @@ mod tests {
         let seq = sequence_set("98:100");
         assert!(seq.is_ok());
         let seq = seq.unwrap();
-        let expected = SequenceSet {
-            sequence_item: Range(box Number(98), box Number(100)),
-            sequence_sets: Vec::new()
-        };
+        let expected = vec![Range(box Number(98), box Number(100))];
         assert_eq!(seq, expected);
 
         assert!(sequence_set("1:5").is_ok());
@@ -77,10 +62,7 @@ mod tests {
         let seq = sequence_set("31:*");
         assert!(seq.is_ok());
         let seq = seq.unwrap();
-        let expected = SequenceSet {
-            sequence_item: Range(box Number(31), box All),
-            sequence_sets: Vec::new()
-        };
+        let expected = vec![Range(box Number(31), box All)];
         assert_eq!(seq, expected);
     }
 
@@ -89,30 +71,7 @@ mod tests {
         let seq = sequence_set("1231,1342,12,98:104,16");
         assert!(seq.is_ok());
         let seq = seq.unwrap();
-        let expected = SequenceSet {
-            sequence_item: Number(1231),
-            sequence_sets: vec![
-                SequenceSet {
-                    sequence_item: Number(1342),
-                    sequence_sets: vec![
-                        SequenceSet {
-                            sequence_item: Number(12),
-                            sequence_sets: vec![
-                                SequenceSet {
-                                    sequence_item: Range(box Number(98), box Number(104)),
-                                    sequence_sets: vec![
-                                        SequenceSet {
-                                            sequence_item: Number(16),
-                                            sequence_sets: Vec::new()
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    ]
-                }
-            ]
-        };
+        let expected = vec![Number(1231), Number(1342), Number(12), Range(box Number(98), box Number(104)), Number(16)];
         assert_eq!(seq, expected);
     }
 }

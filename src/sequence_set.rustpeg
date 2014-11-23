@@ -1,9 +1,17 @@
-use sequence_set::{All, Number, Range, SequenceSet, SequenceItem};
+use sequence_set::{All, Number, Range, SequenceItem};
 
 #[export]
-sequence_set -> SequenceSet
+sequence_set -> Vec<SequenceItem>
     = a:(seq_range / seq_number) b:("," sequence_set)*
-    { SequenceSet{ sequence_item: a, sequence_sets: b } }
+    {
+        let mut seq = vec![a];
+        for set in b.into_iter() {
+            for elem in set.into_iter() {
+                seq.push(elem);
+            }
+        };
+        seq
+    }
 
 seq_range -> SequenceItem
     = a:seq_number ":" b:seq_number
