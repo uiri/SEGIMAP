@@ -44,7 +44,7 @@ impl Message {
 
         let mut path = arg_path.filename_str().unwrap().splitn(1, ':');
         let filename = path.next().unwrap();
-        let flags = path.next().unwrap();
+        let path_flags = path.next();
 
         // Retrieve the UID from the provided filename.
         let uid = match from_str::<u32>(filename) {
@@ -52,21 +52,28 @@ impl Message {
             None => return Err(Error::simple(MessageDecodeError, "Failed to retrieve UID from filename."))
         };
         // Parse the flags from the filename.
-        let unparsed_flags = flags.splitn(1, ',').skip(1).next().unwrap();
-        let mut flags: Vec<Flag> = Vec::new();
-        for flag in unparsed_flags.chars() {
-            let flag = match flag {
-                'D' => Some(Draft),
-                'F' => Some(Flagged),
-                'R' => Some(Answered),
-                'S' => Some(Seen),
-                _ => None
-            };
-            match flag {
-                Some(flag) => flags.push(flag),
-                None => { }
-            };
-        }
+
+        let mut flags = match path_flags {
+            None => Vec::new(),
+            Some(flags) => {
+                let unparsed_flags = flags.splitn(1, ',').skip(1).next().unwrap();
+                let mut vec_flags: Vec<Flag> = Vec::new();
+                for flag in unparsed_flags.chars() {
+                    let parsed_flag = match flag {
+                        'D' => Some(Draft),
+                        'F' => Some(Flagged),
+                        'R' => Some(Answered),
+                        'S' => Some(Seen),
+                        _ => None
+                    };
+                    match parsed_flag {
+                        Some(enum_flag) => vec_flags.push(enum_flag),
+                        None => { }
+                    }
+                }
+                vec_flags
+            }
+        };
 
         let header_boundary = raw_contents.as_slice().find_str("\n\n").unwrap();
         let raw_header = raw_contents.as_slice().slice_to(header_boundary);
