@@ -2,8 +2,8 @@
 name = "segimap"
 version = "0.0.1"
 dependencies = [
- "rust-crypto 0.1.0 (git+https://github.com/DaGenix/rust-crypto?ref=475643257a712af8522f544ad668b620c8476612)",
- "toml 0.1.0 (git+https://github.com/alexcrichton/toml-rs?ref=05c1eb420f54569336b8481c28a46b5a7c51ec99)",
+ "rust-crypto 0.1.0 (git+https://github.com/DaGenix/rust-crypto?ref=475643257a712af8522f544ad668b620c8476612#475643257a712af8522f544ad668b620c8476612)",
+ "toml 0.1.0 (git+https://github.com/alexcrichton/toml-rs?ref=05c1eb420f54569336b8481c28a46b5a7c51ec99#05c1eb420f54569336b8481c28a46b5a7c51ec99)",
 ]
 
 [[package]]
