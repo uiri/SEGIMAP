@@ -3,22 +3,22 @@ use std::collections::HashMap;
 use error::{
     Error, ImapResult, MessageDecodeError
 };
-use folder::Folder;
 
 #[deriving(Show)]
 pub struct Message {
     uid: u32,
     folder_index: u32,
-    headers: String,
-    body: String,
+    headers: HashMap<String, String>,
+    pub body: Vec<MIMEPart>,
     flags: Vec<String>,
-    date_received: String,
     size: u32,
-    envelope_from: String,
-    envelope_to: String,
-    // TODO: Uncomment this
-    //parent_folder: Folder
     raw_contents: String
+}
+
+#[deriving(Show)]
+pub struct MIMEPart {
+    mime_header: String,
+    mime_body: String
 }
 
 impl Message {
@@ -29,16 +29,15 @@ impl Message {
             None => return Err(Error::simple(MessageDecodeError, "Failed to retrieve UID from filename."))
         };
 
-        let contents: Vec<&str> = raw_contents.as_slice().split_str("\n\n").collect();
-        let mut contents = contents.into_iter();
-        let header = contents.next().unwrap();
-        let contents: Vec<&str> = contents.collect();
+        let header_boundary = raw_contents.as_slice().find_str("\n\n").unwrap();
+        let raw_header = raw_contents.as_slice().slice_to(header_boundary);
+        let raw_body = raw_contents.as_slice().slice_from(header_boundary + 2);
 
         // Iterate over the lines of the header in reverse.
         // If a line with leading whitespace is detected, it is merged to the line before it.
         // This "unwraps" the header as indicated in RFC 2822 2.2.3
-        let mut new_header: Vec<String> = Vec::new();
-        let mut iterator = header.lines().rev();
+        let mut parsed_header: Vec<String> = Vec::new();
+        let mut iterator = raw_header.lines().rev();
         loop {
             let line = match iterator.next() {
                 Some(line) => line,
@@ -60,41 +59,89 @@ impl Message {
                 }
             }
 
-            new_header.push(field.to_string());
+            parsed_header.push(field.to_string());
         }
-        let header: Vec<&String> = new_header.iter().rev().collect();
+        let parsed_header: Vec<&String> = parsed_header.iter().rev().collect();
 
-        let mut header_fields = HashMap::new();
-        for line in header.iter() {
+        let mut headers = HashMap::new();
+        for line in parsed_header.iter() {
             let split: Vec<&str> = line.as_slice().splitn(1, ':').collect();
-            header_fields.insert(split[0].clone(), split[1].slice_from(1).clone());
+            headers.insert(split[0].clone().to_string(), split[1].slice_from(1).clone().to_string());
         }
         // Remove the "Received" key from the HashMap.
-        header_fields.remove(&"Received");
-        println!("Header: {}", header_fields);
-        println!("Contents:");
-        /*for msg in contents.iter() {
-            println!("{}\n-------------------------\n", msg);
-        }*/
+        headers.remove(&"Received".to_string());
+
+        // Determine whether the message is MULTIPART or not.
+        let content_type = headers["Content-Type".to_string()].clone();
+        let mut body = Vec::new();
+        if content_type.as_slice().contains("MULTIPART") {
+            let mime_boundary = {
+                let value: Vec<&str> = content_type.as_slice().split_str("BOUNDARY=\"").collect();
+                if value.len() < 2 { return Err(Error::simple(MessageDecodeError, "Failed to determine MULTIPART boundary.")) }
+                let value: Vec<&str> = value[1].splitn(1, '"').collect();
+                if value.len() < 1 { return Err(Error::simple(MessageDecodeError, "Failed to determine MULTIPART boundary.")) }
+                format!("--{}--\n", value[0])
+            };
+
+            let first_content_type_index = match raw_body.find_str("Content-Type") {
+                Some(val) => val,
+                None => return Err(Error::simple(MessageDecodeError, "Missing Content-Type for body part"))
+            };
+            let raw_body = raw_body.slice_from(first_content_type_index);
+            let raw_body: Vec<&str> = raw_body.split_str(mime_boundary.as_slice()).collect();
+            let raw_body = raw_body.slice_to(raw_body.len() - 1);
+
+            for part in raw_body.iter() {
+                let header_boundary = part.as_slice().find_str("\n\n").unwrap();
+                let header = part.as_slice().slice_to(header_boundary);
+                let mut content_type = String::new();
+                for line in header.lines() {
+                    let split_line: Vec<&str> = line.splitn(1, ':').collect();
+                    if split_line[0] == "Content-Type" {
+                        let content_type_values: Vec<&str> = split_line[1].splitn(1, ';').collect();
+                        content_type = content_type_values[0].slice_from(1).to_string();
+                        break;
+                    }
+                }
+                let body_part = MIMEPart {
+                    mime_header: content_type.to_string(),
+                    mime_body: raw_body.to_string()
+                };
+                body.push(body_part);
+            }
+        } else {
+            let body_part = MIMEPart {
+                mime_header: content_type.to_string(),
+                mime_body: raw_body.to_string()
+            };
+            body.push(body_part);
+        }
 
         let message = Message {
             uid: uid,
             folder_index: 0u32,
-            headers: "".to_string(),
-            body: "".to_string(),
+            headers: headers,
+            body: body,
             flags: Vec::new(),
-            date_received: "".to_string(),
             size: 0u32,
-            envelope_from: "".to_string(),
-            envelope_to: "".to_string(),
-            // TODO: Uncomment this
-            /*parent_folder: Folder {
-                name: "some_folder".to_string(),
-                owner: None
-            },*/
             raw_contents: raw_contents.clone()
         };
 
         Ok(message)
+    }
+
+    // TODO: Make sure that returning a pointer is fine.
+    pub fn date_received(&self) -> &String {
+        self.headers.find(&"Received-On-Date".to_string()).unwrap()
+    }
+
+    // TODO: Make sure that returning a pointer is fine.
+    pub fn envelope_from(&self) -> &String {
+        self.headers.find(&"From".to_string()).unwrap()
+    }
+
+    // TODO: Make sure that returning a pointer is fine.
+    pub fn envelope_to(&self) -> &String {
+        self.headers.find(&"To".to_string()).unwrap()
     }
 }

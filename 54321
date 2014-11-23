@@ -1,0 +1,85 @@
+Return-Path: <apache@uottawa.ca>
+X-Original-To: will@localhost
+Delivered-To: will@localhost
+Received: from coruscant.xqz.ca (localhost [127.0.0.1])
+    by j.xqz.ca (Postfix) with ESMTP id A90571172055
+    for <will@localhost>; Fri, 21 Nov 2014 00:09:39 -0500 (EST)
+Delivered-To: wpear089@g.uottawa.ca
+Received: from gmail-pop.l.google.com [64.233.181.108]
+    by coruscant.xqz.ca with POP3 (fetchmail-6.3.21)
+    for <will@localhost> (single-drop); Fri, 21 Nov 2014 00:09:39 -0500 (EST)
+Received: by 10.140.95.225 with SMTP id i88csp143193qge;
+        Thu, 20 Nov 2014 20:20:07 -0800 (PST)
+X-Received: by 10.42.167.1 with SMTP id q1mr10890924icy.48.1416543606972;
+        Thu, 20 Nov 2014 20:20:06 -0800 (PST)
+Received: from mx11.uottawa.ca (mx11.uottawa.ca. [137.122.6.149])
+        by mx.google.com with ESMTP id y126si3092959iod.20.2014.11.20.20.20.06
+        for <wpear089@g.uottawa.ca>;
+        Thu, 20 Nov 2014 20:20:06 -0800 (PST)
+Received-SPF: none (google.com: apache@uottawa.ca does not designate permitted sender hosts) client-ip=137.122.6.70;
+Authentication-Results: mx.google.com;
+       spf=none (google.com: apache@uottawa.ca does not designate permitted sender hosts) smtp.mail=apache@uottawa.ca
+Received: from localhost (unknown [127.0.0.1])
+    by mx11.uottawa.ca (Postfix) with ESMTP id B9FBF110C91
+    for <wpear089@g.uottawa.ca>; Fri, 21 Nov 2014 04:20:06 +0000 (UTC)
+X-Virus-Scanned: amavisd-new at uottawa.ca
+Received: from mx4.uottawa.ca ([137.122.6.70])
+    by localhost (mx11.uottawa.ca [137.122.6.149]) (amavisd-new, port 10024)
+    with ESMTP id HW46q0HUoM0Y for <wpear089@g.uottawa.ca>;
+    Thu, 20 Nov 2014 23:20:06 -0500 (EST)
+Received: from igor.dmz.uottawa.ca (unknown [137.122.14.65])
+    by mx4.uottawa.ca (Postfix) with ESMTP id A1077E0CBF
+    for <wpear089@uottawa.ca>; Thu, 20 Nov 2014 23:20:06 -0500 (EST)
+Received: from dries.dmz.uottawa.ca (dries.dmz.uottawa.ca [172.20.17.8])
+    by igor.dmz.uottawa.ca (Postfix) with ESMTP id 9F777C8060
+    for <wpear089@uottawa.ca>; Thu, 20 Nov 2014 23:20:06 -0500 (EST)
+Received: from dries.dmz.uottawa.ca (localhost.localdomain [127.0.0.1])
+    by dries.dmz.uottawa.ca (8.13.8/8.13.8) with ESMTP id sAL4K6UQ003539
+    for <wpear089@uottawa.ca>; Thu, 20 Nov 2014 23:20:06 -0500
+Received: (from apache@localhost)
+    by dries.dmz.uottawa.ca (8.13.8/8.13.8/Submit) id sAL4K6TX003538;
+    Thu, 20 Nov 2014 23:20:06 -0500
+Date: Thu, 20 Nov 2014 23:20:06 -0500
+Message-Id: <201411210420.sAL4K6TX003538@dries.dmz.uottawa.ca>
+To: wpear089@uottawa.ca
+Subject: TA contact email
+MIME-Version: 1.0
+Content-Type: text/html; charset=UTF-8; format=flowed;
+Content-Transfer-Encoding: 8Bit
+X-Mailer: Pressflow
+Errors-To: webmaster@uottawa.ca
+Sender: webmaster@uottawa.ca
+From: lmoura@uottawa.ca
+Received-On-Date: Fri Nov 21 00:09:39 EST 2014
+
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head>
+
+<body class="htmlmail">
+<table width="100%" border="0" cellspacing="0" cellpadding="5">
+   <tr>
+     <td valign="top" align="center">
+       <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                 <tr>
+           <td valign="top" class="htmlmail-body">
+           <p>Dear csi2110 students:</p>
+<p>Some students wanted contact of TAs who marked a past assignment because  
+they had questions about the marking/mistakes.</p>
+<p>I have updated some information at the page below that lists which TA  
+marks what and including TA contact emails:</p>
+<p><a target="_blank"  
+href="http://www.site.uottawa.ca/~lucia/courses/2110-14/TA-LABDGD.pdf"  
+title="http://www.site.uottawa.ca/~lucia/courses/2110-14/TA-LABDGD.pdf">http://www.site.uottawa.ca/~lucia/courses/2110-14/TA-LABDGD.pdf</a></p>
+<p>regards, Lucia Moura</p>
+           </td>
+         </tr>
+              </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
+
+

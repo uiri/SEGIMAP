@@ -45,12 +45,17 @@ fn main() {
 
     let filename = "12345";
     let mail_file = File::open(&Path::new(filename)).unwrap().read_to_end().unwrap();
-    let message = Message::parse(filename.to_string(), String::from_utf8_lossy(mail_file.as_slice()).to_string());
+    let multipart_message = Message::parse(filename.to_string(), String::from_utf8_lossy(mail_file.as_slice()).to_string()).unwrap();
+
+    let filename = "54321";
+    let mail_file = File::open(&Path::new(filename)).unwrap().read_to_end().unwrap();
+    let html_message = Message::parse(filename.to_string(), String::from_utf8_lossy(mail_file.as_slice()).to_string()).unwrap();
 
     // Avoid unused variable notices temporarily.
     //println!("Config: {}", config);
     //println!("Users: {}", users);
-    //println!("Message: {}", message);
+    //println!("Message: {}", multipart_message);
+    //println!("Message: {}", html_message);
 
     let serv = Arc::new(Server::new(config, users));
     match serv.imap_listener() {
