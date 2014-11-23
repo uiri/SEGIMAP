@@ -51,6 +51,7 @@ impl Session {
                         return;
                     }
                     let res = self.interpret(command.as_slice());
+                    warn!("Response:\n{}", res);
                     return_on_err!(self.stream.write(res.as_bytes()));
                     return_on_err!(self.stream.flush());
                     if self.logout {
@@ -68,7 +69,7 @@ impl Session {
         let bad_res = format!("{} BAD Invalid command\r\n", tag);
         match args.next() {
             Some(cmd) => {
-                warn!("Cmd: {}", command);
+                warn!("Cmd: {}", command.trim());
                 match cmd.to_string().into_ascii_lower().as_slice() {
                     "capability" => {
                         return format!("* CAPABILITY IMAP4rev1\n{} OK Capability successful\n", tag);
@@ -126,20 +127,24 @@ impl Session {
                             }
                             Some(ref folder) => {
                                 // * Flags
-                                let mut ok_res = String::new();
+                                // Should match values in enum Flag in message.rs and \\Deleted
+                                let mut ok_res = format!("* FLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)\n");
                                 // * <n> EXISTS
-                                ok_res = format!("{} * {} EXISTS\n", ok_res, folder.exists);
+                                ok_res = format!("{}* {} EXISTS\n", ok_res, folder.exists);
                                 // * <n> RECENT
-                                ok_res = format!("{} * {} RECENT\n", ok_res, folder.recent());
+                                ok_res = format!("{}* {} RECENT\n", ok_res, folder.recent());
                                 // * OK UNSEEN
-                                ok_res = format!("{} * OK UNSEEN {}\n", ok_res, folder.unseen);
-                                // * OK PERMANENTFLAGS
+                                ok_res = format!("{}* OK UNSEEN {}\n", ok_res, folder.unseen);
+                                // * OK PERMANENTFLAG
+                                // Should match values in enum Flag in message.rs and \\Deleted
+                                ok_res = format!("{}* PERMANENTFLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen) Permanent flags\n", ok_res);
                                 // * OK UIDNEXT
                                 // * OK UIDVALIDITY
-                                return format!("{}{} OK SELECT command was successful\n", ok_res, tag);
+                                return format!("{}{} OK [READ-WRITE] SELECT command was successful\n", ok_res, tag);
                             }
                         }
                     }
+                    // examine
                     "create" => {
                         let create_args: Vec<&str> = args.collect();
                         if create_args.len() < 1 { return bad_res; }
@@ -154,6 +159,7 @@ impl Session {
                         // }
                         return format!("{} OK unimplemented\n", tag);
                     }
+                    // rename
                     "delete" => {
                         let delete_args: Vec<&str> = args.collect();
                         if delete_args.len() < 1 { return bad_res; }
@@ -167,6 +173,16 @@ impl Session {
                         //     }
                         // }
                         return format!("{} OK unimplemented\n", tag);
+                    }
+                    "list" => {
+                        let list_args: Vec<&str> = args.collect();
+                        if list_args.len() < 2 { return bad_res; }
+                        let reference = list_args[0].trim_chars('"');
+                        let mailbox_name = list_args[1].trim_chars('"');
+                        if mailbox_name.len() == 0 {
+                            return format!("* LIST (\\Noselect) \"/\" \"{}\"\n{} OK List successful\n", reference, tag);
+                        }
+                        return format!("OK unimplemented\n");
                     }
                     "close" => {
                         return match self.close() {

@@ -1,1 +1,1 @@
-mv maildir/cur/12345:2,FRS maildir/new/12345
+mv maildir/cur/12345 maildir/new/12345

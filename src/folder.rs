@@ -63,7 +63,7 @@ impl Folder {
                                    name: name,
                                    owner: owner,
                                    path: path,
-                                   recent: exists-unseen+1,
+                                   recent: exists-unseen,
                                    unseen: unseen,
                                    exists: exists,
                                    messages: messages,
@@ -101,7 +101,7 @@ impl Folder {
         while index < self.messages.len() {
             if self.messages[index].deleted {
                 match fs::unlink(&Path::new(self.messages[index].path.clone())) { _ => {} }
-                result.push(index);
+                result.push(index + 1);
             } else {
                 index = index + 1;
             }
