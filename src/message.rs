@@ -9,7 +9,7 @@ pub struct Message {
     uid: u32,
     folder_index: u32,
     headers: HashMap<String, String>,
-    pub body: Vec<MIMEPart>,
+    body: Vec<MIMEPart>,
     flags: Vec<String>,
     size: u32,
     raw_contents: String
