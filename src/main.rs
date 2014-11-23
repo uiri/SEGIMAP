@@ -6,6 +6,7 @@
 extern crate "rust-crypto" as crypto;
 extern crate regex;
 #[phase(plugin)] extern crate regex_macros;
+#[phase(plugin, link)] extern crate log;
 extern crate serialize;
 extern crate toml;
 

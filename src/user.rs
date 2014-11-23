@@ -49,6 +49,7 @@ pub fn load_users(path_str: String) -> ImapResult<HashMap<Email, User>> {
     Ok(map)
 }
 
+#[allow(dead_code)]
 pub fn save_users(path_str: String, users: Vec<User>) {
     let path = Path::new(path_str);
     let encoded = json::encode(&users);

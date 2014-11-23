@@ -4,6 +4,7 @@ use std::str::StrSlice;
 use std::ascii::OwnedAsciiExt;
 use std::sync::Arc;
 
+use error::{Error,ImapStateError};
 use login::LoginData;
 
 pub use folder::Folder;
@@ -78,7 +79,7 @@ impl Session {
                                 match self.serv.users.find(&login_data.email) {
                                     Some(user) => {
                                         if user.auth_data.verify_auth(login_data.password) {
-                                            self.maildir = Some(user.maildir.as_slice().to_string());
+                                            self.maildir = Some(user.maildir.clone());
                                         } else {
                                             self.maildir = None;
                                         }
@@ -97,32 +98,41 @@ impl Session {
                     }
                     "logout" => {
                         self.logout = true;
+                        match self.folder {
+                            Some(ref folder) => {
+                                folder.close();
+                            }
+                            _ => {}
+                        }
                         return format!("* BYE Server logging out\r\n{} OK Server logged out\r\n", tag);
                     }
                     "select" => {
                         let select_args: Vec<&str> = args.collect();
                         if select_args.len() < 1 { return bad_res; }
+                        let mailbox_name = select_args[0];
                         match self.maildir {
                             None => { return bad_res; }
                             _ => {}
                         }
-                        let mailbox_name = select_args[0];
-                        self.folder =  self.select_mailbox(mailbox_name);
+                        self.folder = self.select_mailbox(mailbox_name);
                         match self.folder {
                             None => {
-                                return format!("{} NO error finding mailbox", tag);
+                                return format!("{} NO error finding mailbox\n", tag);
                             }
-                            _ => {}
+                            Some(ref folder) => {
+                                // * Flags
+                                let mut ok_res = String::new();
+                                // * <n> EXISTS
+                                ok_res = format!("{} * {} EXISTS\n", ok_res, folder.exists());
+                                // * <n> RECENT
+                                ok_res = format!("{} * {} RECENT\n", ok_res, folder.recent());
+                                // * OK UNSEEN
+                                // * OK PERMANENTFLAGS
+                                // * OK UIDNEXT
+                                // * OK UIDVALIDITY
+                                return format!("{}{} OK unimplemented\n", ok_res, tag);
+                            }
                         }
-                        /* Use self.folder here... */
-                        // * Flags
-                        // * <n> EXISTS
-                        // * <n> RECENT
-                        // * OK UNSEEN
-                        // * OK PERMANENTFLAGS
-                        // * OK UIDNEXT
-                        // * OK UIDVALIDITY
-                        return format!("{} OK unimplemented", tag);
                     }
                     "create" => {
                         let create_args: Vec<&str> = args.collect();
@@ -136,7 +146,7 @@ impl Session {
                         //         return format!("{} OK create failed", tag);
                         //     }
                         // }
-                        return format!("{} OK unimplemented", tag);
+                        return format!("{} OK unimplemented\n", tag);
                     }
                     "delete" => {
                         let delete_args: Vec<&str> = args.collect();
@@ -150,20 +160,30 @@ impl Session {
                         //         return format!("{} OK delete failed", tag);
                         //     }
                         // }
-                        return format!("{} OK unimplemented", tag);
+                        return format!("{} OK unimplemented\n", tag);
                     }
                     "close" => {
-                        // ignores list of expunge responses
-                        self.close();
-                        return format!("{} OK close completed", tag);
+                        match self.close() {
+                            Err(_) => { return bad_res; }
+                            Ok(_) => {
+                                return format!("{} OK close completed\n", tag);
+                            }
+                        }
                     }
                     "expunge" => {
-                        // actually uses list of expunge responses
-                        self.close();
-                        return format!("{} OK expunge completed", tag);
+                        match self.close() {
+                            Err(_) => { return bad_res; }
+                            Ok(_) => {
+                                return format!("{} OK expunge completed", tag);
+                            }
+                        }
                     }
                     "fetch" => {
-                        return format!("{} OK unimplemented", tag);
+                        let fetch_args: Vec<&str> = args.collect();
+                        if fetch_args.len() < 2 { return bad_res; }
+                        let mailbox_name = fetch_args[0];
+                        let msg_parts = fetch_args[1];
+                        return format!("{} OK unimplemented\n", tag);
                     }
                     _ => { return bad_res; }
                 }
@@ -174,20 +194,32 @@ impl Session {
     }
 
     // should generate list of sequence numbers that were deleted
-    fn close(&self) {
+    fn close(&self) -> Result<&str, Error> {
         match self.folder {
-            None => {return;}
-            _ => {}
+            None => { Err(Error::simple(ImapStateError, "Not in selected state")) }
+            Some(ref folder) => {
+                folder.close();
+                Ok("good")
+            }
         }
-        return;
     }
 
-    fn select_mailbox(&self, mailbox_name: &str) -> Option<Folder> {
+    pub fn select_mailbox(&self, mailbox_name: &str) -> Option<Folder> {
+        // match folder_service.find(&mailbox_name.to_string()) {
+        //     Some(folder) => {
+        //         return Some(*folder);
+        //     }
+        //     _ => {}
+        // }
+        let mbox_name = regex!("INBOX").replace(mailbox_name, ".");
         match self.maildir {
-            None => {return None;}
-            Some(ref mdir) => {
-                let mbox_name = regex!("INBOX").replace(mailbox_name, ".");
-                return Folder::new("name".to_string(), None, Path::new(mdir.as_slice()).join(mbox_name));
+            None => { None }
+            Some(ref maildir) => {
+                let maildir_path = Path::new(maildir.as_slice()).join(mbox_name);
+                // TODO: recursively grab parent...
+                Folder::new(mailbox_name.to_string(), None, maildir_path)
+                    // TODO: Insert new folder into folder service
+                    // folder_service.insert(mailbox_name.to_string(), box *folder);
             }
         }
     }

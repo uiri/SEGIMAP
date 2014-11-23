@@ -7,6 +7,7 @@ use serialize::json::DecoderError;
 pub enum ErrorKind {
     InternalIoError(IoError),
     MessageDecodeError,
+    ImapStateError,
     SerializationError(DecoderError)
 }
 
