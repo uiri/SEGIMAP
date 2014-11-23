@@ -123,14 +123,15 @@ impl Session {
                                 // * Flags
                                 let mut ok_res = String::new();
                                 // * <n> EXISTS
-                                ok_res = format!("{} * {} EXISTS\n", ok_res, folder.exists());
+                                ok_res = format!("{} * {} EXISTS\n", ok_res, folder.exists);
                                 // * <n> RECENT
                                 ok_res = format!("{} * {} RECENT\n", ok_res, folder.recent());
                                 // * OK UNSEEN
+                                ok_res = format!("{} * OK UNSEEN {}\n", ok_res, folder.unseen);
                                 // * OK PERMANENTFLAGS
                                 // * OK UIDNEXT
                                 // * OK UIDVALIDITY
-                                return format!("{}{} OK unimplemented\n", ok_res, tag);
+                                return format!("{}{} OK SELECT command was successful\n", ok_res, tag);
                             }
                         }
                     }
@@ -183,6 +184,10 @@ impl Session {
                         if fetch_args.len() < 2 { return bad_res; }
                         let mailbox_name = fetch_args[0];
                         let msg_parts = fetch_args[1];
+                        match self.folder {
+                            None => { return bad_res; }
+                            _ => {}
+                        }
                         return format!("{} OK unimplemented\n", tag);
                     }
                     _ => { return bad_res; }
