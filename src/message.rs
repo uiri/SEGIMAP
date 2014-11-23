@@ -19,7 +19,6 @@ pub struct Message {
     headers: HashMap<String, String>,
     body: Vec<MIMEPart>,
     flags: Vec<Flag>,
-    size: u32,
     raw_contents: String
 }
 
@@ -160,7 +159,6 @@ impl Message {
             headers: headers,
             body: body,
             flags: flags,
-            size: 0u32,
             raw_contents: raw_contents.clone()
         };
 
