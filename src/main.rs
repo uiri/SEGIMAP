@@ -52,7 +52,7 @@ fn main() {
     //println!("Config: {}", config);
     //println!("Users: {}", users);
     //println!("Message: {}", multipart_message);
-    //println!("Message: {}", html_message);
+    println!("Message: {}", html_message);
 
     let serv = Arc::new(Server::new(config, users));
     match serv.imap_listener() {
