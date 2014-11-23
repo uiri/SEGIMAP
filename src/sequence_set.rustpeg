@@ -1,0 +1,55 @@
+use sequence_set::{All, Number, Range, SequenceSet, SequenceItem};
+
+#[export]
+sequence_set -> SequenceSet
+    = a:(seq_range / seq_number) b:("," sequence_set)*
+    { SequenceSet{ sequence_item: a, sequence_sets: b } }
+
+seq_range -> SequenceItem
+    = a:seq_number ":" b:seq_number
+    { Range(box a, box b) }
+
+seq_number -> SequenceItem
+    = (num:nz_number { Number(num) }) / (all:"*" { All })
+
+nz_number -> uint
+    = u:(digit_nz DIGIT* { from_str::<uint>(match_str).unwrap() }) __
+    { u }
+
+digit_nz -> char
+    = [1-9]
+    { match_str.char_at(0) }
+
+DIGIT -> char
+    = [0-9]
+    { match_str.char_at(0) }
+
+/* PEG boilerplate from kevinmehall/rust-peg follows */
+
+__ = (whitespace / eol / comment)*
+
+/* Modeled after ECMA-262, 5th ed., 7.4. */
+comment
+    = singleLineComment
+    / multiLineComment
+
+singleLineComment
+    = "//" (!eolChar .)*
+
+multiLineComment
+    = "/*" (!"*/" .)* "*/"
+
+/* Modeled after ECMA-262, 5th ed., 7.3. */
+eol
+    = "\n"
+    / "\r\n"
+    / "\r"
+    / "\u2028"
+    / "\u2029"
+
+eolChar
+    = [\n\r\u2028\u2029]
+    /* Modeled after ECMA-262, 5th ed., 7.2. */
+
+whitespace
+    = [ \t\u00A0\uFEFF\u1680\u180E\u2000-\u200A\u202F\u205F\u3000] // \v\f removed

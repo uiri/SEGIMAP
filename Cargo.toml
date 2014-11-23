@@ -14,6 +14,11 @@ path = "src/main.rs"
 git = "https://github.com/DaGenix/rust-crypto"
 rev = "475643257a712af8522f544ad668b620c8476612"
 
+[dependencies.peg]
+
+git = "https://github.com/kevinmehall/rust-peg"
+rev = "8b0852d15f881b335a4281df931e527aa52322a6"
+
 [dependencies.toml]
 
 git = "https://github.com/alexcrichton/toml-rs"

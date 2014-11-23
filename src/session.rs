@@ -9,6 +9,7 @@ use login::LoginData;
 
 pub use folder::Folder;
 pub use server::Server;
+use sequence_set::sequence_set;
 
 macro_rules! return_on_err(
     ($inp:expr) => {
@@ -188,8 +189,11 @@ impl Session {
                     "fetch" => {
                         let fetch_args: Vec<&str> = args.collect();
                         if fetch_args.len() < 2 { return bad_res; }
-                        let mailbox_name = fetch_args[0].trim_chars('"');
-                        let msg_parts = fetch_args[1].trim_chars('"');
+                        let sequence_set = match sequence_set(fetch_args[0].trim_chars('"')) { // "
+                            Ok(v) => v,
+                            Err(e) => { println!("{}", e); return bad_res }
+                        };
+                        let msg_parts = fetch_args[1].trim_chars('"'); // "
                         match self.folder {
                             None => { return bad_res; }
                             _ => {}

@@ -7,6 +7,7 @@ extern crate "rust-crypto" as crypto;
 extern crate regex;
 #[phase(plugin)] extern crate regex_macros;
 #[phase(plugin, link)] extern crate log;
+#[phase(plugin)] extern crate peg_syntax_ext;
 extern crate serialize;
 extern crate toml;
 
@@ -17,6 +18,7 @@ pub use message::Message;
 pub use server::Server;
 pub use session::Session;
 pub use user::User;
+pub use sequence_set::SequenceSet;
 
 use std::io::{Listener, Acceptor, BufferedStream};
 use std::sync::Arc;
@@ -28,6 +30,7 @@ mod error;
 mod folder;
 mod login;
 mod message;
+mod sequence_set;
 mod server;
 mod session;
 mod user;
@@ -51,7 +54,7 @@ fn main() {
     // TODO: figure out what to do for error handling.
     let users = user::load_users(USER_DATA_FILE.to_string()).unwrap();
 
-    let multipart_message = Message::parse(&Path::new("maildir/new/12345:2,FRS")).unwrap();
+    let multipart_message = Message::parse(&Path::new("maildir/cur/12345:2,FRS")).unwrap();
     let html_message = Message::parse(&Path::new("maildir/cur/54321:2,FS")).unwrap();
 
     // Avoid unused variable notices temporarily.
