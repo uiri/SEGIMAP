@@ -31,6 +31,7 @@ mod tests {
     use command::command::{
         HeaderMsgtext,
         HeaderFieldsMsgtext,
+        HeaderFieldsNotMsgtext,
         MimeMsgtext,
         TextMsgtext
     };
@@ -339,14 +340,16 @@ mod tests {
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
                 vec![BodyPeek(PartSection(vec![4, 2, 2, 2], Some(HeaderFieldsMsgtext(vec!["DATE".to_string(), "FROM".to_string()]))), Some((400, 10000)))]));
-        let cmd = fetch("FETCH * (FLAGS BODY[HEADER.FIELDS (DATE FROM)])");
-        println!("CMD: {}", cmd);
-        assert!(cmd.is_ok());
-        let cmd = cmd.unwrap();
-        let expected = Command::new(
+        assert_eq!(fetch("FETCH * (FLAGS BODY[HEADER.FIELDS (DATE FROM)])").unwrap(), Command::new(
                 Fetch,
                 vec![Wildcard],
-                Vec::new()); // TODO: Fill in the flags.
-        assert_eq!(cmd, expected);
+                vec![Flags, Body(MsgtextSection(HeaderFieldsMsgtext(vec!["DATE".to_string(), "FROM".to_string()])), None)]));
+        assert_eq!(fetch("FETCH * (FLAGS BODY[4.2.2.2.HEADER.FIELDS.NOT (DATE FROM)]<400.10000>)").unwrap(), Command::new(
+                Fetch,
+                vec![Wildcard],
+                vec![Flags, Body(
+                    PartSection(vec![4, 2, 2, 2], Some(HeaderFieldsNotMsgtext(vec!["DATE".to_string(), "FROM".to_string()]))),
+                    Some((400, 10000))
+                )]));
     }
 }

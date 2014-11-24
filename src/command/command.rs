@@ -40,7 +40,7 @@ pub enum Msgtext {
     HeaderMsgtext,
     HeaderFieldsMsgtext(Vec<String>),
     HeaderFieldsNotMsgtext(Vec<String>),
-    TextMsgtext, // This is for the msgtext "TEXT" field
+    TextMsgtext,
     MimeMsgtext
 }
 

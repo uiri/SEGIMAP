@@ -40,16 +40,21 @@ use command::sequence_set::{
 
 /* FETCH command rules */
 
-/*#[export]
-fetch
-    = "FETCH" SP sequence_set SP ("ALL" / "FULL" / "FAST" / fetch_att / "(" fetch_att (SP fetch_att)* ")") */
 #[export]
 fetch -> Command
     = "FETCH" SP set:sequence_set SP attrs:(
-      "ALL" { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope] }
+    "(" a:fetch_att b:(SP fetch_att)* ")"
+    {
+        let mut attrs = vec![a];
+        for attr in b.into_iter() {
+            attrs.push(attr);
+        }
+        attrs
+    }
+    / attr:fetch_att { vec![attr] }
+    / "ALL" { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope] }
     / "FULL" { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body(AllSection, None)] }
-    / "FAST" { vec![Flags, InternalDate, RFC822(SizeRFC822)] }
-    / attr:fetch_att { vec![attr] })
+    / "FAST" { vec![Flags, InternalDate, RFC822(SizeRFC822)] })
     { Command::new(Fetch, set, attrs) }
 
 fetch_att -> Attribute
