@@ -1,3 +1,5 @@
+use std::ascii::OwnedAsciiExt;
+
 use command::command::{
     Attribute,
     Body,
@@ -42,7 +44,7 @@ use command::sequence_set::{
 
 #[export]
 fetch -> Command
-    = "FETCH" SP set:sequence_set SP attrs:(
+    = [fF][eE][tT][cC][hH] SP set:sequence_set SP attrs:(
     "(" a:fetch_att b:(SP fetch_att)* ")"
     {
         let mut attrs = vec![a];
@@ -52,20 +54,20 @@ fetch -> Command
         attrs
     }
     / attr:fetch_att { vec![attr] }
-    / "ALL" { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope] }
-    / "FULL" { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body(AllSection, None)] }
-    / "FAST" { vec![Flags, InternalDate, RFC822(SizeRFC822)] })
+    / [aA][lL][lL] { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope] }
+    / [fF][uU][lL][lL] { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body(AllSection, None)] }
+    / [fF][aA][sS][tT] { vec![Flags, InternalDate, RFC822(SizeRFC822)] })
     { Command::new(Fetch, set, attrs) }
 
 fetch_att -> Attribute
-    = "ENVELOPE" { Envelope }
-    / "FLAGS" { Flags }
-    / "INTERNALDATE" { InternalDate }
-    / "RFC822" sub_attr:(".HEADER" { HeaderRFC822 } / ".SIZE" { SizeRFC822 } / ".TEXT" { TextRFC822 })? { RFC822(sub_attr.unwrap_or(AllRFC822)) }
-    / "UID" { UID }
-    / "BODY.PEEK" section:section octets:("<" first_octet:number "." last_octet:nz_number ">" { (first_octet, last_octet) })? { BodyPeek(section, octets) }
-    / "BODY" section:section octets:("<" first_octet:number "." last_octet:nz_number ">" { (first_octet, last_octet) })? { Body(section, octets) }
-    / "BODY" sub_attr:("STRUCTURE" { BodyStructure })? { sub_attr.unwrap_or(Body(AllSection, None)) }
+    = [eE][nN][vV][eE][lL][oO][pP][eE] { Envelope }
+    / [fF][lL][aA][gG][sS] { Flags }
+    / [iI][nN][tT][eE][rR][nN][aA][lL][dD][aA][tT][eE] { InternalDate }
+    / [rR][fF][cC] "822" sub_attr:(".HEADER" { HeaderRFC822 } / ".SIZE" { SizeRFC822 } / ".TEXT" { TextRFC822 })? { RFC822(sub_attr.unwrap_or(AllRFC822)) }
+    / [uU][iI][dD] { UID }
+    / [bB][oO][dD][yY] "." [pP][eE][eE][kK] section:section octets:("<" first_octet:number "." last_octet:nz_number ">" { (first_octet, last_octet) })? { BodyPeek(section, octets) }
+    / [bB][oO][dD][yY] section:section octets:("<" first_octet:number "." last_octet:nz_number ">" { (first_octet, last_octet) })? { Body(section, octets) }
+    / [bB][oO][dD][yY] sub_attr:("STRUCTURE" { BodyStructure })? { sub_attr.unwrap_or(Body(AllSection, None)) }
 
 section -> BodySection
     = "[" section:(section_spec)? "]"
@@ -76,7 +78,7 @@ section_spec -> BodySection
     / (a:section_part b:("." section_text)? { PartSection(a, b) })
 
 section_msgtext -> Msgtext
-    = "HEADER.FIELDS" not:".NOT"? SP headers:header_list {
+    = [hH][eE][aA][dD][eE][rR] "." [fF][iI][eE][lL][dD][sS] not:("." [nN][oO][tT])? SP headers:header_list {
             match not {
                 Some(_) => {
                     HeaderFieldsNotMsgtext(headers)
@@ -86,8 +88,8 @@ section_msgtext -> Msgtext
                 }
             }
         }
-    / "HEADER" { HeaderMsgtext }
-    / "TEXT" { TextMsgtext }
+    / [hH][eE][aA][dD][eE][rR] { HeaderMsgtext }
+    / [tT][eE][xX][tT] { TextMsgtext }
     /* top-level or MESSAGE/RFC822 part */
 
 header_list -> Vec<String>
@@ -101,7 +103,8 @@ header_list -> Vec<String>
     }
 
 header_fld_name -> String
-    = astring
+    = a:astring
+    { a.into_ascii_upper().to_string() }
 
 section_part -> Vec<uint>
     = a:nz_number b:("." nz_number)*
@@ -115,7 +118,7 @@ section_part -> Vec<uint>
     /* body part nesting */
 
 section_text -> Msgtext
-    = section_msgtext / "MIME" { MimeMsgtext }
+    = section_msgtext / [mM][iI][mM][eE] { MimeMsgtext }
     /* text other than actual body part (headers, etc.) */
 
 astring -> String

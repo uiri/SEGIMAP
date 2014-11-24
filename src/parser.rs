@@ -128,7 +128,7 @@ mod tests {
 
     #[test]
     fn test_fetch_full() {
-        let cmd = fetch("FETCH 2:7 FULL");
+        let cmd = fetch("FeTCH 2:7 FULL");
         assert!(cmd.is_ok());
         let cmd = cmd.unwrap();
         let expected = Command::new(
@@ -331,7 +331,21 @@ mod tests {
     }
 
     #[test]
-    fn test_complex_fetch() {
+    fn test_fetch_case_sensitivity() {
+        assert_eq!(fetch("fetch * (flags body[4.2.2.2.header.fields.not (date from)]<400.10000>)").unwrap(), Command::new(
+                Fetch,
+                vec![Wildcard],
+                vec![Flags, Body(
+                    PartSection(vec![4, 2, 2, 2], Some(HeaderFieldsNotMsgtext(vec!["DATE".to_string(), "FROM".to_string()]))),
+                    Some((400, 10000))
+                )]));
+        assert_eq!(
+            fetch("FETCH * (FLAGS BODY[4.2.2.2.HEADER.FIELDS.NOT (DATE FROM)]<400.10000>)").unwrap(),
+            fetch("fetch * (flags body[4.2.2.2.header.fields.not (date from)]<400.10000>)").unwrap());
+    }
+
+    #[test]
+    fn test_fetch_complex() {
         assert_eq!(fetch("FETCH *:4 BODY[4.2.2.2.HEADER.FIELDS (DATE FROM)]<400.10000>").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
