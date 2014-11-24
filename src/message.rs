@@ -12,6 +12,12 @@ use command::command::{
     BodyStructure,
     UID
 };
+use command::command::{
+    AllRFC822,
+    HeaderRFC822,
+    SizeRFC822,
+    TextRFC822
+};
 use error::{
     Error, ImapResult, InternalIoError, MessageDecodeError
 };
@@ -32,7 +38,9 @@ pub struct Message {
     body: Vec<MIMEPart>,
     flags: Vec<Flag>,
     pub deleted: bool,
-    raw_contents: String
+    size: uint,
+    raw_contents: String,
+    raw_header: String
 }
 
 #[deriving(Show)]
@@ -52,6 +60,7 @@ impl Message {
             Err(e) => return Err(Error::simple(InternalIoError(e), "Failed to open mail file."))
         };
         let raw_contents = String::from_utf8_lossy(file.as_slice()).to_string();
+        let size = raw_contents.as_slice().len();
 
         let mut path = arg_path.filename_str().unwrap().splitn(1, ':');
         let filename = path.next().unwrap();
@@ -180,7 +189,9 @@ impl Message {
             body: body,
             flags: flags,
             deleted: false,
-            raw_contents: raw_contents.clone()
+            size: size,
+            raw_contents: raw_contents.clone(),
+            raw_header: raw_header.to_string()
         };
 
         Ok(message)
@@ -202,18 +213,27 @@ impl Message {
     }
 
     pub fn fetch(&self, attributes: &Vec<Attribute>) -> String {
-        let res = String::new();
+        let mut res = String::new();
         for attr in attributes.iter() {
-            match attr {
-                &Envelope => {},
-                &Flags => {},
-                &InternalDate => {},
-                &RFC822(ref attr) => {},
-                &Body(ref section, ref octets) => {},
-                &BodyPeek(ref section, ref octets) => {},
-                &BodyStructure => {},
-                &UID => {}
-            }
+            let attr_str = match attr {
+                &Envelope => { "".to_string() },
+                &Flags => { "".to_string() },
+                &InternalDate => { "".to_string() },
+                &RFC822(ref attr) => {
+                    let rfc_attr = match attr {
+                        &AllRFC822 => { "".to_string() },
+                        &HeaderRFC822 => { format!(".HEADER {{{}}}\n{}", self.raw_header.len(), self.raw_header) },
+                        &SizeRFC822 => { format!(".SIZE {}", self.size) },
+                        &TextRFC822 => { "".to_string() }
+                    };
+                    format!("RFC822{}", rfc_attr)
+                },
+                &Body(ref section, ref octets) => { "".to_string() },
+                &BodyPeek(ref section, ref octets) => { "".to_string() },
+                &BodyStructure => { "".to_string() },
+                &UID => { "".to_string() }
+            };
+            res = format!("{} {}", res, attr_str);
         }
         res
     }

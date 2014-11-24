@@ -1,6 +1,7 @@
 use std::io::fs;
 use std::fmt::{Show, Formatter, FormatError};
 
+use command::command::Attribute;
 use message::Message;
 
 pub struct Folder {
@@ -123,12 +124,12 @@ impl Folder {
         return result;
     }
 
-    pub fn get_message(&self, index: uint) -> &Message {
-        &self.messages[index]
-    }
-
     pub fn message_count(&self) -> uint {
         self.messages.len()
+    }
+
+    pub fn fetch(&self, index: uint, attributes: &Vec<Attribute>) -> String {
+        self.messages[index].fetch(attributes)
     }
 }
 
