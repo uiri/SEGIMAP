@@ -1,6 +1,7 @@
 use command::command::{
     Attribute,
     Body,
+    BodyPeek,
     BodySection,
     BodyStructure,
     Command,
@@ -57,8 +58,8 @@ fetch_att -> Attribute
     / "INTERNALDATE" { InternalDate }
     / "RFC822" sub_attr:(".HEADER" { HeaderRFC822 } / ".SIZE" { SizeRFC822 } / ".TEXT" { TextRFC822 })? { RFC822(sub_attr.unwrap_or(AllRFC822)) }
     / "UID" { UID }
+    / "BODY.PEEK" section:section octets:("<" first_octet:number "." last_octet:nz_number ">" { (first_octet, last_octet) })? { BodyPeek(section, octets) }
     / "BODY" section:section octets:("<" first_octet:number "." last_octet:nz_number ">" { (first_octet, last_octet) })? { Body(section, octets) }
-/*    / "BODY.PEEK" section ("<" number "." nz_number ">")? { () } */
     / "BODY" sub_attr:("STRUCTURE" { BodyStructure })? { sub_attr.unwrap_or(Body(AllSection, None)) }
 
 section -> BodySection

@@ -13,11 +13,9 @@ pub enum Attribute {
     InternalDate,
     RFC822(RFC822Attribute),
     Body(BodySection, Option<(uint, uint)>),
+    BodyPeek(BodySection, Option<(uint, uint)>),
     BodyStructure,
-    UID,
-    /*
-    BODYPEEK section ("<" number "." nz_number ">")?
-    */
+    UID
 }
 
 // TODO: Remove the suffix from this enum when enum namespacing is available.
