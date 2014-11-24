@@ -77,7 +77,7 @@ impl Session {
                 warn!("Cmd: {}", command.trim());
                 match cmd.to_string().into_ascii_lower().as_slice() {
                     "capability" => {
-                        return format!("* CAPABILITY IMAP4rev1\n{} OK Capability successful\n", tag);
+                        return format!("* CAPABILITY IMAP4rev1 CHILDREN\n{} OK Capability successful\n", tag);
                     }
                     "login" => {
                         let login_args: Vec<&str> = args.collect();
@@ -304,20 +304,44 @@ impl Session {
             return None;
         }
         let abs_dir = make_absolute(&dir);
-        let flags = match fs::readdir(&dir.join("new")) {
+        let mut flags = match fs::readdir(&dir.join("new")) {
             Err(_) => { return None; }
             Ok(newlisting) => {
                 if newlisting.len() == 0 {
-                    "\\Unmarked"
+                    "\\Unmarked".to_string()
                 } else {
-                    "\\Marked"
+                    "\\Marked".to_string()
                 }
             }
         };
-        match fs::readdir(&dir.join("cur")) {
+        flags = match fs::readdir(&dir) {
             Err(_) => { return None; }
-            _ => {}
-        }
+            Ok(dir_listing) => {
+                let mut children = false;
+                for subdir in dir_listing.iter() {
+                    let subdir_str = from_utf8(subdir.filename().unwrap()).unwrap();
+                    if subdir_str != "cur" &&
+                       subdir_str != "new" &&
+                       subdir_str != "tmp" {
+                           match fs::readdir(&subdir.join("cur")) {
+                               Err(_) => { continue; }
+                               _ => {}
+                           }
+                           match fs::readdir(&subdir.join("new")) {
+                               Err(_) => { continue; }
+                               _ => {}
+                           }
+                           children = true;
+                           break;
+                       }
+                }
+                if children {
+                    format!("{} \\HasChildren", flags)
+                } else {
+                    format!("{} \\HasNoChildren", flags)
+                }
+            }
+        };
         let re_opt = Regex::new(format!("^{}", make_absolute(maildir_path).display()).as_slice());
         match re_opt {
             Err(_) => { return None; }
