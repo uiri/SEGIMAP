@@ -12,7 +12,7 @@ pub enum Attribute {
     Flags,
     InternalDate,
     RFC822(RFC822Attribute),
-    Body,
+    Body(BodyAttribute),
     BodyStructure,
     UID,
     /*
@@ -21,21 +21,25 @@ pub enum Attribute {
     */
 }
 
+// TODO: Remove the suffix from this enum when enum namespacing is available.
 #[deriving(PartialEq, Show)]
 pub enum RFC822Attribute {
-    All,
-    Header,
-    Size,
-    Text
+    AllRFC822,
+    HeaderRFC822,
+    SizeRFC822,
+    TextRFC822
 }
 
-/*#[deriving(PartialEq, Show)]
+// TODO: Remove the suffix from this enum when enum namespacing is available.
+#[deriving(PartialEq, Show)]
 pub enum BodyAttribute {
-    BodyAll,
-    Size,
-    Text,
-    Plain
-}*/
+    AllBody,
+    HeaderBody,
+    HeaderFieldsBody,
+    HeaderFieldsNotBody,
+    TextBody,
+    NumberBody(uint)
+}
 
 #[deriving(PartialEq, Show)]
 pub struct Command {

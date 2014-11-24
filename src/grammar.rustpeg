@@ -1,5 +1,4 @@
 use command::command::{
-    All,
     Attribute,
     Body,
     BodyStructure,
@@ -7,12 +6,23 @@ use command::command::{
     Envelope,
     Fetch,
     Flags,
-    Header,
     InternalDate,
     RFC822,
-    Size,
-    Text,
     UID
+};
+use command::command::{
+    AllRFC822,
+    HeaderRFC822,
+    SizeRFC822,
+    TextRFC822
+};
+use command::command::{
+    AllBody,
+    HeaderBody,
+    HeaderFieldsBody,
+    HeaderFieldsNotBody,
+    TextBody,
+    NumberBody
 };
 use command::sequence_set::{
     Number,
@@ -29,9 +39,9 @@ fetch
 #[export]
 fetch -> Command
     = "FETCH" SP set:sequence_set SP attrs:(
-      "ALL" { vec![Flags, InternalDate, RFC822(Size), Envelope] }
-    / "FULL" { vec![Flags, InternalDate, RFC822(Size), Envelope, Body] }
-    / "FAST" { vec![Flags, InternalDate, RFC822(Size)] }
+      "ALL" { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope] }
+    / "FULL" { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body(AllBody)] }
+    / "FAST" { vec![Flags, InternalDate, RFC822(SizeRFC822)] }
     / attr:fetch_att { vec![attr] })
     { Command::new(Fetch, set, attrs) }
 
@@ -39,8 +49,8 @@ fetch_att -> Attribute
     = "ENVELOPE" { Envelope }
     / "FLAGS" { Flags }
     / "INTERNALDATE" { InternalDate }
-    / "RFC822" sub_attr:(".HEADER" { Header } / ".SIZE" { Size } / ".TEXT" { Text })? { RFC822(sub_attr.unwrap_or(All)) }
-    / "BODY" sub_attr:("STRUCTURE" { BodyStructure })? { sub_attr.unwrap_or(Body) }
+    / "RFC822" sub_attr:(".HEADER" { HeaderRFC822 } / ".SIZE" { SizeRFC822 } / ".TEXT" { TextRFC822 })? { RFC822(sub_attr.unwrap_or(AllRFC822)) }
+    / "BODY" sub_attr:("STRUCTURE" { BodyStructure })? { sub_attr.unwrap_or(Body(AllBody)) }
     / "UID" { UID }
 /*    / "BODY" section ("<" number "." nz_number ">")? { () } */
 /*    / "BODY.PEEK" section ("<" number "." nz_number ">")? { () } */

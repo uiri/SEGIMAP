@@ -6,24 +6,33 @@ peg_file! grammar("grammar.rustpeg")
 mod tests {
     use super::{fetch, sequence_set};
     use command::command::{
-        All,
         Body,
         BodyStructure,
         Command,
         Envelope,
         Fetch,
         Flags,
-        Header,
         InternalDate,
         RFC822,
-        Size,
-        Text,
         UID
+    };
+    use command::command::{
+        AllRFC822,
+        HeaderRFC822,
+        SizeRFC822,
+        TextRFC822
+    };
+    use command::command::{
+        AllBody,
+        HeaderBody,
+        HeaderFieldsBody,
+        HeaderFieldsNotBody,
+        TextBody,
+        NumberBody
     };
     use command::sequence_set::{
         Number,
         Range,
-        SequenceItem,
         Wildcard
     };
 
@@ -96,7 +105,7 @@ mod tests {
         let expected = Command::new(
                 Fetch,
                 vec![Range(box Number(1), box Number(5))],
-                vec![Flags, InternalDate, RFC822(Size), Envelope]);
+                vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope]);
         assert_eq!(cmd, expected);
     }
 
@@ -108,7 +117,7 @@ mod tests {
         let expected = Command::new(
                 Fetch,
                 vec![Number(3), Number(5)],
-                vec![Flags, InternalDate, RFC822(Size)]);
+                vec![Flags, InternalDate, RFC822(SizeRFC822)]);
         assert_eq!(cmd, expected);
     }
 
@@ -120,7 +129,7 @@ mod tests {
         let expected = Command::new(
                 Fetch,
                 vec![Range(box Number(2), box Number(7))],
-                vec![Flags, InternalDate, RFC822(Size), Envelope, Body]);
+                vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body(AllBody)]);
         assert_eq!(cmd, expected);
     }
 
@@ -149,19 +158,19 @@ mod tests {
         assert_eq!(fetch("FETCH * RFC822").unwrap(), Command::new(
                 Fetch,
                 vec![Wildcard],
-                vec![RFC822(All)]));
+                vec![RFC822(AllRFC822)]));
         assert_eq!(fetch("FETCH * RFC822.HEADER").unwrap(), Command::new(
                 Fetch,
                 vec![Wildcard],
-                vec![RFC822(Header)]));
+                vec![RFC822(HeaderRFC822)]));
         assert_eq!(fetch("FETCH * RFC822.SIZE").unwrap(), Command::new(
                 Fetch,
                 vec![Wildcard],
-                vec![RFC822(Size)]));
+                vec![RFC822(SizeRFC822)]));
         assert_eq!(fetch("FETCH * RFC822.TEXT").unwrap(), Command::new(
                 Fetch,
                 vec![Wildcard],
-                vec![RFC822(Text)]));
+                vec![RFC822(TextRFC822)]));
     }
 
     #[test]
@@ -169,7 +178,7 @@ mod tests {
         assert_eq!(fetch("FETCH * BODY").unwrap(), Command::new(
                 Fetch,
                 vec![Wildcard],
-                vec![Body]));
+                vec![Body(AllBody)]));
         assert_eq!(fetch("FETCH * BODYSTRUCTURE").unwrap(), Command::new(
                 Fetch,
                 vec![Wildcard],
