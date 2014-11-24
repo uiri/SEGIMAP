@@ -1,70 +1,11 @@
 pub use self::grammar::{fetch, sequence_set};
 
-use command::sequence_set::SequenceItem;
-
 peg_file! grammar("grammar.rustpeg")
-
-#[deriving(PartialEq, Show)]
-enum CommandType {
-    Fetch
-}
-
-// TODO: Sort these in alphabetical order.
-#[deriving(PartialEq, Show)]
-enum Attribute {
-    Envelope,
-    Flags,
-    InternalDate,
-    RFC822(RFC822Attribute),
-    Body,
-    BodyStructure,
-    UID,
-    /*
-    BODY section ("<" number "." nz_number ">")?,
-    BODYPEEK section ("<" number "." nz_number ">")?
-    */
-}
-
-#[deriving(PartialEq, Show)]
-enum RFC822Attribute {
-    All,
-    Header,
-    Size,
-    Text
-}
-
-/*#[deriving(PartialEq, Show)]
-enum BodyAttribute {
-    BodyAll,
-    Size,
-    Text,
-    Plain
-}*/
-
-#[deriving(PartialEq, Show)]
-struct Command {
-    command_type: CommandType,
-    sequence_set: Vec<SequenceItem>,
-    attributes: Vec<Attribute>
-}
-
-impl Command {
-    pub fn new(
-            command_type: CommandType,
-            sequence_set: Vec<SequenceItem>,
-            attributes: Vec<Attribute>) -> Command {
-        Command {
-            command_type: command_type,
-            sequence_set: sequence_set,
-            attributes: attributes
-        }
-    }
-}
 
 #[cfg(test)]
 mod tests {
     use super::{fetch, sequence_set};
-    use super::{
+    use command::command::{
         All,
         Body,
         BodyStructure,
