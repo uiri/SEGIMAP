@@ -1,4 +1,4 @@
-pub use self::grammar::sequence_set;
+pub use self::grammar::{fetch, sequence_set};
 
 peg_file! grammar("grammar.rustpeg")
 
@@ -11,7 +11,7 @@ enum SequenceItem {
 
 #[cfg(test)]
 mod tests {
-    use super::sequence_set;
+    use super::{fetch, sequence_set};
     use super::{All, Number, Range};
 
     #[test]
@@ -73,5 +73,14 @@ mod tests {
         let seq = seq.unwrap();
         let expected = vec![Number(1231), Number(1342), Number(12), Range(box Number(98), box Number(104)), Number(16)];
         assert_eq!(seq, expected);
+    }
+
+    #[test]
+    fn test_simple_fetch() {
+        let fetch = fetch("FETCH 1:2 (FLAGS BODY[HEADER.FIELDS (DATE FROM)])");
+        assert!(fetch.is_ok());
+        let fetch = fetch.unwrap();
+        //let expected = vec![Number(1231), Number(1342), Number(12), Range(box Number(98), box Number(104)), Number(16)];
+        //assert_eq!(seq, expected);
     }
 }
