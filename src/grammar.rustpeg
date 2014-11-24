@@ -10,12 +10,12 @@ use parser::{
     Header,
     InternalDate,
     Number,
-    Plain,
     Range,
     RFC822,
     SequenceItem,
     Size,
     Text,
+    Wildcard,
     UID
 };
 
@@ -37,7 +37,7 @@ fetch_att -> Attribute
     = "ENVELOPE" { Envelope }
     / "FLAGS" { Flags }
     / "INTERNALDATE" { InternalDate }
-    / "RFC822" sub_attr:(".HEADER" { Header } / ".SIZE" { Size } / ".TEXT" { Text })? { RFC822(sub_attr.unwrap_or(Plain)) }
+    / "RFC822" sub_attr:(".HEADER" { Header } / ".SIZE" { Size } / ".TEXT" { Text })? { RFC822(sub_attr.unwrap_or(All)) }
     / "BODY" sub_attr:("STRUCTURE" { BodyStructure })? { sub_attr.unwrap_or(Body) }
     / "UID" { UID }
 /*    / "BODY" section ("<" number "." nz_number ">")? { () } */
@@ -133,7 +133,7 @@ seq_range -> SequenceItem
     { Range(box a, box b) }
 
 seq_number -> SequenceItem
-    = (num:nz_number { Number(num) }) / (all:"*" { All })
+    = (num:nz_number { Number(num) }) / ("*" { Wildcard })
 
 /* RFC 3501 BOILERPLATE */
 

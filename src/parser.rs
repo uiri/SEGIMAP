@@ -6,7 +6,7 @@ peg_file! grammar("grammar.rustpeg")
 enum SequenceItem {
     Number(uint),
     Range(Box<SequenceItem>, Box<SequenceItem>),
-    All
+    Wildcard
 }
 
 #[deriving(PartialEq, Show)]
@@ -32,11 +32,19 @@ enum Attribute {
 
 #[deriving(PartialEq, Show)]
 enum RFC822Attribute {
+    All,
     Header,
+    Size,
+    Text
+}
+
+/*#[deriving(PartialEq, Show)]
+enum BodyAttribute {
+    BodyAll,
     Size,
     Text,
     Plain
-}
+}*/
 
 #[deriving(PartialEq, Show)]
 struct Command {
@@ -72,12 +80,12 @@ mod tests {
         Header,
         InternalDate,
         Number,
-        Plain,
         Range,
         RFC822,
         Size,
         Text,
-        UID
+        UID,
+        Wildcard
     };
 
     #[test]
@@ -107,7 +115,7 @@ mod tests {
         let seq = sequence_set("*");
         assert!(seq.is_ok());
         let seq = seq.unwrap();
-        let expected = vec![All];
+        let expected = vec![Wildcard];
         assert_eq!(seq, expected);
     }
 
@@ -128,7 +136,7 @@ mod tests {
         let seq = sequence_set("31:*");
         assert!(seq.is_ok());
         let seq = seq.unwrap();
-        let expected = vec![Range(box Number(31), box All)];
+        let expected = vec![Range(box Number(31), box Wildcard)];
         assert_eq!(seq, expected);
     }
 
@@ -181,19 +189,19 @@ mod tests {
     fn test_fetch_simple() {
         assert_eq!(fetch("FETCH * ENVELOPE").unwrap(), Command::new(
                 Fetch,
-                vec![All],
+                vec![Wildcard],
                 vec![Envelope]));
         assert_eq!(fetch("FETCH * FLAGS").unwrap(), Command::new(
                 Fetch,
-                vec![All],
+                vec![Wildcard],
                 vec![Flags]));
         assert_eq!(fetch("FETCH * INTERNALDATE").unwrap(), Command::new(
                 Fetch,
-                vec![All],
+                vec![Wildcard],
                 vec![InternalDate]));
         assert_eq!(fetch("FETCH * UID").unwrap(), Command::new(
                 Fetch,
-                vec![All],
+                vec![Wildcard],
                 vec![UID]));
     }
 
@@ -201,19 +209,19 @@ mod tests {
     fn test_fetch_rfc822() {
         assert_eq!(fetch("FETCH * RFC822").unwrap(), Command::new(
                 Fetch,
-                vec![All],
-                vec![RFC822(Plain)]));
+                vec![Wildcard],
+                vec![RFC822(All)]));
         assert_eq!(fetch("FETCH * RFC822.HEADER").unwrap(), Command::new(
                 Fetch,
-                vec![All],
+                vec![Wildcard],
                 vec![RFC822(Header)]));
         assert_eq!(fetch("FETCH * RFC822.SIZE").unwrap(), Command::new(
                 Fetch,
-                vec![All],
+                vec![Wildcard],
                 vec![RFC822(Size)]));
         assert_eq!(fetch("FETCH * RFC822.TEXT").unwrap(), Command::new(
                 Fetch,
-                vec![All],
+                vec![Wildcard],
                 vec![RFC822(Text)]));
     }
 
@@ -221,11 +229,11 @@ mod tests {
     fn test_fetch_body() {
         assert_eq!(fetch("FETCH * BODY").unwrap(), Command::new(
                 Fetch,
-                vec![All],
+                vec![Wildcard],
                 vec![Body]));
         assert_eq!(fetch("FETCH * BODYSTRUCTURE").unwrap(), Command::new(
                 Fetch,
-                vec![All],
+                vec![Wildcard],
                 vec![BodyStructure]));
     }
 
@@ -237,7 +245,7 @@ mod tests {
         let cmd = cmd.unwrap();
         let expected = Command::new(
                 Fetch,
-                vec![All],
+                vec![Wildcard],
                 Vec::new()); // TODO: Fill in the flags.
         assert_eq!(cmd, expected);
     }
