@@ -62,7 +62,7 @@ pub fn iterator(sequence_set: Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
     items.sort();
     items.dedup();
     // Remove all elements that are greater than the maximum.
-    let items: Vec<uint> = items.move_iter().filter(|&x| x <= max_id).collect();
+    let items: Vec<uint> = items.into_iter().filter(|&x| x <= max_id).collect();
     return items;
 }
 
