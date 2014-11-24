@@ -12,11 +12,10 @@ pub enum Attribute {
     Flags,
     InternalDate,
     RFC822(RFC822Attribute),
-    Body(BodyAttribute),
+    Body(BodySection, Option<(uint, uint)>),
     BodyStructure,
     UID,
     /*
-    BODY section ("<" number "." nz_number ">")?,
     BODYPEEK section ("<" number "." nz_number ">")?
     */
 }
@@ -32,13 +31,19 @@ pub enum RFC822Attribute {
 
 // TODO: Remove the suffix from this enum when enum namespacing is available.
 #[deriving(PartialEq, Show)]
-pub enum BodyAttribute {
-    AllBody,
-    HeaderBody,
-    HeaderFieldsBody,
-    HeaderFieldsNotBody,
-    TextBody,
-    NumberBody(uint)
+pub enum BodySection {
+    AllSection,
+    MsgtextSection(Msgtext),
+    PartSection(Vec<uint>, Option<Msgtext>)
+}
+
+#[deriving(PartialEq, Show)]
+pub enum Msgtext {
+    HeaderMsgtext,
+    HeaderFieldsMsgtext(Vec<String>),
+    HeaderFieldsNotMsgtext(Vec<String>),
+    TextMsgtext, // This is for the msgtext "TEXT" field
+    MimeMsgtext
 }
 
 #[deriving(PartialEq, Show)]

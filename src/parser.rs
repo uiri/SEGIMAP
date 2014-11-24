@@ -23,12 +23,9 @@ mod tests {
         TextRFC822
     };
     use command::command::{
-        AllBody,
-        HeaderBody,
-        HeaderFieldsBody,
-        HeaderFieldsNotBody,
-        TextBody,
-        NumberBody
+        AllSection,
+        MsgtextSection,
+        PartSection
     };
     use command::sequence_set::{
         Number,
@@ -129,7 +126,7 @@ mod tests {
         let expected = Command::new(
                 Fetch,
                 vec![Range(box Number(2), box Number(7))],
-                vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body(AllBody)]);
+                vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body(AllSection, None)]);
         assert_eq!(cmd, expected);
     }
 
@@ -178,7 +175,7 @@ mod tests {
         assert_eq!(fetch("FETCH * BODY").unwrap(), Command::new(
                 Fetch,
                 vec![Wildcard],
-                vec![Body(AllBody)]));
+                vec![Body(AllSection, None)]));
         assert_eq!(fetch("FETCH * BODYSTRUCTURE").unwrap(), Command::new(
                 Fetch,
                 vec![Wildcard],

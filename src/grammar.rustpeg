@@ -1,6 +1,7 @@
 use command::command::{
     Attribute,
     Body,
+    BodySection,
     BodyStructure,
     Command,
     Envelope,
@@ -17,12 +18,17 @@ use command::command::{
     TextRFC822
 };
 use command::command::{
-    AllBody,
-    HeaderBody,
-    HeaderFieldsBody,
-    HeaderFieldsNotBody,
-    TextBody,
-    NumberBody
+    AllSection,
+    MsgtextSection,
+    PartSection
+};
+use command::command::{
+    Msgtext,
+    HeaderMsgtext,
+    HeaderFieldsMsgtext,
+    HeaderFieldsNotMsgtext,
+    TextMsgtext,
+    MimeMsgtext
 };
 use command::sequence_set::{
     Number,
@@ -40,7 +46,7 @@ fetch
 fetch -> Command
     = "FETCH" SP set:sequence_set SP attrs:(
       "ALL" { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope] }
-    / "FULL" { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body(AllBody)] }
+    / "FULL" { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body(AllSection, None)] }
     / "FAST" { vec![Flags, InternalDate, RFC822(SizeRFC822)] }
     / attr:fetch_att { vec![attr] })
     { Command::new(Fetch, set, attrs) }
@@ -50,38 +56,64 @@ fetch_att -> Attribute
     / "FLAGS" { Flags }
     / "INTERNALDATE" { InternalDate }
     / "RFC822" sub_attr:(".HEADER" { HeaderRFC822 } / ".SIZE" { SizeRFC822 } / ".TEXT" { TextRFC822 })? { RFC822(sub_attr.unwrap_or(AllRFC822)) }
-    / "BODY" sub_attr:("STRUCTURE" { BodyStructure })? { sub_attr.unwrap_or(Body(AllBody)) }
+    / "BODY" sub_attr:("STRUCTURE" { BodyStructure })? { sub_attr.unwrap_or(Body(AllSection, None)) }
     / "UID" { UID }
-/*    / "BODY" section ("<" number "." nz_number ">")? { () } */
+    / "BODY" section:section octets:("<" first_octet:number "." last_octet:nz_number ">" { (first_octet, last_octet) })? { Body(section, octets) }
 /*    / "BODY.PEEK" section ("<" number "." nz_number ">")? { () } */
 
-section
-    = "[" section_spec? "]"
+section -> BodySection
+    = "[" section:(section_spec)? "]"
+    { section.unwrap_or(AllSection) }
 
-section_spec
-    = section_msgtext / (section_part ("." section_text)?) { () }
+section_spec -> BodySection
+    = a:section_msgtext { MsgtextSection(a) }
+    / (a:section_part b:("." section_text)? { PartSection(a, b) })
 
-section_msgtext
-    = "HEADER" / "HEADER.FIELDS" ".NOT"? SP header_list
-    / "TEXT"
+section_msgtext -> Msgtext
+    = "HEADER" { HeaderMsgtext }
+    / "HEADER.FIELDS" not:".NOT"? SP headers:header_list {
+            match not {
+                Some(_) => {
+                    HeaderFieldsNotMsgtext(headers)
+                },
+                None => {
+                    HeaderFieldsMsgtext(headers)
+                }
+            }
+        }
+    / "TEXT" { TextMsgtext }
     /* top-level or MESSAGE/RFC822 part */
 
-header_list
-    = "(" header_fld_name (SP header_fld_name)* ")"
+header_list -> Vec<String>
+    = "(" a:header_fld_name b:(SP header_fld_name)* ")"
+    {
+        let mut fields = vec![a];
+        for field in b.into_iter() {
+            fields.push(field);
+        }
+        fields
+    }
 
-header_fld_name
+header_fld_name -> String
     = astring
 
-section_part
-    = nz_number ("." nz_number)*
+section_part -> Vec<uint>
+    = a:nz_number b:("." nz_number)*
+    {
+        let mut parts = vec![a];
+        for part in b.into_iter() {
+            parts.push(part);
+        }
+        parts
+    }
     /* body part nesting */
 
-section_text
-    = section_msgtext / "MIME"
+section_text -> Msgtext
+    = section_msgtext / "MIME" { MimeMsgtext }
     /* text other than actual body part (headers, etc.) */
 
-astring
-    = ASTRING_CHAR+ / string
+astring -> String
+    = (ASTRING_CHAR+ { match_str.to_string() }) / string
 
 ASTRING_CHAR
     = ATOM_CHAR / resp_specials
@@ -107,14 +139,20 @@ quoted_specials
 resp_specials
     = "]"
 
-string
+string -> String
     = quoted / literal
 
-quoted
-    = DQUOTE QUOTED_CHAR* DQUOTE
+quoted -> String
+    = DQUOTE quoted_string:(QUOTED_CHAR* { match_str.to_string() }) DQUOTE
+    { quoted_string }
 
-literal
-    = "{" number "}" CRLF CHAR8*
+literal -> String
+    = "{" number "}" CRLF (CHAR8* { match_str.to_string() })
+    /*
+     * the "number" is used to indicate the number of octets.
+     * TODO: determine if the "number" should be used when constructing the
+     * string.
+     */
 
 QUOTED_CHAR
     = (!quoted_specials TEXT_CHAR)
