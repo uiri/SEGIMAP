@@ -20,10 +20,7 @@ enum Attribute {
     Envelope,
     Flags,
     InternalDate,
-    RFC822,
-    RFC822Header,
-    RFC822Size,
-    RFC822Text,
+    RFC822(RFC822Attribute),
     Body,
     BodyStructure,
     UID,
@@ -31,6 +28,14 @@ enum Attribute {
     BODY section ("<" number "." nz_number ">")?,
     BODYPEEK section ("<" number "." nz_number ">")?
     */
+}
+
+#[deriving(PartialEq, Show)]
+enum RFC822Attribute {
+    Header,
+    Size,
+    Text,
+    Plain
 }
 
 #[deriving(PartialEq, Show)]
@@ -64,13 +69,14 @@ mod tests {
         Envelope,
         Fetch,
         Flags,
+        Header,
         InternalDate,
         Number,
+        Plain,
         Range,
         RFC822,
-        RFC822Header,
-        RFC822Size,
-        RFC822Text,
+        Size,
+        Text,
         UID
     };
 
@@ -138,40 +144,89 @@ mod tests {
     #[test]
     fn test_fetch_all() {
         let cmd = fetch("FETCH 1:5 ALL");
-        println!("CMD: {}", cmd);
         assert!(cmd.is_ok());
         let cmd = cmd.unwrap();
         let expected = Command::new(
                 Fetch,
                 vec![Range(box Number(1), box Number(5))],
-                vec![Flags, InternalDate, RFC822Size, Envelope]);
+                vec![Flags, InternalDate, RFC822(Size), Envelope]);
         assert_eq!(cmd, expected);
     }
 
     #[test]
     fn test_fetch_fast() {
         let cmd = fetch("FETCH 3,5 FAST");
-        println!("CMD: {}", cmd);
         assert!(cmd.is_ok());
         let cmd = cmd.unwrap();
         let expected = Command::new(
                 Fetch,
                 vec![Number(3), Number(5)],
-                vec![Flags, InternalDate, RFC822Size]);
+                vec![Flags, InternalDate, RFC822(Size)]);
         assert_eq!(cmd, expected);
     }
 
     #[test]
     fn test_fetch_full() {
         let cmd = fetch("FETCH 2:7 FULL");
-        println!("CMD: {}", cmd);
         assert!(cmd.is_ok());
         let cmd = cmd.unwrap();
         let expected = Command::new(
                 Fetch,
                 vec![Range(box Number(2), box Number(7))],
-                vec![Flags, InternalDate, RFC822Size, Envelope, Body]);
+                vec![Flags, InternalDate, RFC822(Size), Envelope, Body]);
         assert_eq!(cmd, expected);
+    }
+
+    #[test]
+    fn test_fetch_simple() {
+        assert_eq!(fetch("FETCH * ENVELOPE").unwrap(), Command::new(
+                Fetch,
+                vec![All],
+                vec![Envelope]));
+        assert_eq!(fetch("FETCH * FLAGS").unwrap(), Command::new(
+                Fetch,
+                vec![All],
+                vec![Flags]));
+        assert_eq!(fetch("FETCH * INTERNALDATE").unwrap(), Command::new(
+                Fetch,
+                vec![All],
+                vec![InternalDate]));
+        assert_eq!(fetch("FETCH * UID").unwrap(), Command::new(
+                Fetch,
+                vec![All],
+                vec![UID]));
+    }
+
+    #[test]
+    fn test_fetch_rfc822() {
+        assert_eq!(fetch("FETCH * RFC822").unwrap(), Command::new(
+                Fetch,
+                vec![All],
+                vec![RFC822(Plain)]));
+        assert_eq!(fetch("FETCH * RFC822.HEADER").unwrap(), Command::new(
+                Fetch,
+                vec![All],
+                vec![RFC822(Header)]));
+        assert_eq!(fetch("FETCH * RFC822.SIZE").unwrap(), Command::new(
+                Fetch,
+                vec![All],
+                vec![RFC822(Size)]));
+        assert_eq!(fetch("FETCH * RFC822.TEXT").unwrap(), Command::new(
+                Fetch,
+                vec![All],
+                vec![RFC822(Text)]));
+    }
+
+    #[test]
+    fn test_fetch_body() {
+        assert_eq!(fetch("FETCH * BODY").unwrap(), Command::new(
+                Fetch,
+                vec![All],
+                vec![Body]));
+        assert_eq!(fetch("FETCH * BODYSTRUCTURE").unwrap(), Command::new(
+                Fetch,
+                vec![All],
+                vec![BodyStructure]));
     }
 
     #[test]

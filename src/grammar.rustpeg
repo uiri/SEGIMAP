@@ -1,19 +1,21 @@
 use parser::{
     All,
+    Attribute,
     Body,
     BodyStructure,
     Command,
     Envelope,
     Fetch,
     Flags,
+    Header,
     InternalDate,
     Number,
+    Plain,
     Range,
     RFC822,
-    RFC822Header,
-    RFC822Size,
-    RFC822Text,
     SequenceItem,
+    Size,
+    Text,
     UID
 };
 
@@ -25,17 +27,21 @@ fetch
 #[export]
 fetch -> Command
     = "FETCH" SP set:sequence_set SP attrs:(
-      "ALL" { vec![Flags, InternalDate, RFC822Size, Envelope] }
-    / "FULL" { vec![Flags, InternalDate, RFC822Size, Envelope, Body] }
-    / "FAST" { vec![Flags, InternalDate, RFC822Size] })
+      "ALL" { vec![Flags, InternalDate, RFC822(Size), Envelope] }
+    / "FULL" { vec![Flags, InternalDate, RFC822(Size), Envelope, Body] }
+    / "FAST" { vec![Flags, InternalDate, RFC822(Size)] }
+    / attr:fetch_att { vec![attr] })
     { Command::new(Fetch, set, attrs) }
 
-fetch_att
-    = "ENVELOPE" / "FLAGS" / "INTERNALDATE"
-    / "RFC822" (".HEADER" / ".SIZE" / ".TEXT")? { () }
-    / "BODY" "STRUCTURE"? { () } / "UID"
-    / "BODY" section ("<" number "." nz_number ">")? { () }
-    / "BODY.PEEK" section ("<" number "." nz_number ">")? { () }
+fetch_att -> Attribute
+    = "ENVELOPE" { Envelope }
+    / "FLAGS" { Flags }
+    / "INTERNALDATE" { InternalDate }
+    / "RFC822" sub_attr:(".HEADER" { Header } / ".SIZE" { Size } / ".TEXT" { Text })? { RFC822(sub_attr.unwrap_or(Plain)) }
+    / "BODY" sub_attr:("STRUCTURE" { BodyStructure })? { sub_attr.unwrap_or(Body) }
+    / "UID" { UID }
+/*    / "BODY" section ("<" number "." nz_number ">")? { () } */
+/*    / "BODY.PEEK" section ("<" number "." nz_number ">")? { () } */
 
 section
     = "[" section_spec? "]"
