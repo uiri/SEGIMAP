@@ -18,8 +18,8 @@ pub fn iterator(sequence_set: Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
     let mut items = Vec::new();
     for item in sequence_set.iter() {
         match item {
-            & Number(num) => { items.push(num) },
-            & Range(ref a, ref b) => {
+            &Number(num) => { items.push(num) },
+            &Range(ref a, ref b) => {
                 let a = match **a {
                     Number(num) => { num },
                     Wildcard => { max_id }
@@ -50,7 +50,7 @@ pub fn iterator(sequence_set: Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
                 let seq_range: Vec<uint> = range(min, max + 1).collect();
                 items.push_all(seq_range.as_slice());
             },
-            & Wildcard => {
+            &Wildcard => {
                 // If the sequence set contains the wildcard operator, it spans
                 // the entire possible range of messages.
                 return range(1, stop).collect()
