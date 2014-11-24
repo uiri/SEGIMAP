@@ -23,6 +23,7 @@ use std::io::{Listener, Acceptor, BufferedStream};
 use std::sync::Arc;
 
 mod auth;
+mod command;
 mod config;
 mod email;
 mod error;

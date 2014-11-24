@@ -9,14 +9,16 @@ use parser::{
     Flags,
     Header,
     InternalDate,
-    Number,
-    Range,
     RFC822,
-    SequenceItem,
     Size,
     Text,
-    Wildcard,
     UID
+};
+use command::sequence_set::{
+    Number,
+    Range,
+    SequenceItem,
+    Wildcard
 };
 
 /* FETCH command rules */

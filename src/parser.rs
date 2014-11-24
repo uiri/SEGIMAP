@@ -1,13 +1,8 @@
 pub use self::grammar::{fetch, sequence_set};
 
-peg_file! grammar("grammar.rustpeg")
+use command::sequence_set::SequenceItem;
 
-#[deriving(Clone, PartialEq, Show)]
-enum SequenceItem {
-    Number(uint),
-    Range(Box<SequenceItem>, Box<SequenceItem>),
-    Wildcard
-}
+peg_file! grammar("grammar.rustpeg")
 
 #[deriving(PartialEq, Show)]
 enum CommandType {
@@ -79,12 +74,15 @@ mod tests {
         Flags,
         Header,
         InternalDate,
-        Number,
-        Range,
         RFC822,
         Size,
         Text,
-        UID,
+        UID
+    };
+    use command::sequence_set::{
+        Number,
+        Range,
+        SequenceItem,
         Wildcard
     };
 
