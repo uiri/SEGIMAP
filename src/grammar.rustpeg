@@ -113,7 +113,7 @@ seq_number -> SequenceItem
 /* RFC 3501 BOILERPLATE */
 
 number -> uint
-    = u:(DIGIT+ { from_str::<uint>(match_str).unwrap() }) __
+    = u:(DIGIT+ { from_str::<uint>(match_str).unwrap() })
     { u }
     /*
      * unsigned 32-bit integer
@@ -121,7 +121,7 @@ number -> uint
      */
 
 nz_number -> uint
-    = u:(digit_nz DIGIT* { from_str::<uint>(match_str).unwrap() }) __
+    = u:(digit_nz DIGIT* { from_str::<uint>(match_str).unwrap() })
     { u }
     /*
      * non-zero unsigned 32-bit integer
