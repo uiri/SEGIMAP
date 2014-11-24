@@ -1,6 +1,92 @@
-use parser::{All, Number, Range, SequenceItem};
+use parser::{
+    All,
+    Number,
+    Range,
+    SequenceItem
+};
 
 /* FETCH command rules */
+
+#[export]
+fetch
+    = "FETCH" SP sequence_set SP ("ALL" / "FULL" / "FAST" / fetch_att / "(" fetch_att (SP fetch_att)* ")")
+
+fetch_att
+    = "ENVELOPE" / "FLAGS" / "INTERNALDATE"
+    / "RFC822" (".HEADER" / ".SIZE" / ".TEXT")? { () }
+    / "BODY" "STRUCTURE"? { () } / "UID"
+    / "BODY" section ("<" number "." nz_number ">")? { () }
+    / "BODY.PEEK" section ("<" number "." nz_number ">")? { () }
+
+section
+    = "[" section_spec? "]"
+
+section_spec
+    = section_msgtext / (section_part ("." section_text)?) { () }
+
+section_msgtext
+    = "HEADER" / "HEADER.FIELDS" ".NOT"? SP header_list
+    / "TEXT"
+    /* top-level or MESSAGE/RFC822 part */
+
+header_list
+    = "(" header_fld_name (SP header_fld_name)* ")"
+
+header_fld_name
+    = astring
+
+section_part
+    = nz_number ("." nz_number)*
+    /* body part nesting */
+
+section_text
+    = section_msgtext / "MIME"
+    /* text other than actual body part (headers, etc.) */
+
+astring
+    = ASTRING_CHAR+ / string
+
+ASTRING_CHAR
+    = ATOM_CHAR / resp_specials
+
+ATOM_CHAR
+    = (!atom_specials CHAR)
+    /* any CHAR except atom_specials */
+
+atom_specials
+    = "(" / ")" / "{" / SP / CTL / list_wildcards
+    / quoted_specials / resp_specials
+
+CTL
+    = [\x00-\x1F] / [\x7F]
+    /* control characters */
+
+list_wildcards
+    = "%" / "*"
+
+quoted_specials
+    = DQUOTE / "\\"
+
+resp_specials
+    = "]"
+
+string
+    = quoted / literal
+
+quoted
+    = DQUOTE QUOTED_CHAR* DQUOTE
+
+literal
+    = "{" number "}" CRLF CHAR8*
+
+QUOTED_CHAR
+    = (!quoted_specials TEXT_CHAR)
+    / "\\" quoted_specials
+    /* any TEXT_CHAR except quoted_specials */
+
+TEXT_CHAR
+    = (!eolChar CHAR)
+    /* any CHAR except CR and LF */
 
 /* SequenceItem and set rules */
 
