@@ -11,6 +11,7 @@ use regex::Regex;
 use error::{Error,ImapStateError};
 use login::LoginData;
 
+use command::sequence_set;
 pub use folder::Folder;
 pub use server::Server;
 use parser::fetch;
@@ -238,12 +239,31 @@ impl Session {
                             Ok(cmd) => cmd,
                             _ => return bad_res
                         };
-                        match self.folder {
-                            None => { return bad_res; }
-                            _ => {}
+                        // Retrieve the current folder, if it exists.
+                        let folder = match self.folder {
+                            Some(ref folder) => folder,
+                            None => return bad_res
+                        };
+                        /*
+                         * Verify that the requested sequence set is valid.
+                         *
+                         * Per FRC 3501 seq-number definition:
+                         * "The server should respond with a tagged BAD
+                         * response to a command that uses a message
+                         * sequence number greater than the number of
+                         * messages in the selected mailbox. This
+                         * includes "*" if the selected mailbox is empty."
+                         */
+                        let sequence_iter = sequence_set::iterator(parsed_cmd.sequence_set, folder.message_count());
+                        if sequence_iter.len() == 0 { return bad_res }
+
+                        let mut res = String::new();
+                        for index in sequence_iter.iter() {
+                            println!("Fetching MSG {}", index);
+                            let msg_fetch = folder.get_message(index - 1).fetch(&parsed_cmd.attributes);
+                            res = format!("{} * {} FETCH {}\n", res, index, msg_fetch);
                         }
-                        warn!("CMD: {}", parsed_cmd);
-                        return format!("{} OK unimplemented\n", tag);
+                        return format!("{}\n{} OK FETCH completed\n", res, tag);
                     }
                     _ => { return bad_res; }
                 }

@@ -1,6 +1,17 @@
 use std::collections::HashMap;
 use std::io::File;
 
+use command::command::{
+    Attribute,
+    Envelope,
+    Flags,
+    InternalDate,
+    RFC822,
+    Body,
+    BodyPeek,
+    BodyStructure,
+    UID
+};
 use error::{
     Error, ImapResult, InternalIoError, MessageDecodeError
 };
@@ -188,5 +199,22 @@ impl Message {
     // TODO: Make sure that returning a pointer is fine.
     pub fn envelope_to(&self) -> &String {
         self.headers.find(&"To".to_string()).unwrap()
+    }
+
+    pub fn fetch(&self, attributes: &Vec<Attribute>) -> String {
+        let res = String::new();
+        for attr in attributes.iter() {
+            match attr {
+                &Envelope => {},
+                &Flags => {},
+                &InternalDate => {},
+                &RFC822(ref attr) => {},
+                &Body(ref section, ref octets) => {},
+                &BodyPeek(ref section, ref octets) => {},
+                &BodyStructure => {},
+                &UID => {}
+            }
+        }
+        res
     }
 }

@@ -110,6 +110,14 @@ impl Folder {
         match fs::unlink(&self.path.join(".lock")) { _ => {} }
         return result;
     }
+
+    pub fn get_message(&self, index: uint) -> &Message {
+        &self.messages[index]
+    }
+
+    pub fn message_count(&self) -> uint {
+        self.messages.len()
+    }
 }
 
 impl Show for Folder {

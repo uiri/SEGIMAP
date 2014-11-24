@@ -47,8 +47,8 @@ pub enum Msgtext {
 #[deriving(PartialEq, Show)]
 pub struct Command {
     command_type: CommandType,
-    sequence_set: Vec<SequenceItem>,
-    attributes: Vec<Attribute>
+    pub sequence_set: Vec<SequenceItem>,
+    pub attributes: Vec<Attribute>
 }
 
 impl Command {
