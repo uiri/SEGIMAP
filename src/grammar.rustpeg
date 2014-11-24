@@ -1,5 +1,9 @@
 use parser::{All, Number, Range, SequenceItem};
 
+/* FETCH command rules */
+
+/* SequenceItem and set rules */
+
 #[export]
 sequence_set -> Vec<SequenceItem>
     = a:(seq_range / seq_number) b:("," sequence_set)*
@@ -20,17 +24,46 @@ seq_range -> SequenceItem
 seq_number -> SequenceItem
     = (num:nz_number { Number(num) }) / (all:"*" { All })
 
+/* RFC 3501 BOILERPLATE */
+
+number -> uint
+    = u:(DIGIT+ { from_str::<uint>(match_str).unwrap() }) __
+    { u }
+    /*
+     * unsigned 32-bit integer
+     * (0 <= n < 4,294,967,296)
+     */
+
 nz_number -> uint
     = u:(digit_nz DIGIT* { from_str::<uint>(match_str).unwrap() }) __
     { u }
+    /*
+     * non-zero unsigned 32-bit integer
+     * (0 < n < 4,294,967,296)
+     */
 
-digit_nz -> char
+digit_nz
     = [1-9]
-    { match_str.char_at(0) }
 
-DIGIT -> char
+DIGIT
     = [0-9]
-    { match_str.char_at(0) }
+
+CHAR
+    = .
+    /* any ASCII char */
+
+CHAR8
+    = (![\x00] CHAR)
+    /* any octet except NUL, \x00 */
+
+DQUOTE
+    = "\""
+
+SP
+    = whitespace
+
+CRLF
+    = eol
 
 /* PEG boilerplate from kevinmehall/rust-peg follows */
 
