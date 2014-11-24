@@ -56,10 +56,10 @@ fetch_att -> Attribute
     / "FLAGS" { Flags }
     / "INTERNALDATE" { InternalDate }
     / "RFC822" sub_attr:(".HEADER" { HeaderRFC822 } / ".SIZE" { SizeRFC822 } / ".TEXT" { TextRFC822 })? { RFC822(sub_attr.unwrap_or(AllRFC822)) }
-    / "BODY" sub_attr:("STRUCTURE" { BodyStructure })? { sub_attr.unwrap_or(Body(AllSection, None)) }
     / "UID" { UID }
     / "BODY" section:section octets:("<" first_octet:number "." last_octet:nz_number ">" { (first_octet, last_octet) })? { Body(section, octets) }
 /*    / "BODY.PEEK" section ("<" number "." nz_number ">")? { () } */
+    / "BODY" sub_attr:("STRUCTURE" { BodyStructure })? { sub_attr.unwrap_or(Body(AllSection, None)) }
 
 section -> BodySection
     = "[" section:(section_spec)? "]"
@@ -70,8 +70,7 @@ section_spec -> BodySection
     / (a:section_part b:("." section_text)? { PartSection(a, b) })
 
 section_msgtext -> Msgtext
-    = "HEADER" { HeaderMsgtext }
-    / "HEADER.FIELDS" not:".NOT"? SP headers:header_list {
+    = "HEADER.FIELDS" not:".NOT"? SP headers:header_list {
             match not {
                 Some(_) => {
                     HeaderFieldsNotMsgtext(headers)
@@ -81,6 +80,7 @@ section_msgtext -> Msgtext
                 }
             }
         }
+    / "HEADER" { HeaderMsgtext }
     / "TEXT" { TextMsgtext }
     /* top-level or MESSAGE/RFC822 part */
 
