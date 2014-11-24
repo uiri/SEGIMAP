@@ -191,7 +191,7 @@ impl Session {
                                 }
                                 let mailbox_name = mailbox_name.replace("*", ".*").replace("%", "[^/]*");
                                 let maildir_path = Path::new(maildir.as_slice());
-                                let re_opt = Regex::new(format!("{}/?{}/?{}$", from_utf8(maildir_path.filename().unwrap()).unwrap(), reference, mailbox_name).as_slice());
+                                let re_opt = Regex::new(format!("{}/?{}/?{}$", from_utf8(maildir_path.filename().unwrap()).unwrap(), reference, mailbox_name.replace("INBOX", "")).as_slice());
                                 match re_opt {
                                     Err(_) => { return bad_res;}
                                     Ok(re) => {
@@ -201,7 +201,7 @@ impl Session {
                                         for list_response in res_iter {
                                             ok_res = format!("{}{}\n", ok_res, list_response);
                                         }
-                                        return format!("{}OK list successful\n", ok_res);
+                                        return format!("{}{} OK list successful\n", ok_res, tag);
                                     }
                                 }
                             }
@@ -242,7 +242,7 @@ impl Session {
                             None => { return bad_res; }
                             _ => {}
                         }
-                        println!("CMD: {}", parsed_cmd);
+                        warn!("CMD: {}", parsed_cmd);
                         return format!("{} OK unimplemented\n", tag);
                     }
                     _ => { return bad_res; }
@@ -277,57 +277,62 @@ impl Session {
         }
     }
 
-    pub fn list(&self, regex: Regex) -> Vec<String> {
+    fn list_dir(&self, dir: Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
+        let dir_string = format!("{}", dir.display());
+        let dir_name = from_utf8(dir.filename().unwrap()).unwrap();
+        if  dir_name == "cur" || dir_name == "new" || dir_name == "tmp" {
+            return None;
+        }
+        let abs_dir = make_absolute(&dir);
+        let flags = match fs::readdir(&dir.join("new")) {
+            Err(_) => { return None; }
+            Ok(newlisting) => {
+                if newlisting.len() == 0 {
+                    "\\Unmarked"
+                } else {
+                    "\\Marked"
+                }
+            }
+        };
+        match fs::readdir(&dir.join("cur")) {
+            Err(_) => { return None; }
+            _ => {}
+        }
+        let re_opt = Regex::new(format!("^{}", make_absolute(maildir_path).display()).as_slice());
+        match re_opt {
+            Err(_) => { return None; }
+            Ok(re) => {
+                let list_str = format!("* LIST ({}) \"/\" {}", flags, re.replace(format!("{}", abs_dir.display()).as_slice(), "INBOX"));
+                if dir.is_dir() && regex.is_match(dir_string.as_slice()) {
+                    return Some(list_str);
+                }
+                return None;
+            }
+        }
+    }
+
+    fn list(&self, regex: Regex) -> Vec<String> {
         warn!("REGEX: {}", regex);
         match self.maildir {
             None => Vec::new(),
             Some(ref maildir) => {
                 let maildir_path = Path::new(maildir.as_slice());
                 let mut responses = Vec::new();
+                match self.list_dir(maildir_path.clone(), &regex, &maildir_path) {
+                    Some(list_response) => {
+                        responses.push(list_response);
+                    }
+                    _ => {}
+                }
                 match fs::walk_dir(&maildir_path) {
                     Err(_) => Vec::new(),
                     Ok(mut dir_list) => {
                         for dir in dir_list {
-                            let dir_string = format!("{}", dir.display());
-                            let dir_name = from_utf8(dir.filename().unwrap()).unwrap();
-                            if  dir_name == "cur" || dir_name == "new" || dir_name == "tmp" {
-                                continue;
-                            }
-                            let abs_dir = make_absolute(&dir);
-                            let marked = match fs::readdir(&dir.join("new")) {
-                                Err(_) => 0u,
-                                Ok(newlisting) => {
-                                    if newlisting.len() == 0 {
-                                        1u
-                                    } else {
-                                        2u
-                                    }
+                            match self.list_dir(dir, &regex, &maildir_path) {
+                                Some(list_response) => {
+                                    responses.push(list_response);
                                 }
-                            };
-                            if marked == 0 {
-                                continue;
-                            }
-                            match fs::readdir(&dir.join("cur")) {
-                                Err(_) => { continue; }
                                 _ => {}
-                            }
-                            let flags = if marked-1 == 0 {
-                                "\\Unmarked"
-                            } else {
-                                "\\Marked"
-                            };
-                            let re_opt = Regex::new(format!("^{}", make_absolute(&maildir_path).display()).as_slice());
-                            match re_opt {
-                                Err(_) => { continue; }
-                                Ok(re) => {
-                                    warn!("REGEX: {}", re);
-                                    let list_str = format!("* LIST ({}) \"/\" {}", flags, re.replace(format!("{}", abs_dir.display()).as_slice(), "INBOX"));
-                                    if dir.is_dir() && regex.is_match(dir_string.as_slice()) {
-                                        responses.push(list_str)
-                                    } else {
-                                        warn!("{}\n", list_str);
-                                    }
-                                }
                             }
                         }
                         responses
