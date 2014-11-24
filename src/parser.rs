@@ -9,10 +9,70 @@ enum SequenceItem {
     All
 }
 
+#[deriving(PartialEq, Show)]
+enum CommandType {
+    Fetch
+}
+
+// TODO: Sort these in alphabetical order.
+#[deriving(PartialEq, Show)]
+enum Attribute {
+    Envelope,
+    Flags,
+    InternalDate,
+    RFC822,
+    RFC822Header,
+    RFC822Size,
+    RFC822Text,
+    Body,
+    BodyStructure,
+    UID,
+    /*
+    BODY section ("<" number "." nz_number ">")?,
+    BODYPEEK section ("<" number "." nz_number ">")?
+    */
+}
+
+#[deriving(PartialEq, Show)]
+struct Command {
+    command_type: CommandType,
+    sequence_set: Vec<SequenceItem>,
+    attributes: Vec<Attribute>
+}
+
+impl Command {
+    pub fn new(
+            command_type: CommandType,
+            sequence_set: Vec<SequenceItem>,
+            attributes: Vec<Attribute>) -> Command {
+        Command {
+            command_type: command_type,
+            sequence_set: sequence_set,
+            attributes: attributes
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{fetch, sequence_set};
-    use super::{All, Number, Range};
+    use super::{
+        All,
+        Body,
+        BodyStructure,
+        Command,
+        Envelope,
+        Fetch,
+        Flags,
+        InternalDate,
+        Number,
+        Range,
+        RFC822,
+        RFC822Header,
+        RFC822Size,
+        RFC822Text,
+        UID
+    };
 
     #[test]
     fn test_invalid_sequences() {
@@ -76,11 +136,54 @@ mod tests {
     }
 
     #[test]
-    fn test_simple_fetch() {
-        let fetch = fetch("FETCH 1:2 (FLAGS BODY[HEADER.FIELDS (DATE FROM)])");
-        assert!(fetch.is_ok());
-        let fetch = fetch.unwrap();
-        //let expected = vec![Number(1231), Number(1342), Number(12), Range(box Number(98), box Number(104)), Number(16)];
-        //assert_eq!(seq, expected);
+    fn test_fetch_all() {
+        let cmd = fetch("FETCH 1:5 ALL");
+        println!("CMD: {}", cmd);
+        assert!(cmd.is_ok());
+        let cmd = cmd.unwrap();
+        let expected = Command::new(
+                Fetch,
+                vec![Range(box Number(1), box Number(5))],
+                vec![Flags, InternalDate, RFC822Size, Envelope]);
+        assert_eq!(cmd, expected);
+    }
+
+    #[test]
+    fn test_fetch_fast() {
+        let cmd = fetch("FETCH 3,5 FAST");
+        println!("CMD: {}", cmd);
+        assert!(cmd.is_ok());
+        let cmd = cmd.unwrap();
+        let expected = Command::new(
+                Fetch,
+                vec![Number(3), Number(5)],
+                vec![Flags, InternalDate, RFC822Size]);
+        assert_eq!(cmd, expected);
+    }
+
+    #[test]
+    fn test_fetch_full() {
+        let cmd = fetch("FETCH 2:7 FULL");
+        println!("CMD: {}", cmd);
+        assert!(cmd.is_ok());
+        let cmd = cmd.unwrap();
+        let expected = Command::new(
+                Fetch,
+                vec![Range(box Number(2), box Number(7))],
+                vec![Flags, InternalDate, RFC822Size, Envelope, Body]);
+        assert_eq!(cmd, expected);
+    }
+
+    #[test]
+    fn test_complex_fetch() {
+        let cmd = fetch("FETCH * (FLAGS BODY[HEADER.FIELDS (DATE FROM)])");
+        println!("CMD: {}", cmd);
+        assert!(cmd.is_ok());
+        let cmd = cmd.unwrap();
+        let expected = Command::new(
+                Fetch,
+                vec![All],
+                Vec::new()); // TODO: Fill in the flags.
+        assert_eq!(cmd, expected);
     }
 }

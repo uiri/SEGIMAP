@@ -1,15 +1,34 @@
 use parser::{
     All,
+    Body,
+    BodyStructure,
+    Command,
+    Envelope,
+    Fetch,
+    Flags,
+    InternalDate,
     Number,
     Range,
-    SequenceItem
+    RFC822,
+    RFC822Header,
+    RFC822Size,
+    RFC822Text,
+    SequenceItem,
+    UID
 };
 
 /* FETCH command rules */
 
-#[export]
+/*#[export]
 fetch
-    = "FETCH" SP sequence_set SP ("ALL" / "FULL" / "FAST" / fetch_att / "(" fetch_att (SP fetch_att)* ")")
+    = "FETCH" SP sequence_set SP ("ALL" / "FULL" / "FAST" / fetch_att / "(" fetch_att (SP fetch_att)* ")") */
+#[export]
+fetch -> Command
+    = "FETCH" SP set:sequence_set SP attrs:(
+      "ALL" { vec![Flags, InternalDate, RFC822Size, Envelope] }
+    / "FULL" { vec![Flags, InternalDate, RFC822Size, Envelope, Body] }
+    / "FAST" { vec![Flags, InternalDate, RFC822Size] })
+    { Command::new(Fetch, set, attrs) }
 
 fetch_att
     = "ENVELOPE" / "FLAGS" / "INTERNALDATE"
