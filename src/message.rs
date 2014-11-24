@@ -52,8 +52,7 @@ impl Message {
             None => return Err(Error::simple(MessageDecodeError, "Failed to retrieve UID from filename."))
         };
         // Parse the flags from the filename.
-
-        let mut flags = match path_flags {
+        let flags = match path_flags {
             None => Vec::new(),
             Some(flags) => {
                 let unparsed_flags = flags.splitn(1, ',').skip(1).next().unwrap();
