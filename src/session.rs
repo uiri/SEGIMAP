@@ -9,7 +9,7 @@ use login::LoginData;
 
 pub use folder::Folder;
 pub use server::Server;
-use parser::sequence_set;
+use parser::fetch;
 
 macro_rules! return_on_err(
     ($inp:expr) => {
@@ -187,17 +187,23 @@ impl Session {
                         }
                     }
                     "fetch" => {
-                        let fetch_args: Vec<&str> = args.collect();
-                        if fetch_args.len() < 2 { return bad_res; }
-                        let sequence_set = match sequence_set(fetch_args[0].trim_chars('"')) { // "
-                            Ok(v) => v,
-                            Err(e) => { println!("{}", e); return bad_res }
+                        // Split the index prefix from the command.
+                        let cmd: Vec<&str> = command.splitn(1, ' ').skip(1).collect();
+                        // Remove the newline from the command.
+                        let cmd = cmd[0].lines().next().unwrap();
+                        // Remove the carriage return from the command.
+                        let cmd: Vec<&str> = cmd.splitn(1, '\r').take(1).collect();
+                        let cmd = cmd[0];
+                        // Parse the command with the PEG parser.
+                        let parsed_cmd = match fetch(cmd) {
+                            Ok(cmd) => cmd,
+                            _ => return bad_res
                         };
-                        let msg_parts = fetch_args[1].trim_chars('"'); // "
                         match self.folder {
                             None => { return bad_res; }
                             _ => {}
                         }
+                        println!("CMD: {}", parsed_cmd);
                         return format!("{} OK unimplemented\n", tag);
                     }
                     _ => { return bad_res; }
