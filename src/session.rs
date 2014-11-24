@@ -1,8 +1,12 @@
 use std::io::TcpStream;
 use std::io::{Buffer, BufferedStream};
-use std::str::StrSlice;
+use std::io::fs;
+use std::io::fs::PathExtensions;
+use std::os::make_absolute;
+use std::str::{from_utf8, StrSlice};
 use std::ascii::OwnedAsciiExt;
 use std::sync::Arc;
+use regex::Regex;
 
 use error::{Error,ImapStateError};
 use login::LoginData;
@@ -179,10 +183,29 @@ impl Session {
                         if list_args.len() < 2 { return bad_res; }
                         let reference = list_args[0].trim_chars('"');
                         let mailbox_name = list_args[1].trim_chars('"');
-                        if mailbox_name.len() == 0 {
-                            return format!("* LIST (\\Noselect) \"/\" \"{}\"\n{} OK List successful\n", reference, tag);
+                        match self.maildir {
+                            None => { return bad_res; }
+                            Some(ref maildir) => {
+                                if mailbox_name.len() == 0 {
+                                    return format!("* LIST (\\Noselect) \"/\" \"{}\"\n{} OK List successful\n", reference, tag);
+                                }
+                                let mailbox_name = mailbox_name.replace("*", ".*").replace("%", "[^/]*");
+                                let maildir_path = Path::new(maildir.as_slice());
+                                let re_opt = Regex::new(format!("{}/?{}/?{}$", from_utf8(maildir_path.filename().unwrap()).unwrap(), reference, mailbox_name).as_slice());
+                                match re_opt {
+                                    Err(_) => { return bad_res;}
+                                    Ok(re) => {
+                                        let list_responses = self.list(re);
+                                        let mut res_iter = list_responses.iter();
+                                        let mut ok_res = String::new();
+                                        for list_response in res_iter {
+                                            ok_res = format!("{}{}\n", ok_res, list_response);
+                                        }
+                                        return format!("{}OK list successful\n", ok_res);
+                                    }
+                                }
+                            }
                         }
-                        return format!("OK unimplemented\n");
                     }
                     "close" => {
                         return match self.close() {
@@ -250,6 +273,66 @@ impl Session {
                 Folder::new(mailbox_name.to_string(), None, maildir_path)
                     // TODO: Insert new folder into folder service
                     // folder_service.insert(mailbox_name.to_string(), box *folder);
+            }
+        }
+    }
+
+    pub fn list(&self, regex: Regex) -> Vec<String> {
+        warn!("REGEX: {}", regex);
+        match self.maildir {
+            None => Vec::new(),
+            Some(ref maildir) => {
+                let maildir_path = Path::new(maildir.as_slice());
+                let mut responses = Vec::new();
+                match fs::walk_dir(&maildir_path) {
+                    Err(_) => Vec::new(),
+                    Ok(mut dir_list) => {
+                        for dir in dir_list {
+                            let dir_string = format!("{}", dir.display());
+                            let dir_name = from_utf8(dir.filename().unwrap()).unwrap();
+                            if  dir_name == "cur" || dir_name == "new" || dir_name == "tmp" {
+                                continue;
+                            }
+                            let abs_dir = make_absolute(&dir);
+                            let marked = match fs::readdir(&dir.join("new")) {
+                                Err(_) => 0u,
+                                Ok(newlisting) => {
+                                    if newlisting.len() == 0 {
+                                        1u
+                                    } else {
+                                        2u
+                                    }
+                                }
+                            };
+                            if marked == 0 {
+                                continue;
+                            }
+                            match fs::readdir(&dir.join("cur")) {
+                                Err(_) => { continue; }
+                                _ => {}
+                            }
+                            let flags = if marked-1 == 0 {
+                                "\\Unmarked"
+                            } else {
+                                "\\Marked"
+                            };
+                            let re_opt = Regex::new(format!("^{}", make_absolute(&maildir_path).display()).as_slice());
+                            match re_opt {
+                                Err(_) => { continue; }
+                                Ok(re) => {
+                                    warn!("REGEX: {}", re);
+                                    let list_str = format!("* LIST ({}) \"/\" {}", flags, re.replace(format!("{}", abs_dir.display()).as_slice(), "INBOX"));
+                                    if dir.is_dir() && regex.is_match(dir_string.as_slice()) {
+                                        responses.push(list_str)
+                                    } else {
+                                        warn!("{}\n", list_str);
+                                    }
+                                }
+                            }
+                        }
+                        responses
+                    }
+                }
             }
         }
     }
