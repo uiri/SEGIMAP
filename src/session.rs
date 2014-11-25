@@ -1,6 +1,4 @@
-use std::io::TcpStream;
-use std::io::{Buffer, BufferedStream};
-use std::io::fs;
+use std::io::{Buffer, BufferedStream, FilePermission, fs, TcpStream};
 use std::io::fs::PathExtensions;
 use std::os::make_absolute;
 use std::str::{from_utf8, StrSlice};
@@ -139,15 +137,26 @@ impl Session {
                         let create_args: Vec<&str> = args.collect();
                         if create_args.len() < 1 { return bad_res; }
                         let mailbox_name = create_args[0].trim_chars('"'); // "
-                        // match magic_mailbox_create(mailbox_name.to_string()) {
-                        //     Ok(_) => {
-                        //         return format!("{} OK create completed", tag);
-                        //     }
-                        //     Err(_) => {
-                        //         return format!("{} OK create failed", tag);
-                        //     }
-                        // }
-                        return format!("{} OK unimplemented\n", tag);
+                        let mbox_name = regex!("INBOX").replace(mailbox_name, ".");
+                        let no_res = format!("{} NO Could not create folder.", tag);
+                        match self.maildir {
+                            None => return bad_res,
+                            Some(ref maildir) => {
+                                let maildir_path = Path::new(maildir.as_slice()).join(mbox_name);
+                                let newmaildir_path = maildir_path.join("new");
+                                let curmaildir_path = maildir_path.join("cur");
+                                let file_perms = FilePermission::from_bits_truncate(0o755);
+                                match fs::mkdir_recursive(&newmaildir_path, file_perms) {
+                                    Err(_) => return no_res,
+                                    _ => {}
+                                }
+                                match fs::mkdir_recursive(&curmaildir_path, file_perms) {
+                                    Err(_) => return no_res,
+                                    _ => {}
+                                }
+                                return format!("{} OK Created folder successfully.", tag);
+                            }
+                        }
                     }
                     // rename
                     "delete" => {
@@ -190,15 +199,6 @@ impl Session {
                                 );
                             }
                         }
-                        // match magic_mailbox_delete(mailbox_name.to_string()) {
-                        //     Ok(_) => {
-                        //         return format!("{} OK delete completed", tag);
-                        //     }
-                        //     Err(_) => {
-                        //         return format!("{} OK delete failed", tag);
-                        //     }
-                        // }
-                        return format!("{} OK unimplemented\n", tag);
                     }
                     "list" => {
                         let list_args: Vec<&str> = args.collect();

@@ -62,7 +62,7 @@ impl Folder {
                                        _ => {}
                                    }
                                }
-                               let unseen = messages.len();
+                               let unseen = messages.len()+1;
                                for msg_path in new.iter() {
                                    match Message::parse(msg_path) {
                                        Ok(message) => {
@@ -76,7 +76,7 @@ impl Folder {
                                    name: name,
                                    owner: owner,
                                    path: path,
-                                   recent: exists-unseen,
+                                   recent: exists-unseen+1,
                                    unseen: unseen,
                                    exists: exists,
                                    messages: messages,
