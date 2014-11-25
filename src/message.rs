@@ -226,7 +226,7 @@ impl Message {
         for attr in attributes.iter() {
             let attr_str = match attr {
                 &Envelope => { format!(" ENVELOPE {}", self.get_envelope()) }, // TODO: Finish implementing this.
-                &Flags => { "".to_string() },
+                &Flags => { format!(" FLAGS {}", self.print_flags()) },
                 &InternalDate => { format!(" INTERNALDATE \"{}\"", self.date_received()) }
                 &RFC822(ref attr) => {
                     let rfc_attr = match attr {
@@ -337,5 +337,23 @@ impl Message {
             date_received_tm.tm_hour,
             date_received_tm.tm_min,
             date_received_tm.tm_sec)
+    }
+
+    fn print_flags(&self) -> String {
+        let mut res = String::new();
+        for flag in self.flags.iter() {
+            let flag_str = match flag {
+                &Answered => { "\\Answered".to_string() },
+                &Draft => { "\\Draft".to_string() },
+                &Flagged => { "\\Flagged".to_string() },
+                &Seen => { "\\Seen".to_string() }
+            };
+            res = format!("{}{} ", res, flag_str);
+        }
+        // Remove trailing whitespace.
+        if res.as_slice().len() > 0 {
+            res = res.as_slice().slice_to(res.as_slice().len() - 1).to_string()
+        }
+        format!("({})", res)
     }
 }
