@@ -218,7 +218,7 @@ impl Message {
         let mut res = String::new();
         for attr in attributes.iter() {
             let attr_str = match attr {
-                &Envelope => { format!("ENVELOPE {}", self.get_envelope()) }, // TODO: Finish implementing this.
+                &Envelope => { format!(" ENVELOPE {}", self.get_envelope()) }, // TODO: Finish implementing this.
                 &Flags => { "".to_string() },
                 &InternalDate => { format!(" INTERNALDATE \"{}\"", self.date_received()) }
                 &RFC822(ref attr) => {
@@ -228,14 +228,14 @@ impl Message {
                         &SizeRFC822 => { format!(".SIZE {}", self.size) },
                         &TextRFC822 => { "".to_string() }
                     };
-                    format!("RFC822{}", rfc_attr)
+                    format!(" RFC822{}", rfc_attr)
                 },
                 &Body(ref section, ref octets) => { "".to_string() },
                 &BodyPeek(ref section, ref octets) => { "".to_string() },
                 &BodyStructure => { "".to_string() },
-                &UID => { format!("UID {}", self.uid) }
+                &UID => { format!(" UID {}", self.uid) }
             };
-            res = format!("{} {}", res, attr_str);
+            res = format!("{}{}", res, attr_str);
         }
         res
     }

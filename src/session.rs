@@ -233,11 +233,10 @@ impl Session {
 
                         let mut res = String::new();
                         for index in sequence_iter.iter() {
-                            println!("Fetching MSG {}", index);
                             let msg_fetch = folder.fetch(index - 1, &parsed_cmd.attributes);
-                            res = format!("{} * {} FETCH {}\n", res, index, msg_fetch);
+                            res = format!("{}* {} FETCH{}\n", res, index, msg_fetch);
                         }
-                        return format!("{}\n{} OK FETCH completed\n", res, tag);
+                        return format!("{}{} OK FETCH completed\n", res, tag);
                     }
                     _ => { return bad_res; }
                 }
