@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap,HashSet};
 use std::io::fs;
 use std::fmt::{Show, Formatter, FormatError};
 
@@ -19,7 +19,7 @@ pub struct Folder {
     path: Path,
     messages: Vec<Message>,
     pub readonly: bool,
-    cur: Vec<Path>,
+    uid_to_seqnum: HashMap<uint, uint>,
     new: Vec<Path>
 }
 
@@ -59,6 +59,8 @@ impl Folder {
             make_vec_path!(path, new, "new",
                            {
                                let mut messages = Vec::new();
+                               let mut uid_to_seqnum: HashMap<uint, uint> = HashMap::new();
+                               let mut i = 0u;
                                // populate messages
                                let mut unseen = -1;
                                for msg_path in cur.iter() {
@@ -68,21 +70,25 @@ impl Folder {
                                               message.is_unseen() {
                                                   unseen = messages.len()+1;
                                            }
+                                           uid_to_seqnum.insert(message.uid.to_uint().unwrap(), i);
+                                           i += 1;
                                            messages.push(message);
                                        }
                                        _ => {}
                                    }
                                }
-                               let old = messages.len()+1;
+                               let old = i+2;
                                for msg_path in new.iter() {
                                    match Message::parse(msg_path) {
                                        Ok(message) => {
+                                           uid_to_seqnum.insert(message.uid.to_uint().unwrap(), i);
+                                           i += 1;
                                            messages.push(message);
                                        }
                                        _ => {}
                                    }
                                }
-                               let exists = messages.len();
+                               let exists = i+1;
                                return Some(Folder {
                                    name: name,
                                    owner: owner,
@@ -92,7 +98,7 @@ impl Folder {
                                    exists: exists,
                                    messages: messages,
                                    readonly: readonly,
-                                   cur: cur,
+                                   uid_to_seqnum: uid_to_seqnum,
                                    new: new
                                })}
                            )
@@ -155,11 +161,8 @@ impl Folder {
         self.messages[index].uid as uint
     }
 
-    pub fn get_index_from_uid(&self, uid: uint) -> ImapResult<uint> {
-        for index in range(0u, self.messages.len()) {
-            if self.messages[index].uid == uid as u32 { return Ok(index + 1) }
-        }
-        Err(Error::simple(NoSuchMessageError, "Failed to find message by UID."))
+    pub fn get_index_from_uid(&self, uid: &uint) -> Option<&uint> {
+        return self.uid_to_seqnum.find(uid);
     }
 
     pub fn store(&mut self, sequence_set: Vec<uint>, flag_name: StoreName, silent: bool, flags: HashSet<Flag>) -> String {

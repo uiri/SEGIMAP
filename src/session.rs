@@ -326,6 +326,7 @@ impl Session {
                                          * includes "*" if the selected mailbox is empty."
                                          */
                                         let mut res = String::new();
+<<<<<<< HEAD
 
                                         // SPECIAL CASE FOR THUNDERBIRD.
                                         // TODO: REMOVE THIS.
@@ -340,14 +341,13 @@ impl Session {
                                         } else {
                                             let sequence_iter = sequence_set::uid_iterator(parsed_cmd.sequence_set);
                                             if sequence_iter.len() == 0 { return bad_res }
-                                            for uid in sequence_iter.iter() {
-                                                match folder.get_index_from_uid(*uid) {
-                                                    Ok(index) => {
-                                                        let fetch_str = folder.fetch(index - 1, &parsed_cmd.attributes);
-                                                        res = format!("{}* {} FETCH ({}UID {})\r\n", res, index, fetch_str, uid);
-                                                    },
-                                                    Err(e) => { warn!("{}", e) }
-                                                }
+                                        for uid in sequence_iter.iter() {
+                                            match folder.get_index_from_uid(uid) {
+                                                Some(index) => {
+                                                    let fetch_str = folder.fetch(*index, &parsed_cmd.attributes);
+                                                    res = format!("{}* {} FETCH ({}UID {})\r\n", res, *index+1, fetch_str, uid);
+                                                },
+                                                None => {}
                                             }
                                             return format!("{}{} OK UID FETCH completed\r\n", res, tag);
                                         }
