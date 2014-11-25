@@ -55,15 +55,6 @@ fn main() {
     // TODO: figure out what to do for error handling.
     let users = user::load_users(USER_DATA_FILE.to_string()).unwrap();
 
-    let multipart_message = Message::parse(&Path::new("maildir/new/12345")).unwrap();
-    let html_message = Message::parse(&Path::new("maildir/cur/54321:2,FS")).unwrap();
-
-    // Avoid unused variable notices temporarily.
-    //println!("Config: {}", config);
-    //println!("Users: {}", users);
-    //println!("Message: {}", multipart_message);
-    //println!("Message: {}", html_message);
-
     let serv = Arc::new(Server::new(config, users));
     match serv.imap_listener() {
         Err(e) => {
