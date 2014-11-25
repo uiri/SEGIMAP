@@ -54,15 +54,20 @@ impl Folder {
                            {
                                let mut messages = Vec::new();
                                // populate messages
+                               let mut unseen = -1;
                                for msg_path in cur.iter() {
                                    match Message::parse(msg_path) {
                                        Ok(message) => {
+                                           if unseen == -1 &&
+                                              message.is_unseen() {
+                                                  unseen = messages.len()+1;
+                                           }
                                            messages.push(message);
                                        }
                                        _ => {}
                                    }
                                }
-                               let unseen = messages.len()+1;
+                               let old = messages.len()+1;
                                for msg_path in new.iter() {
                                    match Message::parse(msg_path) {
                                        Ok(message) => {
@@ -76,7 +81,7 @@ impl Folder {
                                    name: name,
                                    owner: owner,
                                    path: path,
-                                   recent: exists-unseen+1,
+                                   recent: exists-old+1,
                                    unseen: unseen,
                                    exists: exists,
                                    messages: messages,
@@ -86,6 +91,14 @@ impl Folder {
                                })}
                            )
                        );
+    }
+
+    pub fn unseen(&self) -> String {
+        if self.unseen <= self.exists {
+            format!("* OK [UNSEEN {}] Message {}th is the first unseen\n", self.unseen, self.unseen)
+        } else {
+            "".to_string()
+        }
     }
 
     pub fn recent(&self) -> uint {

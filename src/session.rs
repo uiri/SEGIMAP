@@ -85,6 +85,9 @@ impl Session {
             Some(cmd) => {
                 warn!("Cmd: {}", command.trim());
                 match cmd.to_string().into_ascii_lower().as_slice() {
+                    "noop" => {
+                        return format!("{} OK NOOP\n", tag);
+                    }
                     "capability" => {
                         return format!("* CAPABILITY IMAP4rev1 CHILDREN\n{} OK Capability successful\n", tag);
                     }
@@ -332,16 +335,16 @@ impl Session {
             Some(ref folder) => {
                 // * Flags
                 // Should match values in enum Flag in message.rs and \\Deleted
-                let mut ok_res = "* FLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)\n".to_string();
                 // * <n> EXISTS
-                ok_res = format!("{}* {} EXISTS\n", ok_res, folder.exists);
+                let mut ok_res = format!("* {} EXISTS\n", folder.exists);
                 // * <n> RECENT
                 ok_res = format!("{}* {} RECENT\n", ok_res, folder.recent());
                 // * OK UNSEEN
-                ok_res = format!("{}* OK UNSEEN {}\n", ok_res, folder.unseen);
+                ok_res = format!("{}{}", ok_res, folder.unseen());
+                ok_res = format!("{}* FLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)\n", ok_res);
                 // * OK PERMANENTFLAG
                 // Should match values in enum Flag in message.rs and \\Deleted
-                ok_res = format!("{}* PERMANENTFLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen) Permanent flags\n", ok_res);
+                ok_res = format!("{}* OK [PERMANENTFLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)] Permanent flags\n", ok_res);
                 // * OK UIDNEXT
                 // * OK UIDVALIDITY
                 let read_status = if folder.readonly {

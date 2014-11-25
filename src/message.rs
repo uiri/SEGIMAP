@@ -204,6 +204,16 @@ impl Message {
         Ok(message)
     }
 
+    pub fn is_unseen(&self) -> bool {
+        for flag in self.flags.iter() {
+            match *flag {
+                Seen => return false,
+                _ => {}
+            }
+        }
+        return true;
+    }
+
     // TODO: Make sure that returning a pointer is fine.
     pub fn envelope_from(&self) -> &String {
         self.headers.find(&"FROM".to_string()).unwrap()
