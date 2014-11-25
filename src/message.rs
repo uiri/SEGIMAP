@@ -1,3 +1,4 @@
+use std::ascii::OwnedAsciiExt;
 use std::collections::HashMap;
 use std::io::File;
 
@@ -131,13 +132,13 @@ impl Message {
         let mut headers = HashMap::new();
         for line in parsed_header.iter() {
             let split: Vec<&str> = line.as_slice().splitn(1, ':').collect();
-            headers.insert(split[0].clone().to_string(), split[1].slice_from(1).clone().to_string());
+            headers.insert(split[0].to_string().into_ascii_upper().to_string(), split[1].slice_from(1).clone().to_string());
         }
         // Remove the "Received" key from the HashMap.
-        headers.remove(&"Received".to_string());
+        headers.remove(&"RECEIVED".to_string());
 
         // Determine whether the message is MULTIPART or not.
-        let content_type = headers["Content-Type".to_string()].clone();
+        let content_type = headers["CONTENT-TYPE".to_string()].clone();
         let mut body = Vec::new();
         if content_type.as_slice().contains("MULTIPART") {
             let mime_boundary = {
@@ -216,7 +217,7 @@ impl Message {
         let mut res = String::new();
         for attr in attributes.iter() {
             let attr_str = match attr {
-                &Envelope => { "".to_string() },
+                &Envelope => { format!("ENVELOPE {}", self.get_envelope()) },
                 &Flags => { "".to_string() },
                 &InternalDate => { "".to_string() },
                 &RFC822(ref attr) => {
@@ -236,5 +237,61 @@ impl Message {
             res = format!("{} {}", res, attr_str);
         }
         res
+    }
+
+    /**
+     * RFC3501 - 7.4.2 - P.76-77
+     *
+     * Returns a parenthesized list that described the envelope structure of a
+     * message.
+     * Computed by parsing the [RFC-2822] header into the component parts,
+     * defaulting various fields as necessary.
+     *
+     * Requires (in the following order): date, subject, from, sender, reply-to,
+     * to, cc, bcc, in-reply-to, and message-id.
+     * The date, subject, in-reply-to, and message-id fields are strings.
+     * The from, sender, reply-to, to, cc, and bcc fields are parenthesized
+     * lists of address structures.
+     */
+    fn get_envelope(&self) -> String {
+        let date = self.get_quoted_field_or_nil("DATE".to_string());
+        let subject = self.get_quoted_field_or_nil("SUBJECT".to_string());
+        let from = self.get_parenthesized_addresses("FROM".to_string());
+        let sender = self.get_parenthesized_addresses("SENDER".to_string());
+        let reply_to = self.get_parenthesized_addresses("REPLY-TO".to_string());
+        let to = self.get_parenthesized_addresses("TO".to_string());
+        let cc = self.get_parenthesized_addresses("CC".to_string());
+        let bcc = self.get_parenthesized_addresses("BCC".to_string());
+        let in_reply_to = self.get_quoted_field_or_nil("IN-REPLY-TO".to_string());
+        let message_id = self.get_quoted_field_or_nil("MESSAGE-ID".to_string());
+
+        format!(
+            "({} {} {} {} {} {} {} {} {} {})",
+            date,
+            subject,
+            from,
+            sender,
+            reply_to,
+            to,
+            cc,
+            bcc,
+            in_reply_to,
+            message_id)
+    }
+
+    fn get_quoted_field_or_nil(&self, key: String) -> String {
+        match self.headers.find(&key) {
+            Some(v) => format!("\"{}\"", v),
+            None => "NIL".to_string()
+        }
+    }
+
+    fn get_parenthesized_addresses(&self, key: String) -> String {
+        let addresses = match self.headers.find(&key) {
+            Some(v) => v,
+            None => return "NIL".to_string()
+        };
+
+        "NIL".to_string()
     }
 }
