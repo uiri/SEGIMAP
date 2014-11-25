@@ -5,6 +5,7 @@ use command::command::{
     Body,
     BodyPeek,
     BodySection,
+    BodySectionType,
     BodyStructure,
     Command,
     Envelope,
@@ -55,7 +56,7 @@ fetch -> Command
     }
     / attr:fetch_att { vec![attr] }
     / [aA][lL][lL] { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope] }
-    / [fF][uU][lL][lL] { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body(AllSection, None)] }
+    / [fF][uU][lL][lL] { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body] }
     / [fF][aA][sS][tT] { vec![Flags, InternalDate, RFC822(SizeRFC822)] })
     { Command::new(Fetch, set, attrs) }
 
@@ -66,14 +67,14 @@ fetch_att -> Attribute
     / [rR][fF][cC] "822" sub_attr:(".HEADER" { HeaderRFC822 } / ".SIZE" { SizeRFC822 } / ".TEXT" { TextRFC822 })? { RFC822(sub_attr.unwrap_or(AllRFC822)) }
     / [uU][iI][dD] { UID }
     / [bB][oO][dD][yY] "." [pP][eE][eE][kK] section:section octets:("<" first_octet:number "." last_octet:nz_number ">" { (first_octet, last_octet) })? { BodyPeek(section, octets) }
-    / [bB][oO][dD][yY] section:section octets:("<" first_octet:number "." last_octet:nz_number ">" { (first_octet, last_octet) })? { Body(section, octets) }
-    / [bB][oO][dD][yY] sub_attr:("STRUCTURE" { BodyStructure })? { sub_attr.unwrap_or(Body(AllSection, None)) }
+    / [bB][oO][dD][yY] section:section octets:("<" first_octet:number "." last_octet:nz_number ">" { (first_octet, last_octet) })? { BodySection(section, octets) }
+    / [bB][oO][dD][yY] sub_attr:("STRUCTURE" { BodyStructure })? { sub_attr.unwrap_or(Body) }
 
-section -> BodySection
+section -> BodySectionType
     = "[" section:(section_spec)? "]"
     { section.unwrap_or(AllSection) }
 
-section_spec -> BodySection
+section_spec -> BodySectionType
     = a:section_msgtext { MsgtextSection(a) }
     / (a:section_part b:("." section_text)? { PartSection(a, b) })
 

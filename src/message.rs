@@ -13,6 +13,7 @@ use command::command::{
     RFC822,
     Body,
     BodyPeek,
+    BodySection,
     BodyStructure,
     UID
 };
@@ -237,7 +238,8 @@ impl Message {
                     };
                     format!(" RFC822{}", rfc_attr)
                 },
-                &Body(ref section, ref octets) => { "".to_string() },
+                &Body => { "".to_string() },
+                &BodySection(ref section, ref octets) => { "".to_string() },
                 &BodyPeek(ref section, ref octets) => { "".to_string() },
                 &BodyStructure => { "".to_string() },
                 &UID => { format!(" UID {}", self.uid) }

@@ -12,8 +12,9 @@ pub enum Attribute {
     Flags,
     InternalDate,
     RFC822(RFC822Attribute),
-    Body(BodySection, Option<(uint, uint)>),
-    BodyPeek(BodySection, Option<(uint, uint)>),
+    Body,
+    BodySection(BodySectionType, Option<(uint, uint)>),
+    BodyPeek(BodySectionType, Option<(uint, uint)>),
     BodyStructure,
     UID
 }
@@ -29,7 +30,7 @@ pub enum RFC822Attribute {
 
 // TODO: Remove the suffix from this enum when enum namespacing is available.
 #[deriving(PartialEq, Show)]
-pub enum BodySection {
+pub enum BodySectionType {
     AllSection,
     MsgtextSection(Msgtext),
     PartSection(Vec<uint>, Option<Msgtext>)
