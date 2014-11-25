@@ -25,6 +25,17 @@ macro_rules! return_on_err(
     }
 )
 
+macro_rules! opendirlisting(
+    ($inp:expr, $listing:ident, $err:ident, $next:expr) => {
+        match fs::readdir($inp) {
+            Err(_) => return $err,
+            Ok($listing) => {
+                $next
+            }
+        }
+    }
+)
+
 static GREET: &'static [u8] = b"* OK Server ready.\r\n";
 
 pub struct Session {
@@ -142,7 +153,43 @@ impl Session {
                     "delete" => {
                         let delete_args: Vec<&str> = args.collect();
                         if delete_args.len() < 1 { return bad_res; }
-                        let mailbox_name = delete_args[0].trim_chars('"'); // "
+                        let mailbox_name = delete_args[0].trim_chars('"'); // ");
+                        let mbox_name = regex!("INBOX").replace(mailbox_name, ".");
+                        let no_res = format!("{} NO Invalid folder.", tag);
+                        match self.maildir {
+                            None => return bad_res,
+                            Some(ref maildir) => {
+                                let maildir_path = Path::new(maildir.as_slice()).join(mbox_name);
+                                let newmaildir_path = maildir_path.join("new");
+                                let curmaildir_path = maildir_path.join("cur");
+                                opendirlisting!(&newmaildir_path, newlist, no_res,
+                                    opendirlisting!(&curmaildir_path, curlist, no_res,
+                                   {
+                                       for file in newlist.iter() {
+                                           match fs::unlink(file) {
+                                               Err(_) => return no_res,
+                                               _ => {}
+                                           }
+                                       }
+                                       for file in curlist.iter() {
+                                           match fs::unlink(file) {
+                                               Err(_) => return no_res,
+                                               _ => {}
+                                           }
+                                       }
+                                       match fs::rmdir(&newmaildir_path) {
+                                           Err(_) => return no_res,
+                                           _ => {}
+                                       }
+                                       match fs::rmdir(&curmaildir_path) {
+                                           Err(_) => return no_res,
+                                           _ => {}
+                                       }
+                                       return format!("{} OK delete successsful", tag);
+                                   })
+                                );
+                            }
+                        }
                         // match magic_mailbox_delete(mailbox_name.to_string()) {
                         //     Ok(_) => {
                         //         return format!("{} OK delete completed", tag);
@@ -315,13 +362,18 @@ impl Session {
             return None;
         }
         let abs_dir = make_absolute(&dir);
-        let mut flags = match fs::readdir(&dir.join("new")) {
-            Err(_) => { return None; }
-            Ok(newlisting) => {
-                if newlisting.len() == 0 {
-                    "\\Unmarked".to_string()
-                } else {
-                    "\\Marked".to_string()
+        let mut flags = match fs::readdir(&dir.join("cur")) {
+            Err(_) => "\\Noselect".to_string(),
+            _ => {
+                match fs::readdir(&dir.join("new")) {
+                    Err(_) => "\\Noselect".to_string(),
+                    Ok(newlisting) => {
+                        if newlisting.len() == 0 {
+                            "\\Unmarked".to_string()
+                        } else {
+                            "\\Marked".to_string()
+                        }
+                    }
                 }
             }
         };
