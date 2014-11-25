@@ -98,7 +98,7 @@ impl Folder {
 
     pub fn unseen(&self) -> String {
         if self.unseen <= self.exists {
-            format!("* OK [UNSEEN {}] Message {}th is the first unseen\n", self.unseen, self.unseen)
+            format!("* OK [UNSEEN {}] Message {}th is the first unseen\r\n", self.unseen, self.unseen)
         } else {
             "".to_string()
         }
@@ -152,7 +152,7 @@ impl Folder {
         let mut responses = String::new();
         for i in sequence_set.iter() {
             let ref mut message = self.messages.get_mut(*i-1);
-            responses = format!("{}* {} FETCH {}\n", responses, i, message.store(flag_name, flags.clone()));
+            responses = format!("{}* {} FETCH {}\r\n", responses, i, message.store(flag_name, flags.clone()));
         }
         if silent {
             String::new()

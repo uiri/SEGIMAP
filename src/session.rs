@@ -90,10 +90,10 @@ impl Session {
                 warn!("Cmd: {}", command.trim());
                 match cmd.to_string().into_ascii_lower().as_slice() {
                     "noop" => {
-                        return format!("{} OK NOOP\n", tag);
+                        return format!("{} OK NOOP\r\n", tag);
                     }
                     "capability" => {
-                        return format!("* CAPABILITY IMAP4rev1 CHILDREN\n{} OK Capability successful\n", tag);
+                        return format!("* CAPABILITY IMAP4rev1 CHILDREN\r\n{} OK Capability successful\r\n", tag);
                     }
                     "login" => {
                         let login_args: Vec<&str> = args.collect();
@@ -216,7 +216,7 @@ impl Session {
                             None => { return bad_res; }
                             Some(ref maildir) => {
                                 if mailbox_name.len() == 0 {
-                                    return format!("* LIST (\\Noselect) \"/\" \"{}\"\n{} OK List successful\n", reference, tag);
+                                    return format!("* LIST (\\Noselect) \"/\" \"{}\"\r\n{} OK List successful\r\n", reference, tag);
                                 }
                                 let mailbox_name = mailbox_name.replace("*", ".*").replace("%", "[^/]*");
                                 let maildir_path = Path::new(maildir.as_slice());
@@ -228,9 +228,9 @@ impl Session {
                                         let mut res_iter = list_responses.iter();
                                         let mut ok_res = String::new();
                                         for list_response in res_iter {
-                                            ok_res = format!("{}{}\n", ok_res, list_response);
+                                            ok_res = format!("{}{}\r\n", ok_res, list_response);
                                         }
-                                        return format!("{}{} OK list successful\n", ok_res, tag);
+                                        return format!("{}{} OK list successful\r\n", ok_res, tag);
                                     }
                                 }
                             }
@@ -241,7 +241,7 @@ impl Session {
                             Err(_) => bad_res,
                             Ok(_) => {
                                 self.folder = None;
-                                format!("{} OK close completed\n", tag)
+                                format!("{} OK close completed\r\n", tag)
                             }
                         }
                     }
@@ -251,7 +251,7 @@ impl Session {
                             Ok(v) => {
                                 let mut ok_res = String::new();
                                 for i in v.iter() {
-                                    ok_res = format!("{}* {} EXPUNGE\n", ok_res, i);
+                                    ok_res = format!("{}* {} EXPUNGE\r\n", ok_res, i);
                                 }
                                 return format!("{}{} OK expunge completed", ok_res, tag);
                             }
@@ -290,9 +290,9 @@ impl Session {
                         let mut res = String::new();
                         for index in sequence_iter.iter() {
                             let msg_fetch = folder.fetch(index - 1, &parsed_cmd.attributes);
-                            res = format!("{}* {} FETCH ({})\n", res, index, msg_fetch);
+                            res = format!("{}* {} FETCH ({})\r\n", res, index, msg_fetch);
                         }
-                        return format!("{}{} OK FETCH completed\n", res, tag);
+                        return format!("{}{} OK FETCH completed\r\n", res, tag);
                     }
                     "store" => {
                         let store_args: Vec<&str> = args.collect();
@@ -336,7 +336,7 @@ impl Session {
                                     None => return bad_res,
                                     Some(sequence_set) => {
                                         let sequence_iter = sequence_set::iterator(sequence_set, folder.message_count());
-                                        return format!("{}{} OK STORE complete\n", folder.store(sequence_iter, flag_name, silent, flags), tag);
+                                        return format!("{}{} OK STORE complete\r\n", folder.store(sequence_iter, flag_name, silent, flags), tag);
                                     }
                                 }
                             }
@@ -384,21 +384,21 @@ impl Session {
         self.folder = self.select_mailbox(mailbox_name, examine);
         match self.folder {
             None => {
-                return format!("{} NO error finding mailbox\n", tag);
+                return format!("{} NO error finding mailbox\r\n", tag);
             }
             Some(ref folder) => {
                 // * <n> EXISTS
-                let mut ok_res = format!("* {} EXISTS\n", folder.exists);
+                let mut ok_res = format!("* {} EXISTS\r\n", folder.exists);
                 // * <n> RECENT
-                ok_res = format!("{}* {} RECENT\n", ok_res, folder.recent());
+                ok_res = format!("{}* {} RECENT\r\n", ok_res, folder.recent());
                 // * OK UNSEEN
                 ok_res = format!("{}{}", ok_res, folder.unseen());
                 // * Flags
                 // Should match values in enum Flag in message.rs
-                ok_res = format!("{}* FLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)\n", ok_res);
+                ok_res = format!("{}* FLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)\r\n", ok_res);
                 // * OK PERMANENTFLAG
                 // Should match values in enum Flag in message.rs
-                ok_res = format!("{}* OK [PERMANENTFLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)] Permanent flags\n", ok_res);
+                ok_res = format!("{}* OK [PERMANENTFLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)] Permanent flags\r\n", ok_res);
                 // * OK UIDNEXT
                 // * OK UIDVALIDITY
                 let read_status = if folder.readonly {
@@ -406,7 +406,7 @@ impl Session {
                 } else {
                     "[READ-WRITE]"
                 };
-                return format!("{}{} OK {} SELECT command was successful\n", ok_res, tag, read_status);
+                return format!("{}{} OK {} SELECT command was successful\r\n", ok_res, tag, read_status);
 
             }
         }
