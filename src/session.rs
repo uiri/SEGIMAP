@@ -7,12 +7,17 @@ use std::ascii::OwnedAsciiExt;
 use std::sync::Arc;
 use regex::Regex;
 
-use error::{Error,ImapStateError};
-use login::LoginData;
-
-use command::sequence_set;
 pub use folder::Folder;
 pub use server::Server;
+
+use command::sequence_set;
+use command::sequence_set::{
+    Number,
+    Range,
+    Wildcard
+};
+use error::{Error,ImapStateError};
+use login::LoginData;
 use parser::fetch;
 
 use message;
@@ -327,18 +332,32 @@ impl Session {
                          * messages in the selected mailbox. This
                          * includes "*" if the selected mailbox is empty."
                          */
-                        let sequence_iter = sequence_set::uid_iterator(parsed_cmd.sequence_set);
-                        if sequence_iter.len() == 0 { return bad_res }
                         let mut res = String::new();
-                        for uid in sequence_iter.iter() {
-                            match folder.get_index_from_uid(*uid) {
-                                Ok(index) => {
-                                    let fetch_str = folder.fetch(index - 1, &parsed_cmd.attributes);
-                                    res = format!("{}* {} FETCH ({}UID {})\r\n", res, index, fetch_str, uid);
-                                },
-                                Err(e) => { warn!("{}", e) }
+
+                        // SPECIAL CASE FOR THUNDERBIRD.
+                        // TODO: REMOVE THIS.
+                        if parsed_cmd.sequence_set == vec![Range(box Number(1), box Wildcard)] {
+                            if folder.message_count() == 0 { return bad_res }
+                            for index in range(0u, folder.message_count()) {
+                                println!("index: {}", index);
+                                let fetch_str = folder.fetch(index, &parsed_cmd.attributes);
+                                let uid = folder.get_uid_from_index(index);
+                                res = format!("{}* {} FETCH ({} UID {})\r\n", res, index, fetch_str, uid);
+                            }
+                        } else {
+                            let sequence_iter = sequence_set::uid_iterator(parsed_cmd.sequence_set);
+                            if sequence_iter.len() == 0 { return bad_res }
+                            for uid in sequence_iter.iter() {
+                                match folder.get_index_from_uid(*uid) {
+                                    Ok(index) => {
+                                        let fetch_str = folder.fetch(index - 1, &parsed_cmd.attributes);
+                                        res = format!("{}* {} FETCH ({}UID {})\r\n", res, index, fetch_str, uid);
+                                    },
+                                    Err(e) => { warn!("{}", e) }
+                                }
                             }
                         }
+
                         return format!("{}{} OK UID FETCH completed\r\n", res, tag);
                     },
                     "store" => {

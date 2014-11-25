@@ -151,6 +151,10 @@ impl Folder {
         self.messages[index].fetch(attributes)
     }
 
+    pub fn get_uid_from_index(&self, index: uint) -> uint {
+        self.messages[index].uid as uint
+    }
+
     pub fn get_index_from_uid(&self, uid: uint) -> ImapResult<uint> {
         for index in range(0u, self.messages.len()) {
             if self.messages[index].uid == uid as u32 { return Ok(index + 1) }
