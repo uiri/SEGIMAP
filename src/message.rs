@@ -220,7 +220,7 @@ impl Message {
             let attr_str = match attr {
                 &Envelope => { format!("ENVELOPE {}", self.get_envelope()) }, // TODO: Finish implementing this.
                 &Flags => { "".to_string() },
-                &InternalDate => { "".to_string() },
+                &InternalDate => { format!(" INTERNALDATE \"{}\"", self.date_received()) }
                 &RFC822(ref attr) => {
                     let rfc_attr = match attr {
                         &AllRFC822 => { "".to_string() },
