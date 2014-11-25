@@ -296,7 +296,7 @@ impl Message {
                         }
                         &PartSection(ref parts, ref msgtext) => { "?]".to_string() }
                     };
-                    format!("BODY.PEEK[{} ", peek_attr)
+                    format!("BODY[{} ", peek_attr)
                 },
                 &BodyStructure => {
                     /*let content_type: Vec<&str> = self.headers["CONTENT-TYPE".to_string()].as_slice().splitn(1, ';').take(1).collect();
