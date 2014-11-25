@@ -144,8 +144,8 @@ impl Session {
                         let create_args: Vec<&str> = args.collect();
                         if create_args.len() < 1 { return bad_res; }
                         let mailbox_name = create_args[0].trim_chars('"'); // "
-                        let mbox_name = regex!("INBOX").replace(mailbox_name, ".");
-                        let no_res = format!("{} NO Could not create folder.", tag);
+                        let mbox_name = regex!("INBOX").replace(mailbox_name, "");
+                        let no_res = format!("{} NO Could not create folder.\r\n", tag);
                         match self.maildir {
                             None => return bad_res,
                             Some(ref maildir) => {
@@ -161,7 +161,7 @@ impl Session {
                                     Err(_) => return no_res,
                                     _ => {}
                                 }
-                                return format!("{} OK Created folder successfully.", tag);
+                                return format!("{} OK CREATE successful.\r\n", tag);
                             }
                         }
                     }
@@ -170,8 +170,8 @@ impl Session {
                         let delete_args: Vec<&str> = args.collect();
                         if delete_args.len() < 1 { return bad_res; }
                         let mailbox_name = delete_args[0].trim_chars('"'); // ");
-                        let mbox_name = regex!("INBOX").replace(mailbox_name, ".");
-                        let no_res = format!("{} NO Invalid folder.", tag);
+                        let mbox_name = regex!("INBOX").replace(mailbox_name, "");
+                        let no_res = format!("{} NO Invalid folder.\r\n", tag);
                         match self.maildir {
                             None => return bad_res,
                             Some(ref maildir) => {
@@ -201,7 +201,7 @@ impl Session {
                                            Err(_) => return no_res,
                                            _ => {}
                                        }
-                                       return format!("{} OK delete successsful", tag);
+                                       return format!("{} OK DELETE successsful.\r\n", tag);
                                    })
                                 );
                             }
@@ -253,7 +253,7 @@ impl Session {
                                 for i in v.iter() {
                                     ok_res = format!("{}* {} EXPUNGE\r\n", ok_res, i);
                                 }
-                                return format!("{}{} OK expunge completed", ok_res, tag);
+                                return format!("{}{} OK expunge completed\r\n", ok_res, tag);
                             }
                         }
                     }
@@ -486,6 +486,9 @@ impl Session {
             Ok(dir_listing) => {
                 let mut children = false;
                 for subdir in dir_listing.iter() {
+                    if dir == *maildir_path {
+                        break;
+                    }
                     let subdir_str = from_utf8(subdir.filename().unwrap()).unwrap();
                     if subdir_str != "cur" &&
                        subdir_str != "new" &&
@@ -509,11 +512,12 @@ impl Session {
                 }
             }
         };
-        let re_opt = Regex::new(format!("^{}", make_absolute(maildir_path).display()).as_slice());
+        let re_path = make_absolute(maildir_path);
+        let re_opt = Regex::new(format!("^{}", re_path.display()).as_slice());
         match re_opt {
             Err(_) => { return None; }
             Ok(re) => {
-                let list_str = format!("* LIST ({}) \"/\" {}", flags, re.replace(format!("{}", abs_dir.display()).as_slice(), "INBOX"));
+                let list_str = format!("* LIST ({}) \"/\" {}", flags, regex!("INBOX/").replace(re.replace(format!("{}", abs_dir.display()).as_slice(), "INBOX").as_slice(), ""));
                 if dir.is_dir() && regex.is_match(dir_string.as_slice()) {
                     return Some(list_str);
                 }
