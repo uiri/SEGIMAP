@@ -460,6 +460,26 @@ impl Message {
         }
         format!("{})", response.as_slice().trim())
     }
+
+    fn print_flags(&self) -> String {
+         let mut res = String::new();
+         for flag in self.flags.iter() {
+             let flag_str = match flag {
+                 &Answered => { "\\Answered".to_string() },
+                 &Draft => { "\\Draft".to_string() },
+                 &Flagged => { "\\Flagged".to_string() },
+                 &Seen => { "\\Seen".to_string() }
+                 &Deleted => { "\\Deleted".to_string() }
+             };
+             res = format!("{}{} ", res, flag_str);
+         }
+         // Remove trailing whitespace.
+         // TODO: find a safer way to do this.
+         if res.as_slice().len() > 0 {
+             res = res.as_slice().slice_to(res.as_slice().len() - 1).to_string()
+         }
+        format!("({})", res)
+    }
 }
 
 pub fn parse_flag(flag: &str) -> Option<Flag> {
