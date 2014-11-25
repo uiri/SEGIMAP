@@ -21,11 +21,22 @@ child.sendline('1 login ' + username + ' ' + password)
 child.expect('1 OK logged in successfully as nikitapekin@gmail.com')
 child.sendline('2 select INBOX')
 child.expect('successful')
-child.sendline('3 fetch 1:2 RFC822.SIZE')
+
+#child.sendline('3 fetch 1:2 RFC822.SIZE')
+#child.expect('completed')
+#child.sendline('3 fetch 1:2 RFC822.HEADER')
+#child.expect('completed')
+#child.sendline('3 fetch 1:2 (RFC822.SIZE RFC822.HEADER)')
+#child.expect('completed')
+
+child.sendline('3 fetch 1:3 ENVELOPE')
 child.expect('completed')
-child.sendline('3 fetch 1:2 RFC822.HEADER')
+
+child.sendline('3 fetch 1:3 UID')
 child.expect('completed')
-child.sendline('3 fetch 1:2 (RFC822.SIZE RFC822.HEADER)')
+
+child.sendline('3 fetch 1:3 INTERNALDATE')
 child.expect('completed')
+
 #child.sendline('3 fetch 1:2 (FLAGS BODY[HEADER.FIELDS (DATE FROM)])')
 #child.expect('unimplemented')
