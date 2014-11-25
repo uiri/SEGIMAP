@@ -200,17 +200,17 @@ impl Message {
 
     // TODO: Make sure that returning a pointer is fine.
     pub fn date_received(&self) -> &String {
-        self.headers.find(&"Received-On-Date".to_string()).unwrap()
+        self.headers.find(&"RECEIVED-ON-DATE".to_string()).unwrap()
     }
 
     // TODO: Make sure that returning a pointer is fine.
     pub fn envelope_from(&self) -> &String {
-        self.headers.find(&"From".to_string()).unwrap()
+        self.headers.find(&"FROM".to_string()).unwrap()
     }
 
     // TODO: Make sure that returning a pointer is fine.
     pub fn envelope_to(&self) -> &String {
-        self.headers.find(&"To".to_string()).unwrap()
+        self.headers.find(&"TO".to_string()).unwrap()
     }
 
     pub fn fetch(&self, attributes: &Vec<Attribute>) -> String {
