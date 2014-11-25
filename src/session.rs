@@ -333,7 +333,7 @@ impl Session {
                         for uid in sequence_iter.iter() {
                             match folder.get_index_from_uid(*uid) {
                                 Ok(index) => {
-                                    let fetch_str = folder.fetch(index, &parsed_cmd.attributes);
+                                    let fetch_str = folder.fetch(index - 1, &parsed_cmd.attributes);
                                     res = format!("{}* {} FETCH ({}UID {})\r\n", res, index, fetch_str, uid);
                                 },
                                 Err(e) => { warn!("{}", e) }

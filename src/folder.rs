@@ -153,7 +153,7 @@ impl Folder {
 
     pub fn get_index_from_uid(&self, uid: uint) -> ImapResult<uint> {
         for index in range(0u, self.messages.len()) {
-            if self.messages[index].uid == uid as u32 { return Ok(index) }
+            if self.messages[index].uid == uid as u32 { return Ok(index + 1) }
         }
         Err(Error::simple(NoSuchMessageError, "Failed to find message by UID."))
     }
