@@ -3,10 +3,7 @@ use std::collections::HashMap;
 use std::io::File;
 
 use time;
-use time::{
-    Timespec,
-    Tm,
-};
+use time::Timespec;
 
 use command::command::{
     Attribute,
