@@ -11,6 +11,7 @@ pub struct Folder {
     pub unseen: uint,
     path: Path,
     messages: Vec<Message>,
+    pub readonly: bool,
     cur: Vec<Path>,
     new: Vec<Path>
 }
@@ -28,16 +29,27 @@ macro_rules! make_vec_path(
 )
 
 impl Folder {
-    pub fn new(name: String, owner: Option<Box<Folder>>, path: Path) -> Option<Folder> {
-        match fs::File::open(&path.join(".lock")) {
-            Err(_) => {
-                match fs::File::create(&path.join(".lock")) {
-                    Ok(mut file) => {
-                        // Get rustc to STFU with this match
-                        match file.write(b"selected") { _ => {} }
-                        drop(file);
-                        make_vec_path!(path, cur, "cur",
-                           make_vec_path!(path, new, "new",
+    pub fn new(name: String, owner: Option<Box<Folder>>, path: Path, examine: bool) -> Option<Folder> {
+        let readonly = if examine {
+            true
+        } else {
+            match fs::File::open(&path.join(".lock")) {
+                Err(_) => {
+                    match fs::File::create(&path.join(".lock")) {
+                        Ok(mut file) => {
+                            // Get rustc to STFU with this match
+                            match file.write(b"selected") { _ => {} }
+                            drop(file);
+                            false
+                        }
+                        _ => true,
+                    }
+                }
+                _ => true,
+            }
+        };
+        make_vec_path!(path, cur, "cur",
+            make_vec_path!(path, new, "new",
                            {
                                let mut messages = Vec::new();
                                // populate messages
@@ -67,29 +79,27 @@ impl Folder {
                                    unseen: unseen,
                                    exists: exists,
                                    messages: messages,
+                                   readonly: readonly,
                                    cur: cur,
                                    new: new
                                })}
                            )
                        );
-                    }
-                    _ => { return None; }
-                }
-            }
-            _ => { return None; }
-        }
     }
 
     pub fn recent(&self) -> uint {
-        for msg in self.new.iter() {
-            match msg.filename_str() {
-                Some(filename) => {
-                    // Get rustc to STFU with this match block
-                    match fs::rename(msg, &self.path.join("cur").join(filename)) {
-                        _ => {}
+        if !self.readonly {
+            for msg in self.new.iter() {
+                match msg.filename_str() {
+                    Some(filename) => {
+                        // Get rustc to STFU with this match block
+                        // Make sure to add some damn flags
+                        match fs::rename(msg, &self.path.join("cur").join(filename)) {
+                            _ => {}
+                        }
                     }
+                    _ => {}
                 }
-                _ => {}
             }
         }
         self.recent
@@ -97,17 +107,19 @@ impl Folder {
 
     pub fn close(&self) -> Vec<uint> {
         let mut result = Vec::new();
-        let mut index = 0u;
-        while index < self.messages.len() {
-            if self.messages[index].deleted {
-                match fs::unlink(&Path::new(self.messages[index].path.clone())) { _ => {} }
-                result.push(index + 1);
-            } else {
-                index = index + 1;
+        if !self.readonly {
+            let mut index = 0u;
+            while index < self.messages.len() {
+                if self.messages[index].deleted {
+                    match fs::unlink(&Path::new(self.messages[index].path.clone())) { _ => {} }
+                    result.push(index + 1);
+                } else {
+                    index = index + 1;
+                }
             }
+            // Get rustc to STFU with this match block
+            match fs::unlink(&self.path.join(".lock")) { _ => {} }
         }
-        // Get rustc to STFU with this match block
-        match fs::unlink(&self.path.join(".lock")) { _ => {} }
         return result;
     }
 

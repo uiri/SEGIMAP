@@ -117,39 +117,13 @@ impl Session {
                         }
                         return format!("* BYE Server logging out\r\n{} OK Server logged out\r\n", tag);
                     }
+                    // Examine and Select should be nearly identical...
                     "select" => {
-                        let select_args: Vec<&str> = args.collect();
-                        if select_args.len() < 1 { return bad_res; }
-                        let mailbox_name = select_args[0].trim_chars('"'); // "
-                        match self.maildir {
-                            None => { return bad_res; }
-                            _ => {}
-                        }
-                        self.folder = self.select_mailbox(mailbox_name);
-                        match self.folder {
-                            None => {
-                                return format!("{} NO error finding mailbox\n", tag);
-                            }
-                            Some(ref folder) => {
-                                // * Flags
-                                // Should match values in enum Flag in message.rs and \\Deleted
-                                let mut ok_res = format!("* FLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)\n");
-                                // * <n> EXISTS
-                                ok_res = format!("{}* {} EXISTS\n", ok_res, folder.exists);
-                                // * <n> RECENT
-                                ok_res = format!("{}* {} RECENT\n", ok_res, folder.recent());
-                                // * OK UNSEEN
-                                ok_res = format!("{}* OK UNSEEN {}\n", ok_res, folder.unseen);
-                                // * OK PERMANENTFLAG
-                                // Should match values in enum Flag in message.rs and \\Deleted
-                                ok_res = format!("{}* PERMANENTFLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen) Permanent flags\n", ok_res);
-                                // * OK UIDNEXT
-                                // * OK UIDVALIDITY
-                                return format!("{}{} OK [READ-WRITE] SELECT command was successful\n", ok_res, tag);
-                            }
-                        }
+                        return self.perform_select(args.collect(), false, bad_res, tag);
                     }
-                    // examine
+                    "examine" => {
+                        return self.perform_select(args.collect(), true, bad_res, tag);
+                    }
                     "create" => {
                         let create_args: Vec<&str> = args.collect();
                         if create_args.len() < 1 { return bad_res; }
@@ -283,16 +257,54 @@ impl Session {
         }
     }
 
-    pub fn select_mailbox(&self, mailbox_name: &str) -> Option<Folder> {
+    pub fn select_mailbox(&self, mailbox_name: &str, examine: bool) -> Option<Folder> {
         let mbox_name = regex!("INBOX").replace(mailbox_name, ".");
         match self.maildir {
             None => { None }
             Some(ref maildir) => {
                 let maildir_path = Path::new(maildir.as_slice()).join(mbox_name);
                 // TODO: recursively grab parent...
-                Folder::new(mailbox_name.to_string(), None, maildir_path)
+                Folder::new(mailbox_name.to_string(), None, maildir_path, examine)
                     // TODO: Insert new folder into folder service
                     // folder_service.insert(mailbox_name.to_string(), box *folder);
+            }
+        }
+    }
+
+    fn perform_select(&mut self, select_args: Vec<&str>, examine: bool, bad_res: String, tag: &str) -> String {
+        if select_args.len() < 1 { return bad_res; }
+        let mailbox_name = select_args[0].trim_chars('"'); // "
+        match self.maildir {
+            None => { return bad_res; }
+            _ => {}
+        }
+        self.folder = self.select_mailbox(mailbox_name, examine);
+        match self.folder {
+            None => {
+                return format!("{} NO error finding mailbox\n", tag);
+            }
+            Some(ref folder) => {
+                // * Flags
+                // Should match values in enum Flag in message.rs and \\Deleted
+                let mut ok_res = "* FLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)\n".to_string();
+                // * <n> EXISTS
+                ok_res = format!("{}* {} EXISTS\n", ok_res, folder.exists);
+                // * <n> RECENT
+                ok_res = format!("{}* {} RECENT\n", ok_res, folder.recent());
+                // * OK UNSEEN
+                ok_res = format!("{}* OK UNSEEN {}\n", ok_res, folder.unseen);
+                // * OK PERMANENTFLAG
+                // Should match values in enum Flag in message.rs and \\Deleted
+                ok_res = format!("{}* PERMANENTFLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen) Permanent flags\n", ok_res);
+                // * OK UIDNEXT
+                // * OK UIDVALIDITY
+                let read_status = if folder.readonly {
+                    "[READ-ONLY]"
+                } else {
+                    "[READ-WRITE]"
+                };
+                return format!("{}{} OK {} SELECT command was successful\n", ok_res, tag, read_status);
+
             }
         }
     }
