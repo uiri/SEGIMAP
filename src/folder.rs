@@ -1,8 +1,11 @@
+use std::collections::HashSet;
 use std::io::fs;
 use std::fmt::{Show, Formatter, FormatError};
 
 use command::command::Attribute;
 use message::Message;
+use message::StoreName;
+use message::Flag;
 
 pub struct Folder {
     pub name: String,
@@ -119,7 +122,7 @@ impl Folder {
         self.recent
     }
 
-    pub fn close(&self) -> Vec<uint> {
+    pub fn expunge(&self) -> Vec<uint> {
         let mut result = Vec::new();
         if !self.readonly {
             let mut index = 0u;
@@ -143,6 +146,19 @@ impl Folder {
 
     pub fn fetch(&self, index: uint, attributes: &Vec<Attribute>) -> String {
         self.messages[index].fetch(attributes)
+    }
+
+    pub fn store(&mut self, sequence_set: Vec<uint>, flag_name: StoreName, silent: bool, flags: HashSet<Flag>) -> String {
+        let mut responses = String::new();
+        for i in sequence_set.iter() {
+            let ref mut message = self.messages.get_mut(*i-1);
+            responses = format!("{}* {} FETCH {}\n", responses, i, message.store(flag_name, flags.clone()));
+        }
+        if silent {
+            String::new()
+        } else {
+            responses
+        }
     }
 }
 

@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::io::{Buffer, BufferedStream, FilePermission, fs, TcpStream};
 use std::io::fs::PathExtensions;
 use std::os::make_absolute;
@@ -13,6 +14,9 @@ use command::sequence_set;
 pub use folder::Folder;
 pub use server::Server;
 use parser::fetch;
+
+use message;
+use message::Flag;
 
 macro_rules! return_on_err(
     ($inp:expr) => {
@@ -123,7 +127,7 @@ impl Session {
                         self.logout = true;
                         match self.folder {
                             Some(ref folder) => {
-                                folder.close();
+                                folder.expunge();
                             }
                             _ => {}
                         }
@@ -233,13 +237,16 @@ impl Session {
                         }
                     }
                     "close" => {
-                        return match self.close() {
+                        return match self.expunge() {
                             Err(_) => bad_res,
-                            Ok(_) => format!("{} OK close completed\n", tag)
+                            Ok(_) => {
+                                self.folder = None;
+                                format!("{} OK close completed\n", tag)
+                            }
                         }
                     }
                     "expunge" => {
-                        match self.close() {
+                        match self.expunge() {
                             Err(_) => { return bad_res; }
                             Ok(v) => {
                                 let mut ok_res = String::new();
@@ -280,13 +287,60 @@ impl Session {
                          */
                         let sequence_iter = sequence_set::iterator(parsed_cmd.sequence_set, folder.message_count());
                         if sequence_iter.len() == 0 { return bad_res }
-
                         let mut res = String::new();
                         for index in sequence_iter.iter() {
                             let msg_fetch = folder.fetch(index - 1, &parsed_cmd.attributes);
                             res = format!("{}* {} FETCH{}\n", res, index, msg_fetch);
                         }
                         return format!("{}{} OK FETCH completed\n", res, tag);
+                    }
+                    "store" => {
+                        let store_args: Vec<&str> = args.collect();
+                        if store_args.len() < 3 { return bad_res; }
+                        let sequence_set_opt = sequence_set::parse(store_args[0].trim_chars('"'));
+                        let data_name = store_args[1].trim_chars('"');
+                        let data_value = store_args[2].trim_chars('"'); // "
+                        let data_name_lower = data_name.to_string().into_ascii_lower();
+                        let mut data_name_parts = data_name_lower.as_slice().split('.');
+                        let flag_part = data_name_parts.next();
+                        let silent_part = data_name_parts.next();
+                        match data_name_parts.next() {
+                            Some(_) => return bad_res,
+                            _ => {}
+                        }
+                        let silent = match silent_part {
+                            None => false,
+                            Some(part) => {
+                                if part == "silent" {
+                                    true
+                                } else {
+                                    return bad_res
+                                }
+                            }
+                        };
+                        let flag_name = match message::parse_storename(flag_part) {
+                            Some(storename) => storename,
+                            None => return bad_res
+                        };
+                        let mut flags: HashSet<Flag> = HashSet::new();
+                        for flag in data_value.trim_chars('(').trim_chars(')').split(' ') {
+                            match message::parse_flag(flag) {
+                                None => { continue; }
+                                Some(insert_flag) => { flags.insert(insert_flag); }
+                            }
+                        }
+                        match self.folder {
+                            None => return bad_res,
+                            Some(ref mut folder) => {
+                                match sequence_set_opt {
+                                    None => return bad_res,
+                                    Some(sequence_set) => {
+                                        let sequence_iter = sequence_set::iterator(sequence_set, folder.message_count());
+                                        return format!("{}{} OK STORE complete\n", folder.store(sequence_iter, flag_name, silent, flags), tag);
+                                    }
+                                }
+                            }
+                        }
                     }
                     _ => { return bad_res; }
                 }
@@ -297,11 +351,11 @@ impl Session {
     }
 
     // should generate list of sequence numbers that were deleted
-    fn close(&self) -> Result<Vec<uint>, Error> {
+    fn expunge(&self) -> Result<Vec<uint>, Error> {
         match self.folder {
             None => { Err(Error::simple(ImapStateError, "Not in selected state")) }
             Some(ref folder) => {
-                Ok(folder.close())
+                Ok(folder.expunge())
             }
         }
     }
@@ -333,17 +387,17 @@ impl Session {
                 return format!("{} NO error finding mailbox\n", tag);
             }
             Some(ref folder) => {
-                // * Flags
-                // Should match values in enum Flag in message.rs and \\Deleted
                 // * <n> EXISTS
                 let mut ok_res = format!("* {} EXISTS\n", folder.exists);
                 // * <n> RECENT
                 ok_res = format!("{}* {} RECENT\n", ok_res, folder.recent());
                 // * OK UNSEEN
                 ok_res = format!("{}{}", ok_res, folder.unseen());
+                // * Flags
+                // Should match values in enum Flag in message.rs
                 ok_res = format!("{}* FLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)\n", ok_res);
                 // * OK PERMANENTFLAG
-                // Should match values in enum Flag in message.rs and \\Deleted
+                // Should match values in enum Flag in message.rs
                 ok_res = format!("{}* OK [PERMANENTFLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)] Permanent flags\n", ok_res);
                 // * OK UIDNEXT
                 // * OK UIDVALIDITY

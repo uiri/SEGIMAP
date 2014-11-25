@@ -1,6 +1,7 @@
 use std::ascii::OwnedAsciiExt;
-use std::collections::HashMap;
+use std::collections::{HashSet, HashMap};
 use std::io::File;
+use std::hash::Hash;
 
 use time;
 use time::{
@@ -29,12 +30,19 @@ use error::{
     Error, ImapResult, InternalIoError, MessageDecodeError
 };
 
-#[deriving(Show)]
-enum Flag {
+pub enum StoreName {
+    Replace,
+    Add,
+    Sub
+}
+
+#[deriving(Eq, PartialEq, Hash, Show, Clone)]
+pub enum Flag {
     Answered,
     Draft,
     Flagged,
-    Seen
+    Seen,
+    Deleted
 }
 
 #[deriving(Show)]
@@ -43,7 +51,7 @@ pub struct Message {
     pub path: String,
     headers: HashMap<String, String>,
     body: Vec<MIMEPart>,
-    flags: Vec<Flag>,
+    flags: HashSet<Flag>,
     pub deleted: bool,
     size: uint,
     raw_contents: String,
@@ -80,10 +88,10 @@ impl Message {
         };
         // Parse the flags from the filename.
         let flags = match path_flags {
-            None => Vec::new(),
+            None => HashSet::new(),
             Some(flags) => {
                 let unparsed_flags = flags.splitn(1, ',').skip(1).next().unwrap();
-                let mut vec_flags: Vec<Flag> = Vec::new();
+                let mut set_flags: HashSet<Flag> = HashSet::new();
                 for flag in unparsed_flags.chars() {
                     let parsed_flag = match flag {
                         'D' => Some(Draft),
@@ -93,11 +101,11 @@ impl Message {
                         _ => None
                     };
                     match parsed_flag {
-                        Some(enum_flag) => vec_flags.push(enum_flag),
-                        None => { }
+                        Some(enum_flag) => {set_flags.insert(enum_flag);}
+                        None => {}
                     }
                 }
-                vec_flags
+                set_flags
             }
         };
 
@@ -340,5 +348,50 @@ impl Message {
             date_received_tm.tm_hour,
             date_received_tm.tm_min,
             date_received_tm.tm_sec)
+    }
+
+    pub fn store(&mut self, flag_name: StoreName, new_flags: HashSet<Flag>) -> String {
+        let mut response = "(".to_string();
+        match flag_name {
+            Sub => {
+                for flag in new_flags.iter() {
+                    self.flags.remove(flag);
+                }
+            }
+            Replace => { self.flags = new_flags; }
+            Add => {
+                for flag in new_flags.iter() {
+                    self.flags.insert(*flag);
+                }
+            }
+        }
+        self.deleted = false;
+        for flag in self.flags.iter() {
+            if *flag == Deleted {
+                self.deleted = true;
+            }
+            response = format!("{}\\{} ", response, flag);
+        }
+        format!("{})", response.as_slice().trim())
+    }
+}
+
+pub fn parse_flag(flag: &str) -> Option<Flag> {
+    match flag {
+        "\\Deleted" => Some(Deleted),
+        "\\Seen" => Some(Seen),
+        "\\Draft" => Some(Draft),
+        "\\Answered" => Some(Answered),
+        "\\Flagged" => Some(Flagged),
+        _ => None
+    }
+}
+
+pub fn parse_storename(storename: Option<&str>) -> Option<StoreName> {
+    match storename {
+        Some("flags") => Some(Replace),
+        Some("+flags") => Some(Add),
+        Some("-flags") => Some(Sub),
+        _ => None
     }
 }

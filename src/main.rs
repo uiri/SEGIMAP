@@ -2,6 +2,7 @@
 #![feature(macro_rules)]
 #![deny(non_camel_case_types)]
 #![feature(phase)]
+#![feature(default_type_params)]
 
 extern crate "rust-crypto" as crypto;
 extern crate regex;

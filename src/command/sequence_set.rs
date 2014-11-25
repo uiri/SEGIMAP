@@ -7,6 +7,70 @@ pub enum SequenceItem {
     Wildcard
 }
 
+pub fn parse(sequence_string: &str) -> Option<Vec<SequenceItem>> {
+    let mut sequences = sequence_string.split(',');
+    let mut sequence_set = Vec::new();
+    for sequence in sequences {
+        let mut range = sequence.split(':');
+        let start = range.next();
+        let stop = range.next();
+        match range.next() {
+            Some(_) => return None,
+            _ => {}
+        }
+        match stop {
+            None => {
+                match start {
+                    None => return None,
+                    Some(seq) => {
+                        let intseq_opt: Option<uint> = from_str(seq);
+                        match intseq_opt {
+                            Some(intseq) => {
+                                sequence_set.push(Number(intseq));
+                            }
+                            None => {
+                                if sequence == "*" {
+                                    sequence_set.push(Wildcard);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Some(end) => {
+                match start {
+                    None => return None,
+                    Some(begin) => {
+                        let range_one = parse(begin);
+                        let range_two = parse(end);
+                        let mut range_val = Vec::new();
+                        match range_one {
+                            Some(range_start_vec) => {
+                                if range_start_vec.len() != 1 {
+                                    return None;
+                                }
+                                range_val = range_start_vec;
+                                match range_two {
+                                    Some(range_stop_vec) => {
+                                        if range_stop_vec.len() != 1 {
+                                            return None;
+                                        }
+                                        range_val.push(range_stop_vec[0].clone());
+                                        sequence_set.push(Range(box range_val[0].clone(), box range_val[1].clone()));
+                                    }
+                                    None => return None
+                                }
+                            },
+                            None => return None
+                        }
+                    }
+                }
+            }
+        }
+    }
+    return Some(sequence_set);
+}
+
 // TODO: Find a way to handle sequences in O(1) as currently, the memory usage
 // of the vec returned by this function scales at O(n).
 pub fn iterator(sequence_set: Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
