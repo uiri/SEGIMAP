@@ -8,6 +8,7 @@ mod tests {
     use command::command::{
         Body,
         BodyPeek,
+        BodySection,
         BodyStructure,
         Command,
         Envelope,
@@ -134,7 +135,7 @@ mod tests {
         let expected = Command::new(
                 Fetch,
                 vec![Range(box Number(2), box Number(7))],
-                vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body(AllSection, None)]);
+                vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body]);
         assert_eq!(cmd, expected);
     }
 
@@ -183,7 +184,7 @@ mod tests {
         assert_eq!(fetch("FETCH * BODY").unwrap(), Command::new(
                 Fetch,
                 vec![Wildcard],
-                vec![Body(AllSection, None)]));
+                vec![Body]));
     }
 
     #[test]
@@ -199,11 +200,11 @@ mod tests {
         assert_eq!(fetch("FETCH 1,2 BODY[]<0.1>").unwrap(), Command::new(
                 Fetch,
                 vec![Number(1), Number(2)],
-                vec![Body(AllSection, Some((0, 1)))]));
+                vec![BodySection(AllSection, Some((0, 1)))]));
         assert_eq!(fetch("FETCH *:4 BODY[]<400.10000>").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
-                vec![Body(AllSection, Some((400, 10000)))]));
+                vec![BodySection(AllSection, Some((400, 10000)))]));
     }
 
     #[test]
@@ -211,51 +212,51 @@ mod tests {
         assert_eq!(fetch("FETCH 1,2 BODY[]").unwrap(), Command::new(
                 Fetch,
                 vec![Number(1), Number(2)],
-                vec![Body(AllSection, None)]));
+                vec![BodySection(AllSection, None)]));
         assert_eq!(fetch("FETCH *:4 BODY[HEADER]").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
-                vec![Body(MsgtextSection(HeaderMsgtext), None)]));
+                vec![BodySection(MsgtextSection(HeaderMsgtext), None)]));
         assert_eq!(fetch("FETCH *:4 BODY[TEXT]").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
-                vec![Body(MsgtextSection(TextMsgtext), None)]));
+                vec![BodySection(MsgtextSection(TextMsgtext), None)]));
         assert_eq!(fetch("FETCH *:4 BODY[1]").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
-                vec![Body(PartSection(vec![1], None), None)]));
+                vec![BodySection(PartSection(vec![1], None), None)]));
         assert_eq!(fetch("FETCH *:4 BODY[3]").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
-                vec![Body(PartSection(vec![3], None), None)]));
+                vec![BodySection(PartSection(vec![3], None), None)]));
         assert_eq!(fetch("FETCH *:4 BODY[3.HEADER]").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
-                vec![Body(PartSection(vec![3], Some(HeaderMsgtext)), None)]));
+                vec![BodySection(PartSection(vec![3], Some(HeaderMsgtext)), None)]));
         assert_eq!(fetch("FETCH *:4 BODY[3.TEXT]").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
-                vec![Body(PartSection(vec![3], Some(TextMsgtext)), None)]));
+                vec![BodySection(PartSection(vec![3], Some(TextMsgtext)), None)]));
         assert_eq!(fetch("FETCH *:4 BODY[3.1]").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
-                vec![Body(PartSection(vec![3, 1], None), None)]));
+                vec![BodySection(PartSection(vec![3, 1], None), None)]));
         assert_eq!(fetch("FETCH *:4 BODY[3.2]").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
-                vec![Body(PartSection(vec![3, 2], None), None)]));
+                vec![BodySection(PartSection(vec![3, 2], None), None)]));
         assert_eq!(fetch("FETCH *:4 BODY[4.1.MIME]").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
-                vec![Body(PartSection(vec![4, 1], Some(MimeMsgtext)), None)]));
+                vec![BodySection(PartSection(vec![4, 1], Some(MimeMsgtext)), None)]));
         assert_eq!(fetch("FETCH *:4 BODY[4.2.HEADER]").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
-                vec![Body(PartSection(vec![4, 2], Some(HeaderMsgtext)), None)]));
+                vec![BodySection(PartSection(vec![4, 2], Some(HeaderMsgtext)), None)]));
         assert_eq!(fetch("FETCH *:4 BODY[4.2.2.2.HEADER.FIELDS (DATE FROM)]").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
-                vec![Body(PartSection(vec![4, 2, 2, 2], Some(HeaderFieldsMsgtext(vec!["DATE".to_string(), "FROM".to_string()]))), None)]));
+                vec![BodySection(PartSection(vec![4, 2, 2, 2], Some(HeaderFieldsMsgtext(vec!["DATE".to_string(), "FROM".to_string()]))), None)]));
     }
 
     #[test]
@@ -335,7 +336,7 @@ mod tests {
         assert_eq!(fetch("fetch * (flags body[4.2.2.2.header.fields.not (date from)]<400.10000>)").unwrap(), Command::new(
                 Fetch,
                 vec![Wildcard],
-                vec![Flags, Body(
+                vec![Flags, BodySection(
                     PartSection(vec![4, 2, 2, 2], Some(HeaderFieldsNotMsgtext(vec!["DATE".to_string(), "FROM".to_string()]))),
                     Some((400, 10000))
                 )]));
@@ -349,7 +350,7 @@ mod tests {
         assert_eq!(fetch("FETCH *:4 BODY[4.2.2.2.HEADER.FIELDS (DATE FROM)]<400.10000>").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
-                vec![Body(PartSection(vec![4, 2, 2, 2], Some(HeaderFieldsMsgtext(vec!["DATE".to_string(), "FROM".to_string()]))), Some((400, 10000)))]));
+                vec![BodySection(PartSection(vec![4, 2, 2, 2], Some(HeaderFieldsMsgtext(vec!["DATE".to_string(), "FROM".to_string()]))), Some((400, 10000)))]));
         assert_eq!(fetch("FETCH *:4 BODY.PEEK[4.2.2.2.HEADER.FIELDS (DATE FROM)]<400.10000>").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
@@ -357,11 +358,11 @@ mod tests {
         assert_eq!(fetch("FETCH * (FLAGS BODY[HEADER.FIELDS (DATE FROM)])").unwrap(), Command::new(
                 Fetch,
                 vec![Wildcard],
-                vec![Flags, Body(MsgtextSection(HeaderFieldsMsgtext(vec!["DATE".to_string(), "FROM".to_string()])), None)]));
+                vec![Flags, BodySection(MsgtextSection(HeaderFieldsMsgtext(vec!["DATE".to_string(), "FROM".to_string()])), None)]));
         assert_eq!(fetch("FETCH * (FLAGS BODY[4.2.2.2.HEADER.FIELDS.NOT (DATE FROM)]<400.10000>)").unwrap(), Command::new(
                 Fetch,
                 vec![Wildcard],
-                vec![Flags, Body(
+                vec![Flags, BodySection(
                     PartSection(vec![4, 2, 2, 2], Some(HeaderFieldsNotMsgtext(vec!["DATE".to_string(), "FROM".to_string()]))),
                     Some((400, 10000))
                 )]));
