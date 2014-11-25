@@ -74,7 +74,7 @@ pub fn parse(sequence_string: &str) -> Option<Vec<SequenceItem>> {
 // TODO: Find a way to handle sequences in O(1) as currently, the memory usage
 // of the vec returned by this function scales at O(n).
 pub fn iterator(sequence_set: Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
-    // If the number of possible messages is 0, we return and empty vec.
+    // If the number of possible messages is 0, we return an empty vec.
     if max_id == 0 { return Vec::new() }
 
     let stop = max_id + 1;
@@ -127,6 +127,58 @@ pub fn iterator(sequence_set: Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
     items.dedup();
     // Remove all elements that are greater than the maximum.
     let items: Vec<uint> = items.into_iter().filter(|&x| x <= max_id).collect();
+    return items;
+}
+
+// TODO: Find a way to handle sequences in O(1) as currently, the memory usage
+// of the vec returned by this function scales at O(n).
+pub fn uid_iterator(sequence_set: Vec<SequenceItem>) -> Vec<uint> {
+    let mut items = Vec::new();
+    for item in sequence_set.iter() {
+        match item {
+            &Number(num) => { items.push(num) },
+            &Range(ref a, ref b) => {
+                let a = match **a {
+                    Number(num) => { num },
+                    Wildcard => { return Vec::new() } // TODO: implement
+                    Range(_, _) => {
+                        error!("A range of ranges is invalid.");
+                        continue;
+                    }
+                };
+                let b = match **b {
+                    Number(num) => { num },
+                    Wildcard => { return Vec::new() } // TODO: implement
+                    Range(_, _) => {
+                        error!("A range of ranges is invalid.");
+                        continue;
+                    }
+                };
+                let mut min = 0;
+                let mut max = 0;
+                if a <= b {
+                    min = a;
+                    max = b;
+                } else {
+                    min = b;
+                    max = a;
+                }
+                //if min > stop { min = stop; }
+                //if max > stop { max = stop; }
+                let seq_range: Vec<uint> = range(min, max + 1).collect();
+                items.push_all(seq_range.as_slice());
+            },
+            &Wildcard => {
+                return Vec::new() // TODO: implement
+            }
+        }
+    }
+
+    // Sort and remove duplicates.
+    items.sort();
+    items.dedup();
+    // Remove all elements that are greater than the maximum.
+    //let items: Vec<uint> = items.into_iter().filter(|&x| x <= max_id).collect();
     return items;
 }
 

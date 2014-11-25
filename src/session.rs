@@ -292,8 +292,55 @@ impl Session {
                             let msg_fetch = folder.fetch(index - 1, &parsed_cmd.attributes);
                             res = format!("{}* {} FETCH ({})\r\n", res, index, msg_fetch);
                         }
-                        return format!("{}{} OK FETCH completed\r\n", res, tag);
-                    }
+                        return format!("{}{} OK FETCH completed\n", res, tag);
+                    },
+                    "uid" => {
+                        // Split the index prefix from the command.
+                        let cmd: Vec<&str> = command.splitn(1, ' ').skip(1).collect();
+                        // Remove the newline from the command.
+                        let cmd = cmd[0].lines().next().unwrap();
+                        // Remove the carriage return from the command.
+                        let cmd: Vec<&str> = cmd.splitn(1, '\r').take(1).collect();
+                        let cmd = cmd[0];
+
+                        // Remove the UID prefix from the command.
+                        let cmd: Vec<&str> = cmd.splitn(1, ' ').skip(1).collect();
+                        let cmd = cmd[0];
+
+                        // Parse the command with the PEG parser.
+                        let parsed_cmd = match fetch(cmd) {
+                            Ok(cmd) => cmd,
+                            _ => return bad_res
+                        };
+                        // Retrieve the current folder, if it exists.
+                        let folder = match self.folder {
+                            Some(ref folder) => folder,
+                            None => return bad_res
+                        };
+                        /*
+                         * Verify that the requested sequence set is valid.
+                         *
+                         * Per FRC 3501 seq-number definition:
+                         * "The server should respond with a tagged BAD
+                         * response to a command that uses a message
+                         * sequence number greater than the number of
+                         * messages in the selected mailbox. This
+                         * includes "*" if the selected mailbox is empty."
+                         */
+                        let sequence_iter = sequence_set::uid_iterator(parsed_cmd.sequence_set);
+                        if sequence_iter.len() == 0 { return bad_res }
+                        let mut res = String::new();
+                        for uid in sequence_iter.iter() {
+                            match folder.get_index_from_uid(*uid) {
+                                Ok(index) => {
+                                    let fetch_str = folder.fetch(index, &parsed_cmd.attributes);
+                                    res = format!("{}* {} FETCH ({}UID {})\r\n", res, index, fetch_str, uid);
+                                },
+                                Err(e) => { warn!("{}", e) }
+                            }
+                        }
+                        return format!("{}{} OK UID FETCH completed\r\n", res, tag);
+                    },
                     "store" => {
                         let store_args: Vec<&str> = args.collect();
                         if store_args.len() < 3 { return bad_res; }

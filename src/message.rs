@@ -57,7 +57,7 @@ pub enum Flag {
 
 #[deriving(Show)]
 pub struct Message {
-    uid: u32,
+    pub uid: u32,
     pub path: String,
     headers: HashMap<String, String>,
     body: Vec<MIMEPart>,
@@ -266,7 +266,6 @@ impl Message {
                             format!("] {{{}}}\n{} ", self.raw_contents.as_slice().len(), self.raw_contents)
                         }
                         &MsgtextSection(ref msgtext) => {
-                            let mut section = String::new();
                             let msgtext_attr = match msgtext {
                                 &HeaderMsgtext => { "".to_string() },
                                 &HeaderFieldsMsgtext(ref fields) => {

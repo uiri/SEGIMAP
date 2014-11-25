@@ -3,6 +3,9 @@ use std::io::fs;
 use std::fmt::{Show, Formatter, FormatError};
 
 use command::command::Attribute;
+use error::{
+    Error, ImapResult, NoSuchMessageError
+};
 use message::Message;
 use message::StoreName;
 use message::Flag;
@@ -146,6 +149,13 @@ impl Folder {
 
     pub fn fetch(&self, index: uint, attributes: &Vec<Attribute>) -> String {
         self.messages[index].fetch(attributes)
+    }
+
+    pub fn get_index_from_uid(&self, uid: uint) -> ImapResult<uint> {
+        for index in range(0u, self.messages.len()) {
+            if self.messages[index].uid == uid as u32 { return Ok(index) }
+        }
+        Err(Error::simple(NoSuchMessageError, "Failed to find message by UID."))
     }
 
     pub fn store(&mut self, sequence_set: Vec<uint>, flag_name: StoreName, silent: bool, flags: HashSet<Flag>) -> String {
