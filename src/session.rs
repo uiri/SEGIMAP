@@ -248,7 +248,7 @@ impl Session {
                                 self.folder = None;
                                 format!("{} OK close completed\r\n", tag)
                             }
-                        }
+                        };
                     }
                     "expunge" => {
                         match self.expunge() {
@@ -263,15 +263,12 @@ impl Session {
                         }
                     }
                     "fetch" => {
-                        // Split the index prefix from the command.
-                        let cmd: Vec<&str> = command.splitn(1, ' ').skip(1).collect();
-                        // Remove the newline from the command.
-                        let cmd = cmd[0].lines().next().unwrap();
-                        // Remove the carriage return from the command.
-                        let cmd: Vec<&str> = cmd.splitn(1, '\r').take(1).collect();
-                        let cmd = cmd[0];
+                        let mut cmd = "FETCH".to_string();
+                        for arg in args {
+                            cmd = format!("{} {}", cmd, arg);
+                        }
                         // Parse the command with the PEG parser.
-                        let parsed_cmd = match fetch(cmd) {
+                        let parsed_cmd = match fetch(cmd.as_slice().trim()) {
                             Ok(cmd) => cmd,
                             _ => return bad_res
                         };
@@ -300,65 +297,66 @@ impl Session {
                         return format!("{}{} OK FETCH completed\n", res, tag);
                     },
                     "uid" => {
-                        // Split the index prefix from the command.
-                        let cmd: Vec<&str> = command.splitn(1, ' ').skip(1).collect();
-                        // Remove the newline from the command.
-                        let cmd = cmd[0].lines().next().unwrap();
-                        // Remove the carriage return from the command.
-                        let cmd: Vec<&str> = cmd.splitn(1, '\r').take(1).collect();
-                        let cmd = cmd[0];
+                        match args.next() {
+                            Some(uidcmd) => {
+                                match uidcmd.to_string().into_ascii_lower().as_slice() {
+                                    "fetch" => {
+                                        let mut cmd = "FETCH".to_string();
+                                        for arg in args {
+                                            cmd = format!("{} {}", cmd, arg);
+                                        }
+                                        // Parse the command with the PEG parser.
+                                        let parsed_cmd = match fetch(cmd.as_slice().trim()) {
+                                            Ok(cmd) => cmd,
+                                            _ => return bad_res
+                                        };
+                                        // Retrieve the current folder, if it exists.
+                                        let folder = match self.folder {
+                                            Some(ref folder) => folder,
+                                            None => return bad_res
+                                        };
+                                        /*
+                                         * Verify that the requested sequence set is valid.
+                                         *
+                                         * Per FRC 3501 seq-number definition:
+                                         * "The server should respond with a tagged BAD
+                                         * response to a command that uses a message
+                                         * sequence number greater than the number of
+                                         * messages in the selected mailbox. This
+                                         * includes "*" if the selected mailbox is empty."
+                                         */
+                                        let mut res = String::new();
 
-                        // Remove the UID prefix from the command.
-                        let cmd: Vec<&str> = cmd.splitn(1, ' ').skip(1).collect();
-                        let cmd = cmd[0];
-
-                        // Parse the command with the PEG parser.
-                        let parsed_cmd = match fetch(cmd) {
-                            Ok(cmd) => cmd,
-                            _ => return bad_res
-                        };
-                        // Retrieve the current folder, if it exists.
-                        let folder = match self.folder {
-                            Some(ref folder) => folder,
-                            None => return bad_res
-                        };
-                        /*
-                         * Verify that the requested sequence set is valid.
-                         *
-                         * Per FRC 3501 seq-number definition:
-                         * "The server should respond with a tagged BAD
-                         * response to a command that uses a message
-                         * sequence number greater than the number of
-                         * messages in the selected mailbox. This
-                         * includes "*" if the selected mailbox is empty."
-                         */
-                        let mut res = String::new();
-
-                        // SPECIAL CASE FOR THUNDERBIRD.
-                        // TODO: REMOVE THIS.
-                        if parsed_cmd.sequence_set == vec![Range(box Number(1), box Wildcard)] {
-                            if folder.message_count() == 0 { return bad_res }
-                            for index in range(0u, folder.message_count()) {
-                                println!("index: {}", index);
-                                let fetch_str = folder.fetch(index, &parsed_cmd.attributes);
-                                let uid = folder.get_uid_from_index(index);
-                                res = format!("{}* {} FETCH ({} UID {})\r\n", res, index, fetch_str, uid);
-                            }
-                        } else {
-                            let sequence_iter = sequence_set::uid_iterator(parsed_cmd.sequence_set);
-                            if sequence_iter.len() == 0 { return bad_res }
-                            for uid in sequence_iter.iter() {
-                                match folder.get_index_from_uid(*uid) {
-                                    Ok(index) => {
-                                        let fetch_str = folder.fetch(index - 1, &parsed_cmd.attributes);
-                                        res = format!("{}* {} FETCH ({}UID {})\r\n", res, index, fetch_str, uid);
-                                    },
-                                    Err(e) => { warn!("{}", e) }
+                                        // SPECIAL CASE FOR THUNDERBIRD.
+                                        // TODO: REMOVE THIS.
+                                        if parsed_cmd.sequence_set == vec![Range(box Number(1), box Wildcard)] {
+                                            if folder.message_count() == 0 { return bad_res }
+                                            for index in range(0u, folder.message_count()) {
+                                                println!("index: {}", index);
+                                                let fetch_str = folder.fetch(index, &parsed_cmd.attributes);
+                                                let uid = folder.get_uid_from_index(index);
+                                                res = format!("{}* {} FETCH ({} UID {})\r\n", res, index, fetch_str, uid);
+                                            }
+                                        } else {
+                                            let sequence_iter = sequence_set::uid_iterator(parsed_cmd.sequence_set);
+                                            if sequence_iter.len() == 0 { return bad_res }
+                                            for uid in sequence_iter.iter() {
+                                                match folder.get_index_from_uid(*uid) {
+                                                    Ok(index) => {
+                                                        let fetch_str = folder.fetch(index - 1, &parsed_cmd.attributes);
+                                                        res = format!("{}* {} FETCH ({}UID {})\r\n", res, index, fetch_str, uid);
+                                                    },
+                                                    Err(e) => { warn!("{}", e) }
+                                                }
+                                            }
+                                            return format!("{}{} OK UID FETCH completed\r\n", res, tag);
+                                        }
+                                    }
+                                    _ => { return bad_res; }
                                 }
                             }
+                            None => { return bad_res; }
                         }
-
-                        return format!("{}{} OK UID FETCH completed\r\n", res, tag);
                     },
                     "store" => {
                         let store_args: Vec<&str> = args.collect();
