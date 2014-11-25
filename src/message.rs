@@ -252,7 +252,7 @@ impl Message {
                 &RFC822(ref attr) => {
                     let rfc_attr = match attr {
                         &AllRFC822 => { "".to_string() },
-                        &HeaderRFC822 => { format!(".HEADER {{{}}}\n{}", self.raw_header.len(), self.raw_header) },
+                        &HeaderRFC822 => { format!(".HEADER {{{}}}\r\n{}", self.raw_header.len(), self.raw_header) },
                         &SizeRFC822 => { format!(".SIZE {}", self.size) },
                         &TextRFC822 => { "".to_string() }
                     };
@@ -263,7 +263,7 @@ impl Message {
                 &BodyPeek(ref section, ref octets) => {
                     let peek_attr = match section {
                         &AllSection => {
-                            format!("] {{{}}}\n{} ", self.raw_contents.as_slice().len(), self.raw_contents)
+                            format!("] {{{}}}\r\n{} ", self.raw_contents.as_slice().len(), self.raw_contents)
                         }
                         &MsgtextSection(ref msgtext) => {
                             let msgtext_attr = match msgtext {
@@ -275,7 +275,7 @@ impl Message {
                                         match self.headers.find(field) {
                                             Some(v) => {
                                                 field_keys = format!("{}{} ", field_keys, field);
-                                                field_values = format!("{}\n{}: {}", field_values, field, v);
+                                                field_values = format!("{}\r\n{}: {}", field_values, field, v);
                                             },
                                             None => continue
                                         }
