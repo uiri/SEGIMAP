@@ -310,6 +310,7 @@ impl Message {
         addresses.clone()
     }
 
+    // TODO: rewrite this with TmFmt for 0.13.
     fn date_received(&self) -> String {
         // Retrieve the date received from the UID.
         let date_received = Timespec { sec: self.uid as i64, nsec: 0i32 };
