@@ -18,6 +18,11 @@ use command::command::{
     UID
 };
 use command::command::{
+    AllSection,
+    MsgtextSection,
+    PartSection
+};
+use command::command::{
     AllRFC822,
     HeaderRFC822,
     SizeRFC822,
@@ -100,7 +105,7 @@ impl Message {
         };
 
         let header_boundary = raw_contents.as_slice().find_str("\n\n").unwrap();
-        let raw_header = raw_contents.as_slice().slice_to(header_boundary);
+        let raw_header = raw_contents.as_slice().slice_to(header_boundary + 1); // The newline is included as part of the header.
         let raw_body = raw_contents.as_slice().slice_from(header_boundary + 2);
 
         // Iterate over the lines of the header in reverse.
@@ -240,8 +245,77 @@ impl Message {
                 },
                 &Body => { "".to_string() },
                 &BodySection(ref section, ref octets) => { "".to_string() },
-                &BodyPeek(ref section, ref octets) => { "".to_string() },
-                &BodyStructure => { "".to_string() },
+                &BodyPeek(ref section, ref octets) => {
+                    let peek_attr = match section {
+                        &AllSection => {
+                            let content_type: Vec<&str> = self.headers["CONTENT-TYPE".to_string()].as_slice().splitn(1, ';').take(1).collect();
+                            let content_type: Vec<&str> = content_type[0].splitn(1, '/').collect();
+
+                            // Retrieve the subtype of the content type.
+                            let mut subtype = String::new();
+                            if content_type.len() > 1 { subtype = content_type[1].to_string().into_ascii_upper() }
+
+                            let content_type = content_type[0].to_string().into_ascii_upper();
+                            warn!("Content-type: {}/{}", content_type, subtype);
+                            match content_type.as_slice() {
+                                "MESSAGE" => {
+                                    match subtype.as_slice() {
+                                        "RFC822" => {
+                                            // Immediately after the basic fields, add the envelope
+                                            // structure, body structure, and size in text lines of
+                                            // the encapsulated message.
+                                        },
+                                        _ => { },
+                                    }
+                                },
+                                "TEXT" => {
+                                    // Immediately after the basic fields, add the size of the body
+                                    // in text lines. This is the size in the content transfer
+                                    // encoding and not the size after any decoding.
+                                },
+                                "MULTIPART" => {
+
+                                },
+                                _ => { },
+                            }
+                        }
+                        &MsgtextSection(ref msgtext) => { }
+                        &PartSection(ref parts, ref msgtext) => { }
+                    };
+                    format!(" BODY.PEEK[{}]", "lel".to_string())
+                },
+                &BodyStructure => {
+                    /*let content_type: Vec<&str> = self.headers["CONTENT-TYPE".to_string()].as_slice().splitn(1, ';').take(1).collect();
+                    let content_type: Vec<&str> = content_type[0].splitn(1, '/').collect();
+
+                    // Retrieve the subtype of the content type.
+                    let mut subtype = String::new();
+                    if content_type.len() > 1 { subtype = content_type[1].to_string().into_ascii_upper() }
+
+                    let content_type = content_type[0].to_string().into_ascii_upper();
+                    println!("Content-type: {}/{}", content_type, subtype);
+                    match content_type.as_slice() {
+                        "MESSAGE" => {
+                            match subtype.as_slice() {
+                                "RFC822" => {
+                                    // Immediately after the basic fields, add the envelope
+                                    // structure, body structure, and size in text lines of
+                                    // the encapsulated message.
+                                },
+                                _ => { },
+                            }
+                        },
+                        "TEXT" => {
+                            // Immediately after the basic fields, add the size of the body
+                            // in text lines. This is the size in the content transfer
+                            // encoding and not the size after any decoding.
+                        },
+                        "MULTIPART" => {
+
+                        },
+                        _ => { },
+                    }*/
+                    "".to_string() },
                 &UID => { format!(" UID {}", self.uid) }
             };
             res = format!("{}{}", res, attr_str);
