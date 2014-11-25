@@ -217,7 +217,7 @@ impl Message {
         let mut res = String::new();
         for attr in attributes.iter() {
             let attr_str = match attr {
-                &Envelope => { format!("ENVELOPE {}", self.get_envelope()) },
+                &Envelope => { format!("ENVELOPE {}", self.get_envelope()) }, // TODO: Finish implementing this.
                 &Flags => { "".to_string() },
                 &InternalDate => { "".to_string() },
                 &RFC822(ref attr) => {
@@ -253,6 +253,7 @@ impl Message {
      * The from, sender, reply-to, to, cc, and bcc fields are parenthesized
      * lists of address structures.
      */
+    // TODO: Finish implementing this.
     fn get_envelope(&self) -> String {
         let date = self.get_quoted_field_or_nil("DATE".to_string());
         let subject = self.get_quoted_field_or_nil("SUBJECT".to_string());
@@ -286,12 +287,16 @@ impl Message {
         }
     }
 
+    /**
+     * RFC3501 - 7.4.2 - P.76
+     */
+    // TODO: Finish implementing this.
     fn get_parenthesized_addresses(&self, key: String) -> String {
         let addresses = match self.headers.find(&key) {
-            Some(v) => v,
+            Some(v) => v, // TODO: this is not parenthesized.
             None => return "NIL".to_string()
         };
 
-        "NIL".to_string()
+        addresses.clone()
     }
 }
