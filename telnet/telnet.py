@@ -41,7 +41,7 @@ child.expect('successful')
 child.sendline('3 fetch 1 BODY.PEEK[]')
 child.expect('completed')
 
-child.sendline('3 fetch 1:3 (FLAGS UID)')
+child.sendline('3 fetch 1:3 (FLAGS UID BODY.PEEK[HEADER.FIELDS (To From)])')
 child.expect('completed')
 
 #child.sendline('3 fetch 1:2 (FLAGS BODY[HEADER.FIELDS (DATE FROM)])')

@@ -23,6 +23,13 @@ use command::command::{
     PartSection
 };
 use command::command::{
+    HeaderMsgtext,
+    HeaderFieldsMsgtext,
+    HeaderFieldsNotMsgtext,
+    TextMsgtext,
+    MimeMsgtext
+};
+use command::command::{
     AllRFC822,
     HeaderRFC822,
     SizeRFC822,
@@ -248,9 +255,38 @@ impl Message {
                 &BodyPeek(ref section, ref octets) => {
                     let peek_attr = match section {
                         &AllSection => {
-                            format!("HEADER] {{{}}}\n{} ", self.raw_contents.as_slice().len(), self.raw_contents)
+                            format!("] {{{}}}\n{} ", self.raw_contents.as_slice().len(), self.raw_contents)
                         }
-                        &MsgtextSection(ref msgtext) => { "?]".to_string() }
+                        &MsgtextSection(ref msgtext) => {
+                            let mut section = String::new();
+                            let msgtext_attr = match msgtext {
+                                &HeaderMsgtext => { "".to_string() },
+                                &HeaderFieldsMsgtext(ref fields) => {
+                                    let mut field_keys = String::new();
+                                    let mut field_values = String::new();
+                                    for field in fields.iter() {
+                                        match self.headers.find(field) {
+                                            Some(v) => {
+                                                field_keys = format!("{}{} ", field_keys, field);
+                                                field_values = format!("{}\n{}: {}", field_values, field, v);
+                                            },
+                                            None => continue
+                                        }
+                                    }
+                                    // Remove trailing whitespace.
+                                    // TODO: find a safer way to do this.
+                                    if field_keys.as_slice().len() > 0 {
+                                        field_keys = field_keys.as_slice().slice_to(field_keys.as_slice().len() - 1).to_string()
+                                    }
+
+                                    format!("HEADER.FIELDS ({})] {{{}}}{}", field_keys, field_values.as_slice().len(), field_values)
+                                },
+                                &HeaderFieldsNotMsgtext(ref fields) => { "".to_string() },
+                                &TextMsgtext => { "".to_string() },
+                                &MimeMsgtext => { "".to_string() }
+                            };
+                            msgtext_attr
+                        }
                         &PartSection(ref parts, ref msgtext) => { "?]".to_string() }
                     };
                     format!("BODY.PEEK[{} ", peek_attr)
