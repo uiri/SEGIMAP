@@ -232,7 +232,7 @@ impl Message {
                 &Body(ref section, ref octets) => { "".to_string() },
                 &BodyPeek(ref section, ref octets) => { "".to_string() },
                 &BodyStructure => { "".to_string() },
-                &UID => { "".to_string() }
+                &UID => { format!("UID {}", self.uid) }
             };
             res = format!("{} {}", res, attr_str);
         }
