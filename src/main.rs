@@ -9,6 +9,7 @@ extern crate regex;
 #[phase(plugin, link)] extern crate log;
 #[phase(plugin)] extern crate peg_syntax_ext;
 extern crate serialize;
+extern crate time;
 extern crate toml;
 
 pub use config::Config;

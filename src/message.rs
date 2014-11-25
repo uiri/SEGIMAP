@@ -2,6 +2,12 @@ use std::ascii::OwnedAsciiExt;
 use std::collections::HashMap;
 use std::io::File;
 
+use time;
+use time::{
+    Timespec,
+    Tm,
+};
+
 use command::command::{
     Attribute,
     Envelope,
@@ -199,11 +205,6 @@ impl Message {
     }
 
     // TODO: Make sure that returning a pointer is fine.
-    pub fn date_received(&self) -> &String {
-        self.headers.find(&"RECEIVED-ON-DATE".to_string()).unwrap()
-    }
-
-    // TODO: Make sure that returning a pointer is fine.
     pub fn envelope_from(&self) -> &String {
         self.headers.find(&"FROM".to_string()).unwrap()
     }
@@ -298,5 +299,36 @@ impl Message {
         };
 
         addresses.clone()
+    }
+
+    fn date_received(&self) -> String {
+        // Retrieve the date received from the UID.
+        let date_received = Timespec { sec: self.uid as i64, nsec: 0i32 };
+        let date_received_tm = time::at_utc(date_received);
+
+        let month = match date_received_tm.tm_mon {
+            0 => "Jan".to_string(),
+            1 => "Feb".to_string(),
+            2 => "Mar".to_string(),
+            3 => "Apr".to_string(),
+            4 => "May".to_string(),
+            5 => "Jun".to_string(),
+            6 => "Jul".to_string(),
+            7 => "Aug".to_string(),
+            8 => "Sep".to_string(),
+            9 => "Oct".to_string(),
+            10 => "Nov".to_string(),
+            11 => "Dec".to_string(),
+            _ => fail!("Unable to determine month!") // NOTE: this should never happen.
+        };
+
+        format!(
+            "{:0>2}-{}-{:0>2} {:0>2}:{:0>2}:{:0>2} -0000",
+            date_received_tm.tm_mday,
+            month,
+            date_received_tm.tm_year + 1900i32,
+            date_received_tm.tm_hour,
+            date_received_tm.tm_min,
+            date_received_tm.tm_sec)
     }
 }
