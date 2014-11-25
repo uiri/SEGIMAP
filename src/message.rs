@@ -4,10 +4,7 @@ use std::io::File;
 use std::hash::Hash;
 
 use time;
-use time::{
-    Timespec,
-    Tm,
-};
+use time::Timespec;
 
 use command::command::{
     Attribute,
@@ -17,8 +14,21 @@ use command::command::{
     RFC822,
     Body,
     BodyPeek,
+    BodySection,
     BodyStructure,
     UID
+};
+use command::command::{
+    AllSection,
+    MsgtextSection,
+    PartSection
+};
+use command::command::{
+    HeaderMsgtext,
+    HeaderFieldsMsgtext,
+    HeaderFieldsNotMsgtext,
+    TextMsgtext,
+    MimeMsgtext
 };
 use command::command::{
     AllRFC822,
@@ -110,7 +120,7 @@ impl Message {
         };
 
         let header_boundary = raw_contents.as_slice().find_str("\n\n").unwrap();
-        let raw_header = raw_contents.as_slice().slice_to(header_boundary);
+        let raw_header = raw_contents.as_slice().slice_to(header_boundary + 1); // The newline is included as part of the header.
         let raw_body = raw_contents.as_slice().slice_from(header_boundary + 2);
 
         // Iterate over the lines of the header in reverse.
@@ -236,9 +246,9 @@ impl Message {
         let mut res = String::new();
         for attr in attributes.iter() {
             let attr_str = match attr {
-                &Envelope => { format!(" ENVELOPE {}", self.get_envelope()) }, // TODO: Finish implementing this.
-                &Flags => { "".to_string() },
-                &InternalDate => { format!(" INTERNALDATE \"{}\"", self.date_received()) }
+                &Envelope => { format!("ENVELOPE {} ", self.get_envelope()) }, // TODO: Finish implementing this.
+                &Flags => { format!("FLAGS {} ", self.print_flags()) },
+                &InternalDate => { format!("INTERNALDATE \"{}\" ", self.date_received()) }
                 &RFC822(ref attr) => {
                     let rfc_attr = match attr {
                         &AllRFC822 => { "".to_string() },
@@ -246,14 +256,89 @@ impl Message {
                         &SizeRFC822 => { format!(".SIZE {}", self.size) },
                         &TextRFC822 => { "".to_string() }
                     };
-                    format!(" RFC822{}", rfc_attr)
+                    format!("RFC822{} ", rfc_attr)
                 },
-                &Body(ref section, ref octets) => { "".to_string() },
-                &BodyPeek(ref section, ref octets) => { "".to_string() },
-                &BodyStructure => { "".to_string() },
-                &UID => { format!(" UID {}", self.uid) }
+                &Body => { "".to_string() },
+                &BodySection(ref section, ref octets) => { "".to_string() },
+                &BodyPeek(ref section, ref octets) => {
+                    let peek_attr = match section {
+                        &AllSection => {
+                            format!("] {{{}}}\n{} ", self.raw_contents.as_slice().len(), self.raw_contents)
+                        }
+                        &MsgtextSection(ref msgtext) => {
+                            let mut section = String::new();
+                            let msgtext_attr = match msgtext {
+                                &HeaderMsgtext => { "".to_string() },
+                                &HeaderFieldsMsgtext(ref fields) => {
+                                    let mut field_keys = String::new();
+                                    let mut field_values = String::new();
+                                    for field in fields.iter() {
+                                        match self.headers.find(field) {
+                                            Some(v) => {
+                                                field_keys = format!("{}{} ", field_keys, field);
+                                                field_values = format!("{}\n{}: {}", field_values, field, v);
+                                            },
+                                            None => continue
+                                        }
+                                    }
+                                    // Remove trailing whitespace.
+                                    // TODO: find a safer way to do this.
+                                    if field_keys.as_slice().len() > 0 {
+                                        field_keys = field_keys.as_slice().slice_to(field_keys.as_slice().len() - 1).to_string()
+                                    }
+
+                                    format!("HEADER.FIELDS ({})] {{{}}}{}", field_keys, field_values.as_slice().len(), field_values)
+                                },
+                                &HeaderFieldsNotMsgtext(ref fields) => { "".to_string() },
+                                &TextMsgtext => { "".to_string() },
+                                &MimeMsgtext => { "".to_string() }
+                            };
+                            msgtext_attr
+                        }
+                        &PartSection(ref parts, ref msgtext) => { "?]".to_string() }
+                    };
+                    format!("BODY.PEEK[{} ", peek_attr)
+                },
+                &BodyStructure => {
+                    /*let content_type: Vec<&str> = self.headers["CONTENT-TYPE".to_string()].as_slice().splitn(1, ';').take(1).collect();
+                    let content_type: Vec<&str> = content_type[0].splitn(1, '/').collect();
+
+                    // Retrieve the subtype of the content type.
+                    let mut subtype = String::new();
+                    if content_type.len() > 1 { subtype = content_type[1].to_string().into_ascii_upper() }
+
+                    let content_type = content_type[0].to_string().into_ascii_upper();
+                    println!("Content-type: {}/{}", content_type, subtype);
+                    match content_type.as_slice() {
+                        "MESSAGE" => {
+                            match subtype.as_slice() {
+                                "RFC822" => {
+                                    // Immediately after the basic fields, add the envelope
+                                    // structure, body structure, and size in text lines of
+                                    // the encapsulated message.
+                                },
+                                _ => { },
+                            }
+                        },
+                        "TEXT" => {
+                            // Immediately after the basic fields, add the size of the body
+                            // in text lines. This is the size in the content transfer
+                            // encoding and not the size after any decoding.
+                        },
+                        "MULTIPART" => {
+
+                        },
+                        _ => { },
+                    }*/
+                    "".to_string() },
+                &UID => { format!("UID {} ", self.uid) }
             };
             res = format!("{}{}", res, attr_str);
+        }
+        // Remove trailing whitespace.
+        // TODO: find a safer way to do this.
+        if res.as_slice().len() > 0 {
+            res = res.as_slice().slice_to(res.as_slice().len() - 1).to_string()
         }
         res
     }
@@ -319,6 +404,7 @@ impl Message {
         addresses.clone()
     }
 
+    // TODO: rewrite this with TmFmt for 0.13.
     fn date_received(&self) -> String {
         // Retrieve the date received from the UID.
         let date_received = Timespec { sec: self.uid as i64, nsec: 0i32 };

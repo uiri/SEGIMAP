@@ -29,13 +29,19 @@ child.expect('successful')
 #child.sendline('3 fetch 1:2 (RFC822.SIZE RFC822.HEADER)')
 #child.expect('completed')
 
-child.sendline('3 fetch 1:3 ENVELOPE')
+#child.sendline('3 fetch 1:3 ENVELOPE')
+#child.expect('completed')
+
+#child.sendline('a3 fetch 1,2,3 UID')
+#child.expect('completed')
+
+#child.sendline('3 fetch 1:3 INTERNALDATE')
+#child.expect('completed')
+
+child.sendline('3 fetch 1 BODY.PEEK[]')
 child.expect('completed')
 
-child.sendline('3 fetch 1:3 UID')
-child.expect('completed')
-
-child.sendline('3 fetch 1:3 INTERNALDATE')
+child.sendline('3 fetch 1:3 (FLAGS UID BODY.PEEK[HEADER.FIELDS (To From)])')
 child.expect('completed')
 
 #child.sendline('3 fetch 1:2 (FLAGS BODY[HEADER.FIELDS (DATE FROM)])')
