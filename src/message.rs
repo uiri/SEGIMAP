@@ -56,7 +56,7 @@ pub enum Flag {
     Deleted
 }
 
-#[deriving(Show)]
+#[deriving(Show, Clone)]
 pub struct Message {
     pub uid: u32,
     pub path: String,
@@ -69,7 +69,7 @@ pub struct Message {
     raw_header: String
 }
 
-#[deriving(Show)]
+#[deriving(Show, Clone)]
 pub struct MIMEPart {
     mime_header: String,
     mime_body: String
@@ -243,7 +243,7 @@ impl Message {
         self.headers.find(&"TO".to_string()).unwrap()
     }
 
-    pub fn fetch(&self, attributes: &Vec<Attribute>) -> String {
+    pub fn fetch(&mut self, attributes: &Vec<Attribute>) -> String {
         let mut res = String::new();
         for attr in attributes.iter() {
             let attr_str = match attr {
@@ -306,7 +306,12 @@ impl Message {
         res
     }
 
-    fn get_body(&self, section: &BodySectionType, octets: &Option<(uint, uint)>, set_flag: bool) -> String {
+    fn get_body(&mut self, section: &BodySectionType, _octets: &Option<(uint, uint)>, set_flag: bool) -> String {
+        if set_flag {
+            let mut seen_flag_set = HashSet::new();
+            seen_flag_set.insert(Seen);
+            self.store(Add, seen_flag_set);
+        }
         let peek_attr = match section {
             &AllSection => {
                 format!("] {{{}}}\r\n{} ", self.raw_contents.as_slice().len(), self.raw_contents)
@@ -334,13 +339,13 @@ impl Message {
 
                         format!("HEADER.FIELDS ({})] {{{}}}{}", field_keys, field_values.as_slice().len(), field_values)
                     },
-                    &HeaderFieldsNotMsgtext(ref fields) => { "".to_string() },
+                    &HeaderFieldsNotMsgtext(_) => { "".to_string() },
                     &TextMsgtext => { "".to_string() },
                     &MimeMsgtext => { "".to_string() }
                 };
                 msgtext_attr
             }
-            &PartSection(ref parts, ref msgtext) => { "?]".to_string() }
+            &PartSection(_, _) => { "?]".to_string() }
         };
         format!("BODY[{} ", peek_attr)
     }

@@ -274,7 +274,7 @@ impl Session {
                         };
                         // Retrieve the current folder, if it exists.
                         let folder = match self.folder {
-                            Some(ref folder) => folder,
+                            Some(ref mut folder) => folder,
                             None => return bad_res
                         };
                         /*
@@ -312,7 +312,7 @@ impl Session {
                                         };
                                         // Retrieve the current folder, if it exists.
                                         let folder = match self.folder {
-                                            Some(ref folder) => folder,
+                                            Some(ref mut folder) => folder,
                                             None => return bad_res
                                         };
                                         /*
@@ -352,7 +352,8 @@ impl Session {
                                                 let sequence_iter = sequence_set::uid_iterator(parsed_cmd.sequence_set);
                                                 if sequence_iter.len() == 0 { return bad_res }
                                                 for uid in sequence_iter.iter() {
-                                                    match folder.get_index_from_uid(uid) {
+                                                    let folder_imut = folder.clone();
+                                                    match folder_imut.get_index_from_uid(uid) {
                                                         Some(index) => {
                                                             let fetch_str = folder.fetch(*index, &parsed_cmd.attributes);
                                                             res = format!("{}* {} FETCH ({}UID {})\r\n", res, *index+1, fetch_str, uid);

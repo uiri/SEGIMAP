@@ -8,6 +8,7 @@ use message::Message;
 use message::StoreName;
 use message::Flag;
 
+#[deriving(Clone)]
 pub struct Folder {
     pub name: String,
     pub owner: Option<Box<Folder>>,
@@ -17,7 +18,7 @@ pub struct Folder {
     path: Path,
     messages: Vec<Message>,
     pub readonly: bool,
-    uid_to_seqnum: HashMap<uint, uint>,
+    pub uid_to_seqnum: HashMap<uint, uint>,
     new: Vec<Path>
 }
 
@@ -151,8 +152,8 @@ impl Folder {
         self.messages.len()
     }
 
-    pub fn fetch(&self, index: uint, attributes: &Vec<Attribute>) -> String {
-        self.messages[index].fetch(attributes)
+    pub fn fetch(&mut self, index: uint, attributes: &Vec<Attribute>) -> String {
+        self.messages.get_mut(index).fetch(attributes)
     }
 
     pub fn get_uid_from_index(&self, index: uint) -> uint {
