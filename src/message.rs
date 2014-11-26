@@ -15,6 +15,7 @@ use command::command::{
     Body,
     BodyPeek,
     BodySection,
+    BodySectionType,
     BodyStructure,
     UID
 };
@@ -259,45 +260,8 @@ impl Message {
                     format!("RFC822{} ", rfc_attr)
                 },
                 &Body => { "".to_string() },
-                &BodySection(ref section, ref octets) => { "".to_string() },
-                &BodyPeek(ref section, ref octets) => {
-                    let peek_attr = match section {
-                        &AllSection => {
-                            format!("] {{{}}}\r\n{} ", self.raw_contents.as_slice().len(), self.raw_contents)
-                        }
-                        &MsgtextSection(ref msgtext) => {
-                            let msgtext_attr = match msgtext {
-                                &HeaderMsgtext => { "".to_string() },
-                                &HeaderFieldsMsgtext(ref fields) => {
-                                    let mut field_keys = String::new();
-                                    let mut field_values = String::new();
-                                    for field in fields.iter() {
-                                        match self.headers.find(field) {
-                                            Some(v) => {
-                                                field_keys = format!("{}{} ", field_keys, field);
-                                                field_values = format!("{}\r\n{}: {}", field_values, field, v);
-                                            },
-                                            None => continue
-                                        }
-                                    }
-                                    // Remove trailing whitespace.
-                                    // TODO: find a safer way to do this.
-                                    if field_keys.as_slice().len() > 0 {
-                                        field_keys = field_keys.as_slice().slice_to(field_keys.as_slice().len() - 1).to_string()
-                                    }
-
-                                    format!("HEADER.FIELDS ({})] {{{}}}{}", field_keys, field_values.as_slice().len(), field_values)
-                                },
-                                &HeaderFieldsNotMsgtext(ref fields) => { "".to_string() },
-                                &TextMsgtext => { "".to_string() },
-                                &MimeMsgtext => { "".to_string() }
-                            };
-                            msgtext_attr
-                        }
-                        &PartSection(ref parts, ref msgtext) => { "?]".to_string() }
-                    };
-                    format!("BODY[{} ", peek_attr)
-                },
+                &BodySection(ref section, ref octets) => { self.get_body(section, octets, true) },
+                &BodyPeek(ref section, ref octets) => { self.get_body(section, octets, false) },
                 &BodyStructure => {
                     /*let content_type: Vec<&str> = self.headers["CONTENT-TYPE".to_string()].as_slice().splitn(1, ';').take(1).collect();
                     let content_type: Vec<&str> = content_type[0].splitn(1, '/').collect();
@@ -340,6 +304,45 @@ impl Message {
             res = res.as_slice().slice_to(res.as_slice().len() - 1).to_string()
         }
         res
+    }
+
+    fn get_body(&self, section: &BodySectionType, octets: &Option<(uint, uint)>, set_flag: bool) -> String {
+        let peek_attr = match section {
+            &AllSection => {
+                format!("] {{{}}}\r\n{} ", self.raw_contents.as_slice().len(), self.raw_contents)
+            }
+            &MsgtextSection(ref msgtext) => {
+                let msgtext_attr = match msgtext {
+                    &HeaderMsgtext => { "".to_string() },
+                    &HeaderFieldsMsgtext(ref fields) => {
+                        let mut field_keys = String::new();
+                        let mut field_values = String::new();
+                        for field in fields.iter() {
+                            match self.headers.find(field) {
+                                Some(v) => {
+                                    field_keys = format!("{}{} ", field_keys, field);
+                                    field_values = format!("{}\r\n{}: {}", field_values, field, v);
+                                },
+                                None => continue
+                            }
+                        }
+                        // Remove trailing whitespace.
+                        // TODO: find a safer way to do this.
+                        if field_keys.as_slice().len() > 0 {
+                            field_keys = field_keys.as_slice().slice_to(field_keys.as_slice().len() - 1).to_string()
+                        }
+
+                        format!("HEADER.FIELDS ({})] {{{}}}{}", field_keys, field_values.as_slice().len(), field_values)
+                    },
+                    &HeaderFieldsNotMsgtext(ref fields) => { "".to_string() },
+                    &TextMsgtext => { "".to_string() },
+                    &MimeMsgtext => { "".to_string() }
+                };
+                msgtext_attr
+            }
+            &PartSection(ref parts, ref msgtext) => { "?]".to_string() }
+        };
+        format!("BODY[{} ", peek_attr)
     }
 
     /**
