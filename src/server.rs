@@ -26,5 +26,9 @@ impl Server {
      pub fn lmtp_listener<'r>(&self) -> IoResult<TcpListener> {
          return TcpListener::bind(self.conf.host.as_slice(), self.conf.lmtp_port);
      }
+
+    pub fn host(&self) -> &String {
+        &self.conf.host
+    }
 }
 

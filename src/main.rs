@@ -15,6 +15,7 @@ extern crate toml;
 
 pub use config::Config;
 pub use email::Email;
+pub use lmtp::Lmtp;
 pub use login::LoginData;
 pub use message::Message;
 pub use server::Server;
@@ -30,9 +31,10 @@ mod config;
 mod email;
 mod error;
 mod folder;
-mod parser;
+mod lmtp;
 mod login;
 mod message;
+mod parser;
 mod server;
 mod session;
 mod user;
@@ -57,6 +59,31 @@ fn main() {
     let users = user::load_users(USER_DATA_FILE.to_string()).unwrap();
 
     let serv = Arc::new(Server::new(config, users));
+    match serv.lmtp_listener() {
+        Err(e) => {
+            error!("Error listening on LMTP port: {}", e);
+        }
+        Ok(v) => {
+            let lmtp_serv = serv.clone();
+            spawn(proc() {
+                let mut acceptor = v.listen();
+                for stream in acceptor.incoming() {
+                    match stream {
+                        Err(e) => {
+                            error!("Error accepting incoming LMTP connection: {}", e);
+                        }
+                        Ok(stream) => {
+                            let session_serv = lmtp_serv.clone();
+                            spawn(proc() {
+                                let mut lmtp = Lmtp::new(session_serv);
+                                lmtp.handle(BufferedStream::new(stream));
+                            });
+                        }
+                    }
+                }
+            });
+        }
+    }
     match serv.imap_listener() {
         Err(e) => {
             error!("Error listening on IMAP port: {}", e);
@@ -66,7 +93,7 @@ fn main() {
             for stream in acceptor.incoming() {
                 match stream {
                     Err(e) => {
-                        error!("Error accepting incoming connection: {}", e)
+                        error!("Error accepting incoming IMAP connection: {}", e)
                     }
                     Ok(stream) => {
                         let session_serv = serv.clone();

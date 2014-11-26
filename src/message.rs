@@ -41,6 +41,10 @@ use error::{
     Error, ImapResult, InternalIoError, MessageDecodeError
 };
 
+// static TO: &'static str = "TO";
+// static FROM: &'static str = "FROM";
+static RECEIVED: &'static str = "RECEIVED";
+
 pub enum StoreName {
     Replace,
     Add,
@@ -56,7 +60,7 @@ pub enum Flag {
     Deleted
 }
 
-#[deriving(Show, Clone)]
+#[deriving(Show)]
 pub struct Message {
     pub uid: u32,
     pub path: String,
@@ -78,14 +82,17 @@ pub struct MIMEPart {
 impl Message {
     pub fn parse(arg_path: &Path) -> ImapResult<Message> {
         // Load the file contents.
-        let file = match File::open(arg_path) {
+        let raw_contents = match File::open(arg_path) {
             Ok(mut file) => match file.read_to_end() {
-                Ok(contents) => contents,
+                Ok(contents) => {
+                    String::from_utf8_lossy(contents.as_slice()).to_string()
+                }
                 Err(e) => return Err(Error::simple(InternalIoError(e), "Failed to read mail file."))
             },
             Err(e) => return Err(Error::simple(InternalIoError(e), "Failed to open mail file."))
         };
-        let raw_contents = String::from_utf8_lossy(file.as_slice()).to_string();
+        // let raw_contents = ;
+        // let raw_contents: &'a str = raw_contents_str.as_slice();
         let size = raw_contents.as_slice().len();
 
         let mut path = arg_path.filename_str().unwrap().splitn(1, ':');
@@ -120,48 +127,47 @@ impl Message {
             }
         };
 
-        let header_boundary = raw_contents.as_slice().find_str("\n\n").unwrap();
-        let raw_header = raw_contents.as_slice().slice_to(header_boundary + 1); // The newline is included as part of the header.
+        let header_boundary = raw_contents.clone().as_slice().find_str("\n\n").unwrap();
+        let raw_clone = raw_contents.clone();
+        let raw_header = raw_clone.as_slice().slice_to(header_boundary + 1).to_string(); // The newline is included as part of the header.
         let raw_body = raw_contents.as_slice().slice_from(header_boundary + 2);
 
         // Iterate over the lines of the header in reverse.
         // If a line with leading whitespace is detected, it is merged to the line before it.
         // This "unwraps" the header as indicated in RFC 2822 2.2.3
-        let mut parsed_header: Vec<String> = Vec::new();
-        let mut iterator = raw_header.lines().rev();
+        let mut iterator = raw_header.as_slice().lines().rev();
+        let mut headers = HashMap::new();
         loop {
             let line = match iterator.next() {
                 Some(line) => line,
                 None => break
             };
-            let mut field = line.to_string();
-            if line.as_slice().starts_with(" ") || line.as_slice().starts_with("\t") {
-                field = field.as_slice().trim_left_chars(' ').trim_left_chars('\t').to_string();
+            if line.starts_with(" ") || line.starts_with("\t") {
                 loop {
-                    let next = iterator.next().unwrap().to_string();
-                    let mut trimmed_next = next.as_slice().trim_left_chars(' ').trim_left_chars('\t').to_string();
+                    let next = iterator.next().unwrap();
+                    let trimmed_next = next.trim_left_chars(' ').trim_left_chars('\t');
                     // Add a space between the merged lines.
-                    trimmed_next.push_str(" ".as_slice());
-                    trimmed_next.push_str(field.as_slice());
-                    field = trimmed_next;
-                    if !next.as_slice().starts_with(" ") && !next.as_slice().starts_with("\t") {
+                    let trimmed_next = format!("{} {}", trimmed_next, line.trim_left_chars(' ').trim_left_chars('\t'));
+                    if !next.starts_with(" ") && !next.starts_with("\t") {
+                        let split: Vec<&str> = trimmed_next.as_slice().splitn(1, ':').collect();
+                        headers.insert(split[0].to_string().into_ascii_upper(), split[1].slice_from(1).to_string());
                         break;
                     }
                 }
+            } else {
+                let split: Vec<&str> = line.splitn(1, ':').collect();
+                headers.insert(split[0].to_string().into_ascii_upper(), split[1].slice_from(1).to_string());
             }
-
-            parsed_header.push(field.to_string());
         }
-        let parsed_header: Vec<&String> = parsed_header.iter().rev().collect();
-
-        let mut headers = HashMap::new();
-        for line in parsed_header.iter() {
-            let split: Vec<&str> = line.as_slice().splitn(1, ':').collect();
-            headers.insert(split[0].to_string().into_ascii_upper().to_string(), split[1].slice_from(1).clone().to_string());
-        }
+        // let parsed_header: Vec<&String> = ;
+        // for line in parsed_header.iter().rev() {
+        // }
         // Remove the "Received" key from the HashMap.
-        headers.remove(&"RECEIVED".to_string());
-
+        let received_key = &RECEIVED.to_string();
+        match headers.find(received_key) {
+            Some(_) => { headers.remove(&"RECEIVED".to_string()); }
+            _ => {}
+        }
         // Determine whether the message is MULTIPART or not.
         let content_type = headers["CONTENT-TYPE".to_string()].clone();
         let mut body = Vec::new();
@@ -207,7 +213,6 @@ impl Message {
             };
             body.push(body_part);
         }
-
         let message = Message {
             uid: uid,
             path: arg_path.display().to_string(),
@@ -217,7 +222,7 @@ impl Message {
             deleted: false,
             size: size,
             raw_contents: raw_contents.clone(),
-            raw_header: raw_header.to_string()
+            raw_header: raw_header.clone()
         };
 
         Ok(message)
@@ -233,15 +238,15 @@ impl Message {
         return true;
     }
 
-    // TODO: Make sure that returning a pointer is fine.
-    pub fn envelope_from(&self) -> &String {
-        self.headers.find(&"FROM".to_string()).unwrap()
-    }
+    // // TODO: Make sure that returning a pointer is fine.
+    // pub fn envelope_from(&self) -> String {
+    //     self.headers.find(&FROM.to_string()).unwrap()
+    // }
 
-    // TODO: Make sure that returning a pointer is fine.
-    pub fn envelope_to(&self) -> &String {
-        self.headers.find(&"TO".to_string()).unwrap()
-    }
+    // // TODO: Make sure that returning a pointer is fine.
+    // pub fn envelope_to(&self) -> String {
+    //     *self.headers.find(&TO.to_string()).unwrap()
+    // }
 
     pub fn fetch(&mut self, attributes: &Vec<Attribute>) -> String {
         let mut res = String::new();
@@ -407,7 +412,6 @@ impl Message {
             Some(v) => v, // TODO: this is not parenthesized.
             None => return "NIL".to_string()
         };
-
         addresses.clone()
     }
 

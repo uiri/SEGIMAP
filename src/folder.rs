@@ -8,10 +8,9 @@ use message::Message;
 use message::StoreName;
 use message::Flag;
 
-#[deriving(Clone)]
+//#[deriving(Clone)]
 pub struct Folder {
     pub name: String,
-    pub owner: Option<Box<Folder>>,
     recent: uint,
     pub exists: uint,
     pub unseen: uint,
@@ -35,7 +34,7 @@ macro_rules! make_vec_path(
 )
 
 impl Folder {
-    pub fn new(name: String, owner: Option<Box<Folder>>, path: Path, examine: bool) -> Option<Folder> {
+    pub fn new(name: String, path: Path, examine: bool) -> Option<Folder> {
         let readonly = if examine {
             true
         } else {
@@ -90,7 +89,6 @@ impl Folder {
                                let exists = i;
                                return Some(Folder {
                                    name: name,
-                                   owner: owner,
                                    path: path,
                                    recent: exists-old+1,
                                    unseen: unseen,

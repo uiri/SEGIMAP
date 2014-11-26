@@ -352,14 +352,12 @@ impl Session {
                                                 let sequence_iter = sequence_set::uid_iterator(parsed_cmd.sequence_set);
                                                 if sequence_iter.len() == 0 { return bad_res }
                                                 for uid in sequence_iter.iter() {
-                                                    let folder_imut = folder.clone();
-                                                    match folder_imut.get_index_from_uid(uid) {
-                                                        Some(index) => {
-                                                            let fetch_str = folder.fetch(*index, &parsed_cmd.attributes);
-                                                            res = format!("{}* {} FETCH ({}UID {})\r\n", res, *index+1, fetch_str, uid);
-                                                        },
-                                                        None => {}
-                                                    }
+                                                    let index = match folder.get_index_from_uid(uid) {
+                                                        Some(index) => *index,
+                                                        None => {continue;}
+                                                    };
+                                                    let fetch_str = folder.fetch(index, &parsed_cmd.attributes);
+                                                    res = format!("{}* {} FETCH ({}UID {})\r\n", res, index+1, fetch_str, uid);
                                                 }
                                             }
                                         }
@@ -437,14 +435,14 @@ impl Session {
         }
     }
 
-    pub fn select_mailbox(&self, mailbox_name: &str, examine: bool) -> Option<Folder> {
+    pub fn select_mailbox(&mut self, mailbox_name: &str, examine: bool) {
         let mbox_name = regex!("INBOX").replace(mailbox_name, ".");
         match self.maildir {
-            None => { None }
+            None => {}
             Some(ref maildir) => {
                 let maildir_path = Path::new(maildir.as_slice()).join(mbox_name);
                 // TODO: recursively grab parent...
-                Folder::new(mailbox_name.to_string(), None, maildir_path, examine)
+                self.folder = Folder::new(mailbox_name.to_string(), maildir_path, examine)
                     // TODO: Insert new folder into folder service
                     // folder_service.insert(mailbox_name.to_string(), box *folder);
             }
@@ -458,7 +456,7 @@ impl Session {
             None => { return bad_res; }
             _ => {}
         }
-        self.folder = self.select_mailbox(mailbox_name, examine);
+        self.select_mailbox(mailbox_name, examine);
         match self.folder {
             None => {
                 return format!("{} NO error finding mailbox\r\n", tag);
@@ -467,15 +465,15 @@ impl Session {
                 // * <n> EXISTS
                 let mut ok_res = format!("* {} EXISTS\r\n", folder.exists);
                 // * <n> RECENT
-                ok_res = format!("{}* {} RECENT\r\n", ok_res, folder.recent());
+                ok_res.push_str(format!("* {} RECENT\r\n", folder.recent()).as_slice());
                 // * OK UNSEEN
-                ok_res = format!("{}{}", ok_res, folder.unseen());
+                ok_res.push_str(folder.unseen().as_slice());
                 // * Flags
                 // Should match values in enum Flag in message.rs
-                ok_res = format!("{}* FLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)\r\n", ok_res);
+                ok_res.push_str("* FLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)\r\n");
                 // * OK PERMANENTFLAG
                 // Should match values in enum Flag in message.rs
-                ok_res = format!("{}* OK [PERMANENTFLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)] Permanent flags\r\n", ok_res);
+                ok_res.push_str("* OK [PERMANENTFLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)] Permanent flags\r\n");
                 // * OK UIDNEXT
                 // * OK UIDVALIDITY
                 let read_status = if folder.readonly {
@@ -483,8 +481,8 @@ impl Session {
                 } else {
                     "[READ-WRITE]"
                 };
-                return format!("{}{} OK {} SELECT command was successful\r\n", ok_res, tag, read_status);
-
+                ok_res.push_str(format!("{} OK {} SELECT command was successful\r\n", tag, read_status).as_slice());
+                return ok_res;
             }
         }
     }
