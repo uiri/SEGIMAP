@@ -329,27 +329,39 @@ impl Session {
 
                                         // SPECIAL CASE FOR THUNDERBIRD.
                                         // TODO: REMOVE THIS.
-                                        if parsed_cmd.sequence_set == vec![Range(box Number(1), box Wildcard)] {
-                                            if folder.message_count() == 0 { return bad_res }
-                                            for index in range(0u, folder.message_count()) {
-                                                let fetch_str = folder.fetch(index, &parsed_cmd.attributes);
-                                                let uid = folder.get_uid_from_index(index);
-                                                res = format!("{}* {} FETCH ({} UID {})\r\n", res, index, fetch_str, uid);
+                                        match parsed_cmd.sequence_set[0] {
+                                            Range(box Number(n), box Wildcard) => {
+                                                if folder.message_count() == 0 { return bad_res }
+                                                let start = match folder.get_index_from_uid(&n) {
+                                                    Some(start) => *start,
+                                                    None => {
+                                                        if n == 1 {
+                                                            0u
+                                                        } else {
+                                                            return bad_res;
+                                                        }
+                                                    }
+                                                };
+                                                for index in range(start, folder.message_count()) {
+                                                    let fetch_str = folder.fetch(index, &parsed_cmd.attributes);
+                                                    let uid = folder.get_uid_from_index(index);
+                                                    res = format!("{}* {} FETCH ({} UID {})\r\n", res, index+1, fetch_str, uid);
+                                                }
                                             }
-                                        } else {
-                                            let sequence_iter = sequence_set::uid_iterator(parsed_cmd.sequence_set);
-                                            if sequence_iter.len() == 0 { return bad_res }
-                                            for uid in sequence_iter.iter() {
-                                                match folder.get_index_from_uid(uid) {
-                                                    Some(index) => {
-                                                        let fetch_str = folder.fetch(*index, &parsed_cmd.attributes);
-                                                        res = format!("{}* {} FETCH ({}UID {})\r\n", res, *index+1, fetch_str, uid);
-                                                    },
-                                                    None => {}
+                                            _ => {
+                                                let sequence_iter = sequence_set::uid_iterator(parsed_cmd.sequence_set);
+                                                if sequence_iter.len() == 0 { return bad_res }
+                                                for uid in sequence_iter.iter() {
+                                                    match folder.get_index_from_uid(uid) {
+                                                        Some(index) => {
+                                                            let fetch_str = folder.fetch(*index, &parsed_cmd.attributes);
+                                                            res = format!("{}* {} FETCH ({}UID {})\r\n", res, *index+1, fetch_str, uid);
+                                                        },
+                                                        None => {}
+                                                    }
                                                 }
                                             }
                                         }
-
                                         return format!("{}{} OK UID FETCH completed\r\n", res, tag);
                                     }
                                     _ => { return bad_res; }

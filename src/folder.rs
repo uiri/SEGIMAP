@@ -68,7 +68,7 @@ impl Folder {
                                        Ok(message) => {
                                            if unseen == -1 &&
                                               message.is_unseen() {
-                                                  unseen = messages.len()+1;
+                                                  unseen = i+1;
                                            }
                                            uid_to_seqnum.insert(message.uid.to_uint().unwrap(), i);
                                            i += 1;
@@ -77,7 +77,7 @@ impl Folder {
                                        _ => {}
                                    }
                                }
-                               let old = i+2;
+                               let old = i+1;
                                for msg_path in new.iter() {
                                    match Message::parse(msg_path) {
                                        Ok(message) => {
@@ -88,7 +88,7 @@ impl Folder {
                                        _ => {}
                                    }
                                }
-                               let exists = i+1;
+                               let exists = i;
                                return Some(Folder {
                                    name: name,
                                    owner: owner,
