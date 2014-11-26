@@ -3,9 +3,7 @@ use std::io::fs;
 use std::fmt::{Show, Formatter, FormatError};
 
 use command::command::Attribute;
-use error::{
-    Error, ImapResult, NoSuchMessageError
-};
+
 use message::Message;
 use message::StoreName;
 use message::Flag;
