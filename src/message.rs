@@ -248,7 +248,7 @@ impl Message {
     //     *self.headers.find(&TO.to_string()).unwrap()
     // }
 
-    pub fn fetch(&mut self, attributes: &Vec<Attribute>) -> String {
+    pub fn fetch(&self, attributes: &Vec<Attribute>) -> String {
         let mut res = String::new();
         for attr in attributes.iter() {
             let attr_str = match attr {
@@ -265,8 +265,8 @@ impl Message {
                     format!("RFC822{} ", rfc_attr)
                 },
                 &Body => { "".to_string() },
-                &BodySection(ref section, ref octets) => { self.get_body(section, octets, true) },
-                &BodyPeek(ref section, ref octets) => { self.get_body(section, octets, false) },
+                &BodySection(ref section, ref octets) => { self.get_body(section, octets) },
+                &BodyPeek(ref section, ref octets) => { self.get_body(section, octets) },
                 &BodyStructure => {
                     /*let content_type: Vec<&str> = self.headers["CONTENT-TYPE".to_string()].as_slice().splitn(1, ';').take(1).collect();
                     let content_type: Vec<&str> = content_type[0].splitn(1, '/').collect();
@@ -311,12 +311,7 @@ impl Message {
         res
     }
 
-    fn get_body(&mut self, section: &BodySectionType, _octets: &Option<(uint, uint)>, set_flag: bool) -> String {
-        if set_flag {
-            let mut seen_flag_set = HashSet::new();
-            seen_flag_set.insert(Seen);
-            self.store(Add, seen_flag_set);
-        }
+    fn get_body(&self, section: &BodySectionType, _octets: &Option<(uint, uint)>) -> String {
         let peek_attr = match section {
             &AllSection => {
                 format!("] {{{}}}\r\n{} ", self.raw_contents.as_slice().len(), self.raw_contents)

@@ -21,7 +21,8 @@ use login::LoginData;
 use parser::fetch;
 
 use message;
-use message::Flag;
+use message::{Flag, Add, Seen};
+use command::command::BodySection;
 
 macro_rules! return_on_err(
     ($inp:expr) => {
@@ -290,6 +291,16 @@ impl Session {
                         let sequence_iter = sequence_set::iterator(parsed_cmd.sequence_set, folder.message_count());
                         if sequence_iter.len() == 0 { return bad_res }
                         let mut res = String::new();
+                        for attr in parsed_cmd.attributes.iter() {
+                            match attr {
+                                &BodySection(_, _) => {
+                                    let mut seen_flag_set = HashSet::new();
+                                    seen_flag_set.insert(Seen);
+                                    folder.store(sequence_iter.clone(), Add, true, seen_flag_set);
+                                }
+                                _ => {}
+                            }
+                        }
                         for index in sequence_iter.iter() {
                             let msg_fetch = folder.fetch(index - 1, &parsed_cmd.attributes);
                             res = format!("{}* {} FETCH ({})\r\n", res, index, msg_fetch);
@@ -351,6 +362,16 @@ impl Session {
                                             _ => {
                                                 let sequence_iter = sequence_set::uid_iterator(parsed_cmd.sequence_set);
                                                 if sequence_iter.len() == 0 { return bad_res }
+                                                for attr in parsed_cmd.attributes.iter() {
+                                                    match attr {
+                                                        &BodySection(_, _) => {
+                                                            let mut seen_flag_set = HashSet::new();
+                                                            seen_flag_set.insert(Seen);
+                                                            folder.store(sequence_iter.clone(), Add, true, seen_flag_set);
+                                                        }
+                                                        _ => {}
+                                                    }
+                                                }
                                                 for uid in sequence_iter.iter() {
                                                     let index = match folder.get_index_from_uid(uid) {
                                                         Some(index) => *index,

@@ -150,8 +150,8 @@ impl Folder {
         self.messages.len()
     }
 
-    pub fn fetch(&mut self, index: uint, attributes: &Vec<Attribute>) -> String {
-        self.messages.get_mut(index).fetch(attributes)
+    pub fn fetch(&self, index: uint, attributes: &Vec<Attribute>) -> String {
+        self.messages[index].fetch(attributes)
     }
 
     pub fn get_uid_from_index(&self, index: uint) -> uint {
