@@ -90,23 +90,30 @@ impl Session {
     fn interpret(&mut self, command: &str) -> String {
         let mut args = command.trim().split(' ');
         let tag = args.next().unwrap();
-        let bad_res = format!("{} BAD Invalid command\r\n", tag);
+        let mut bad_res = tag.to_string();
+        bad_res.push_str(" BAD Invalid command\r\n");
         match args.next() {
             Some(cmd) => {
                 warn!("Cmd: {}", command.trim());
                 match cmd.to_string().into_ascii_lower().as_slice() {
                     "noop" => {
-                        return format!("{} OK NOOP\r\n", tag);
+                        let mut res = tag.to_string();
+                        res.push_str(" OK NOOP\r\n");
+                        return res;
                     }
                     "capability" => {
-                        return format!("* CAPABILITY IMAP4rev1 CHILDREN\r\n{} OK Capability successful\r\n", tag);
+                        let mut res = "* CAPABILITY IMAP4rev1 CHILDREN\r\n".to_string();
+                        res.push_str(tag);
+                        res.push_str(" OK Capability successful\r\n");
+                        return res;
                     }
                     "login" => {
                         let login_args: Vec<&str> = args.collect();
                         if login_args.len() < 2 { return bad_res; }
                         let email = login_args[0].trim_chars('"');
                         let password = login_args[1].trim_chars('"');
-                        let no_res  = format!("{} NO invalid username or password\r\n", tag);
+                        let mut no_res  = tag.to_string();
+                        no_res.push_str(" NO invalid username or password\r\n");
                         match LoginData::new(email.to_string(), password.to_string()) {
                             Some(login_data) => {
                                 self.maildir = match self.serv.users.find(&login_data.email) {
@@ -124,7 +131,11 @@ impl Session {
                         }
                         match self.maildir {
                             Some(_) => {
-                                return format!("{} OK logged in successfully as {}\r\n", tag, email);
+                                let mut res = tag.to_string();
+                                res.push_str(" OK logged in successfully as ");
+                                res.push_str(email);
+                                res.push_str("\r\n");
+                                return res;
                             }
                             None => { return no_res; }
                         }
@@ -137,7 +148,10 @@ impl Session {
                             }
                             _ => {}
                         }
-                        return format!("* BYE Server logging out\r\n{} OK Server logged out\r\n", tag);
+                        let mut res = "* BYE Server logging out\r\n".to_string();
+                        res.push_str(tag);
+                        res.push_str(" OK Server logged out\r\n");
+                        return res;
                     }
                     // Examine and Select should be nearly identical...
                     "select" => {
@@ -149,12 +163,13 @@ impl Session {
                     "create" => {
                         let create_args: Vec<&str> = args.collect();
                         if create_args.len() < 1 { return bad_res; }
-                        let mailbox_name = create_args[0].trim_chars('"'); // "
+                        let mailbox_name = create_args[0].trim_chars('"'); // ");
                         let mbox_name = regex!("INBOX").replace(mailbox_name, "");
-                        let no_res = format!("{} NO Could not create folder.\r\n", tag);
                         match self.maildir {
                             None => return bad_res,
                             Some(ref maildir) => {
+                                let mut no_res = tag.to_string();
+                                no_res.push_str(" NO Could not create folder.\r\n");
                                 let maildir_path = Path::new(maildir.as_slice()).join(mbox_name);
                                 let newmaildir_path = maildir_path.join("new");
                                 let curmaildir_path = maildir_path.join("cur");
@@ -167,7 +182,9 @@ impl Session {
                                     Err(_) => return no_res,
                                     _ => {}
                                 }
-                                return format!("{} OK CREATE successful.\r\n", tag);
+                                let mut ok_res = tag.to_string();
+                                ok_res.push_str(" OK CREATE successful.\r\n");
+                                return ok_res;
                             }
                         }
                     }
@@ -177,10 +194,11 @@ impl Session {
                         if delete_args.len() < 1 { return bad_res; }
                         let mailbox_name = delete_args[0].trim_chars('"'); // ");
                         let mbox_name = regex!("INBOX").replace(mailbox_name, "");
-                        let no_res = format!("{} NO Invalid folder.\r\n", tag);
                         match self.maildir {
                             None => return bad_res,
                             Some(ref maildir) => {
+                                let mut no_res = tag.to_string();
+                                no_res.push_str(" NO Invalid folder.\r\n");
                                 let maildir_path = Path::new(maildir.as_slice()).join(mbox_name);
                                 let newmaildir_path = maildir_path.join("new");
                                 let curmaildir_path = maildir_path.join("cur");
@@ -207,7 +225,9 @@ impl Session {
                                            Err(_) => return no_res,
                                            _ => {}
                                        }
-                                       return format!("{} OK DELETE successsful.\r\n", tag);
+                                       let mut ok_res = tag.to_string();
+                                       ok_res.push_str(" OK DELETE successsful.\r\n");
+                                       return ok_res;
                                    })
                                 );
                             }
@@ -234,9 +254,11 @@ impl Session {
                                         let mut res_iter = list_responses.iter();
                                         let mut ok_res = String::new();
                                         for list_response in res_iter {
-                                            ok_res = format!("{}{}\r\n", ok_res, list_response);
+                                            ok_res.push_str(list_response.as_slice());
                                         }
-                                        return format!("{}{} OK list successful\r\n", ok_res, tag);
+                                        ok_res.push_str(tag);
+                                        ok_res.push_str(" OK list successful\r\n");
+                                        return ok_res;
                                     }
                                 }
                             }
@@ -250,7 +272,9 @@ impl Session {
                             None => return bad_res,
                             Some(ref mut folder) => {
                                 folder.check();
-                                return format!("{} OK Check completed\r\n", tag);
+                                let mut ok_res = tag.to_string();
+                                ok_res.push_str(" OK Check completed\r\n");
+                                return ok_res;
                             }
                         }
                     }
@@ -275,16 +299,21 @@ impl Session {
                             Ok(v) => {
                                 let mut ok_res = String::new();
                                 for i in v.iter() {
-                                    ok_res = format!("{}* {} EXPUNGE\r\n", ok_res, i);
+                                    ok_res.push_str("* ");
+                                    ok_res.push_str(i.to_string().as_slice());
+                                    ok_res.push_str(" EXPUNGE\r\n");
                                 }
-                                return format!("{}{} OK expunge completed\r\n", ok_res, tag);
+                                ok_res.push_str(tag);
+                                ok_res.push_str(" OK expunge completed\r\n");
+                                return ok_res;
                             }
                         }
                     }
                     "fetch" => {
                         let mut cmd = "FETCH".to_string();
                         for arg in args {
-                            cmd = format!("{} {}", cmd, arg);
+                            cmd.push(' ');
+                            cmd.push_str(arg);
                         }
                         // Parse the command with the PEG parser.
                         let parsed_cmd = match fetch(cmd.as_slice().trim()) {

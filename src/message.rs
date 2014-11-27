@@ -41,8 +41,6 @@ use error::{
     Error, ImapResult, InternalIoError, MessageDecodeError
 };
 
-// static TO: &'static str = "TO";
-// static FROM: &'static str = "FROM";
 static RECEIVED: &'static str = "RECEIVED";
 
 pub enum StoreName {
@@ -158,13 +156,11 @@ impl Message {
                 headers.insert(split[0].to_string().into_ascii_upper(), split[1].slice_from(1).to_string());
             }
         }
-        // let parsed_header: Vec<&String> = ;
-        // for line in parsed_header.iter().rev() {
-        // }
+
         // Remove the "Received" key from the HashMap.
         let received_key = &RECEIVED.to_string();
         match headers.find(received_key) {
-            Some(_) => { headers.remove(&"RECEIVED".to_string()); }
+            Some(_) => { headers.remove(received_key); }
             _ => {}
         }
         // Determine whether the message is MULTIPART or not.
@@ -175,7 +171,7 @@ impl Message {
                     let mime_boundary = {
                         let value: Vec<&str> = content_type.as_slice().split_str("BOUNDARY=\"").collect();
                         if value.len() < 2 { return Err(Error::simple(MessageDecodeError, "Failed to determine MULTIPART boundary.")) }
-                        let value: Vec<&str> = value[1].splitn(1, '"').collect(); //");
+                        let value: Vec<&str> = value[1].splitn(1, '"').collect();
                         if value.len() < 1 { return Err(Error::simple(MessageDecodeError, "Failed to determine MULTIPART boundary.")) }
                         format!("--{}--\n", value[0])
                     };
@@ -235,7 +231,6 @@ impl Message {
             size: size,
             raw_contents: raw_contents.clone(),
             header_boundary: header_boundary
-            // raw_header: raw_header.to_string() //.into_maybe_owned()
         };
 
         Ok(message)
@@ -251,35 +246,48 @@ impl Message {
         return true;
     }
 
-    // // TODO: Make sure that returning a pointer is fine.
-    // pub fn envelope_from(&self) -> String {
-    //     self.headers.find(&FROM.to_string()).unwrap()
-    // }
-
-    // // TODO: Make sure that returning a pointer is fine.
-    // pub fn envelope_to(&self) -> String {
-    //     *self.headers.find(&TO.to_string()).unwrap()
-    // }
-
     pub fn fetch(&self, attributes: &Vec<Attribute>) -> String {
         let mut res = String::new();
+        let mut first = true;
         for attr in attributes.iter() {
-            let attr_str = match attr {
-                &Envelope => { format!("ENVELOPE {} ", self.get_envelope()) }, // TODO: Finish implementing this.
-                &Flags => { format!("FLAGS {} ", self.print_flags()) },
-                &InternalDate => { format!("INTERNALDATE \"{}\" ", self.date_received()) }
-                &RFC822(ref attr) => {
-                    let rfc_attr = match attr {
-                        &AllRFC822 => { "".to_string() },
-                        &HeaderRFC822 => { format!(".HEADER {{{}}}\r\n{}", self.header_boundary, self.raw_contents.as_slice().slice_to(self.header_boundary)) },
-                        &SizeRFC822 => { format!(".SIZE {}", self.size) },
-                        &TextRFC822 => { "".to_string() }
-                    };
-                    format!("RFC822{} ", rfc_attr)
+            if first {
+                first = false;
+            } else {
+                res.push(' ');
+            }
+            match attr {
+                &Envelope => {
+                    res.push_str("ENVELOPE ");
+                    res.push_str(self.get_envelope().as_slice());
+                }, // TODO: Finish implementing this.
+                &Flags => {
+                    res.push_str("FLAGS ");
+                    res.push_str(self.print_flags().as_slice());
                 },
-                &Body => { "".to_string() },
-                &BodySection(ref section, ref octets) => { self.get_body(section, octets) },
-                &BodyPeek(ref section, ref octets) => { self.get_body(section, octets) },
+                &InternalDate => {
+                    res.push_str("INTERNALDATE \"");
+                    res.push_str(self.date_received().as_slice());
+                    res.push('"');
+                }
+                &RFC822(ref attr) => {
+                    res.push_str("RFC822");
+                    match attr {
+                        &AllRFC822 => {},
+                        &HeaderRFC822 => {
+                            res.push_str(".HEADER {");
+                            res.push_str(self.header_boundary.to_string().as_slice());
+                            res.push_str("}\r\n");
+                            res.push_str(self.raw_contents.as_slice().slice_to(self.header_boundary));
+                        },
+                        &SizeRFC822 => {
+                            res.push_str(".SIZE ");
+                            res.push_str(self.size.to_string().as_slice()) },
+                        &TextRFC822 => {}
+                    };
+                },
+                &Body => {},
+                &BodySection(ref section, ref octets) => { res.push_str(self.get_body(section, octets).as_slice()) },
+                &BodyPeek(ref section, ref octets) => { res.push_str(self.get_body(section, octets).as_slice()) },
                 &BodyStructure => {
                     /*let content_type: Vec<&str> = self.headers["CONTENT-TYPE".to_string()].as_slice().splitn(1, ';').take(1).collect();
                     let content_type: Vec<&str> = content_type[0].splitn(1, '/').collect();
@@ -311,36 +319,39 @@ impl Message {
                         },
                         _ => { },
                     }*/
-                    "".to_string() },
-                &UID => { format!("UID {} ", self.uid) }
-            };
-            res = format!("{}{}", res, attr_str);
-        }
-        // Remove trailing whitespace.
-        // TODO: find a safer way to do this.
-        if res.as_slice().len() > 0 {
-            res = res.as_slice().slice_to(res.as_slice().len() - 1).to_string()
+                },
+                &UID => {
+                    res.push_str("UID ");
+                    res.push_str(self.uid.to_string().as_slice())
+                }
+            }
         }
         res
     }
 
-    fn get_body(&self, section: &BodySectionType, _octets: &Option<(uint, uint)>) -> String {
+    fn get_body<'a>(&self, section: &'a BodySectionType, _octets: &Option<(uint, uint)>) -> String {
+        let empty_string = "".to_string();
         let peek_attr = match section {
             &AllSection => {
                 format!("] {{{}}}\r\n{} ", self.raw_contents.as_slice().len(), self.raw_contents)
             }
             &MsgtextSection(ref msgtext) => {
                 let msgtext_attr = match msgtext {
-                    &HeaderMsgtext => { "".to_string() },
+                    &HeaderMsgtext => { empty_string },
                     &HeaderFieldsMsgtext(ref fields) => {
                         let mut field_keys = String::new();
                         let mut field_values = String::new();
+                        let mut first = true;
                         for field in fields.iter() {
                             match self.headers.find(field) {
                                 Some(v) => {
                                     let field_slice = field.as_slice();
+                                    if first {
+                                        first = false;
+                                    } else {
+                                        field_keys.push(' ');
+                                    }
                                     field_keys.push_str(field_slice);
-                                    field_keys.push(' ');
                                     field_values.push_str("\r\n");
                                     field_values.push_str(field_slice);
                                     field_values.push_str(": ");
@@ -349,17 +360,11 @@ impl Message {
                                 None => continue
                             }
                         }
-                        // Remove trailing whitespace.
-                        // TODO: find a safer way to do this.
-                        if field_keys.as_slice().len() > 0 {
-                            field_keys = field_keys.as_slice().slice_to(field_keys.as_slice().len() - 1).to_string()
-                        }
-
                         format!("HEADER.FIELDS ({})] {{{}}}{}", field_keys, field_values.as_slice().len(), field_values)
                     },
-                    &HeaderFieldsNotMsgtext(_) => { "".to_string() },
-                    &TextMsgtext => { "".to_string() },
-                    &MimeMsgtext => { "".to_string() }
+                    &HeaderFieldsNotMsgtext(_) => { empty_string },
+                    &TextMsgtext => { empty_string },
+                    &MimeMsgtext => { empty_string }
                 };
                 msgtext_attr
             }
@@ -384,16 +389,16 @@ impl Message {
      */
     // TODO: Finish implementing this.
     fn get_envelope(&self) -> String {
-        let date = self.get_field_or_nil("DATE".to_string());
-        let subject = self.get_field_or_nil("SUBJECT".to_string());
-        let from = self.get_parenthesized_addresses("FROM".to_string());
-        let sender = self.get_parenthesized_addresses("SENDER".to_string());
-        let reply_to = self.get_parenthesized_addresses("REPLY-TO".to_string());
-        let to = self.get_parenthesized_addresses("TO".to_string());
-        let cc = self.get_parenthesized_addresses("CC".to_string());
-        let bcc = self.get_parenthesized_addresses("BCC".to_string());
-        let in_reply_to = self.get_field_or_nil("IN-REPLY-TO".to_string());
-        let message_id = self.get_field_or_nil("MESSAGE-ID".to_string());
+        let date = self.get_field_or_nil("DATE");
+        let subject = self.get_field_or_nil("SUBJECT");
+        let from = self.get_parenthesized_addresses("FROM");
+        let sender = self.get_parenthesized_addresses("SENDER");
+        let reply_to = self.get_parenthesized_addresses("REPLY-TO");
+        let to = self.get_parenthesized_addresses("TO");
+        let cc = self.get_parenthesized_addresses("CC");
+        let bcc = self.get_parenthesized_addresses("BCC");
+        let in_reply_to = self.get_field_or_nil("IN-REPLY-TO");
+        let message_id = self.get_field_or_nil("MESSAGE-ID");
 
         format!(
             "(\"{}\" \"{}\" {} {} {} {} {} {} \"{}\" \"{}\")",
@@ -409,8 +414,8 @@ impl Message {
             message_id)
     }
 
-    fn get_field_or_nil<'a>(&'a self, key: String) -> &'a str {
-        match self.headers.find(&key) {
+    fn get_field_or_nil(&self, key: &str) -> &str {
+        match self.headers.find(&key.to_string()) {
             Some(v) => v.as_slice(),
             None => "NIL"
         }
@@ -420,9 +425,9 @@ impl Message {
      * RFC3501 - 7.4.2 - P.76
      */
     // TODO: Finish implementing this.
-    fn get_parenthesized_addresses<'a>(&'a self, key: String) -> &'a str {
-        match self.headers.find(&key) {
-            Some(v) => v.as_slice(), // TODO: this is not parenthesized.
+    fn get_parenthesized_addresses(&self, key: &str) -> &str {
+        match self.headers.find(&key.to_string()) {
+            Some(v) => v.as_slice(),
             None => "NIL"
         }
     }
@@ -434,18 +439,18 @@ impl Message {
         let date_received_tm = time::at_utc(date_received);
 
         let month = match date_received_tm.tm_mon {
-            0 => "Jan".to_string(),
-            1 => "Feb".to_string(),
-            2 => "Mar".to_string(),
-            3 => "Apr".to_string(),
-            4 => "May".to_string(),
-            5 => "Jun".to_string(),
-            6 => "Jul".to_string(),
-            7 => "Aug".to_string(),
-            8 => "Sep".to_string(),
-            9 => "Oct".to_string(),
-            10 => "Nov".to_string(),
-            11 => "Dec".to_string(),
+            0 => "Jan",
+            1 => "Feb",
+            2 => "Mar",
+            3 => "Apr",
+            4 => "May",
+            5 => "Jun",
+            6 => "Jul",
+            7 => "Aug",
+            8 => "Sep",
+            9 => "Oct",
+            10 => "Nov",
+            11 => "Dec",
             _ => fail!("Unable to determine month!") // NOTE: this should never happen.
         };
 
@@ -481,27 +486,30 @@ impl Message {
             }
             response = format!("{}\\{} ", response, flag);
         }
-        format!("{})", response.as_slice().trim())
+        response.push(')');
+        response
     }
 
     fn print_flags(&self) -> String {
-         let mut res = String::new();
-         for flag in self.flags.iter() {
-             let flag_str = match flag {
-                 &Answered => { "\\Answered".to_string() },
-                 &Draft => { "\\Draft".to_string() },
-                 &Flagged => { "\\Flagged".to_string() },
-                 &Seen => { "\\Seen".to_string() }
-                 &Deleted => { "\\Deleted".to_string() }
-             };
-             res = format!("{}{} ", res, flag_str);
-         }
-         // Remove trailing whitespace.
-         // TODO: find a safer way to do this.
-         if res.as_slice().len() > 0 {
-             res = res.as_slice().slice_to(res.as_slice().len() - 1).to_string()
-         }
-        format!("({})", res)
+        let mut res = "(".to_string();
+        let mut first = true;
+        for flag in self.flags.iter() {
+            if first {
+                first = false;
+            } else {
+                res.push(' ');
+            }
+            let flag_str = match flag {
+                &Answered => { "\\Answered" },
+                &Draft => { "\\Draft" },
+                &Flagged => { "\\Flagged" },
+                &Seen => { "\\Seen" }
+                &Deleted => { "\\Deleted" }
+            };
+            res.push_str(flag_str);
+        }
+        res.push(')');
+        res
     }
 
     pub fn get_new_filename(&self) -> String {

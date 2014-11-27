@@ -103,7 +103,13 @@ impl Folder {
 
     pub fn unseen(&self) -> String {
         if self.unseen <= self.exists {
-            format!("* OK [UNSEEN {}] Message {}th is the first unseen\r\n", self.unseen, self.unseen)
+            let unseen_str = self.unseen.to_string();
+            let mut res = "* OK [UNSEEN ".to_string();
+            res.push_str(unseen_str.as_slice());
+            res.push_str("] Message ");
+            res.push_str(unseen_str.as_slice());
+            res.push_str("th is the first unseen\r\n");
+            res
         } else {
             "".to_string()
         }
@@ -158,12 +164,15 @@ impl Folder {
                 continue;
             }
             let ref mut message = self.messages.get_mut(i-1);
-            let uid_res = if seq_uid {
-                format!("UID {}", uid)
-            } else {
-                "".to_string()
-            };
-            responses = format!("{}* {} FETCH (FLAGS {}{})\r\n", responses, i, message.store(flag_name, flags.clone()), uid_res);
+            responses.push_str("* ");
+            responses.push_str(i.to_string().as_slice());
+            responses.push_str(" FETCH (FLAGS ");
+            responses.push_str(message.store(flag_name, flags.clone()).as_slice());
+            if seq_uid {
+                let uid_res = format!("UID {}", uid);
+                responses.push_str(uid_res.as_slice());
+            }
+            responses.push_str(")\r\n");
         }
         if silent {
             String::new()
