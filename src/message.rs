@@ -70,7 +70,7 @@ pub struct Message {
     pub deleted: bool,
     size: uint,
     raw_contents: String,
-    raw_header: String
+    header_boundary: uint
 }
 
 #[deriving(Show, Clone)]
@@ -80,7 +80,7 @@ pub struct MIMEPart {
 }
 
 impl Message {
-    pub fn parse(arg_path: &Path) -> ImapResult<Message> {
+    pub fn new(arg_path: &Path) -> ImapResult<Message> {
         // Load the file contents.
         let raw_contents = match File::open(arg_path) {
             Ok(mut file) => match file.read_to_end() {
@@ -91,9 +91,8 @@ impl Message {
             },
             Err(e) => return Err(Error::simple(InternalIoError(e), "Failed to open mail file."))
         };
-        // let raw_contents = ;
-        // let raw_contents: &'a str = raw_contents_str.as_slice();
-        let size = raw_contents.as_slice().len();
+        let raw_slice = raw_contents.as_slice();
+        let size = raw_slice.len();
 
         let mut path = arg_path.filename_str().unwrap().splitn(1, ':');
         let filename = path.next().unwrap();
@@ -127,15 +126,14 @@ impl Message {
             }
         };
 
-        let header_boundary = raw_contents.clone().as_slice().find_str("\n\n").unwrap();
-        let raw_clone = raw_contents.clone();
-        let raw_header = raw_clone.as_slice().slice_to(header_boundary + 1).to_string(); // The newline is included as part of the header.
-        let raw_body = raw_contents.as_slice().slice_from(header_boundary + 2);
+        let header_boundary = raw_slice.find_str("\n\n").unwrap() + 1;
+        let raw_header = raw_slice.slice_to(header_boundary); // The newline is included as part of the header.
+        let raw_body = raw_slice.slice_from(header_boundary + 1);
 
         // Iterate over the lines of the header in reverse.
         // If a line with leading whitespace is detected, it is merged to the line before it.
         // This "unwraps" the header as indicated in RFC 2822 2.2.3
-        let mut iterator = raw_header.as_slice().lines().rev();
+        let mut iterator = raw_header.lines().rev();
         let mut headers = HashMap::new();
         loop {
             let line = match iterator.next() {
@@ -145,9 +143,10 @@ impl Message {
             if line.starts_with(" ") || line.starts_with("\t") {
                 loop {
                     let next = iterator.next().unwrap();
-                    let trimmed_next = next.trim_left_chars(' ').trim_left_chars('\t');
+                    let mut trimmed_next = next.trim_left_chars(' ').trim_left_chars('\t').to_string();
                     // Add a space between the merged lines.
-                    let trimmed_next = format!("{} {}", trimmed_next, line.trim_left_chars(' ').trim_left_chars('\t'));
+                    trimmed_next.push(' ');
+                    trimmed_next.push_str(line.trim_left_chars(' ').trim_left_chars('\t'));
                     if !next.starts_with(" ") && !next.starts_with("\t") {
                         let split: Vec<&str> = trimmed_next.as_slice().splitn(1, ':').collect();
                         headers.insert(split[0].to_string().into_ascii_upper(), split[1].slice_from(1).to_string());
@@ -169,49 +168,62 @@ impl Message {
             _ => {}
         }
         // Determine whether the message is MULTIPART or not.
-        let content_type = headers["CONTENT-TYPE".to_string()].clone();
         let mut body = Vec::new();
-        if content_type.as_slice().contains("MULTIPART") {
-            let mime_boundary = {
-                let value: Vec<&str> = content_type.as_slice().split_str("BOUNDARY=\"").collect();
-                if value.len() < 2 { return Err(Error::simple(MessageDecodeError, "Failed to determine MULTIPART boundary.")) }
-                let value: Vec<&str> = value[1].splitn(1, '"').collect();
-                if value.len() < 1 { return Err(Error::simple(MessageDecodeError, "Failed to determine MULTIPART boundary.")) }
-                format!("--{}--\n", value[0])
-            };
+        match headers.find(&"CONTENT-TYPE".to_string()) {
+            Some(ref content_type) => {
+                if content_type.as_slice().contains("MULTIPART") {
+                    let mime_boundary = {
+                        let value: Vec<&str> = content_type.as_slice().split_str("BOUNDARY=\"").collect();
+                        if value.len() < 2 { return Err(Error::simple(MessageDecodeError, "Failed to determine MULTIPART boundary.")) }
+                        let value: Vec<&str> = value[1].splitn(1, '"').collect(); //");
+                        if value.len() < 1 { return Err(Error::simple(MessageDecodeError, "Failed to determine MULTIPART boundary.")) }
+                        format!("--{}--\n", value[0])
+                    };
 
-            let first_content_type_index = match raw_body.find_str("Content-Type") {
-                Some(val) => val,
-                None => return Err(Error::simple(MessageDecodeError, "Missing Content-Type for body part"))
-            };
-            let raw_body = raw_body.slice_from(first_content_type_index);
-            let raw_body: Vec<&str> = raw_body.split_str(mime_boundary.as_slice()).collect();
-            let raw_body = raw_body.slice_to(raw_body.len() - 1);
+                    let first_content_type_index = match raw_body.find_str("Content-Type") {
+                        Some(val) => val,
+                        None => return Err(Error::simple(MessageDecodeError, "Missing Content-Type for body part"))
+                    };
+                    let mime_boundary_slice = mime_boundary.as_slice();
+                    let raw_body = raw_body.slice_from(first_content_type_index);
+                    let raw_body: Vec<&str> = raw_body.split_str(mime_boundary_slice).collect();
+                    let raw_body = raw_body.slice_to(raw_body.len() - 1);
 
-            for part in raw_body.iter() {
-                let header_boundary = part.as_slice().find_str("\n\n").unwrap();
-                let header = part.as_slice().slice_to(header_boundary);
-                let mut content_type = String::new();
-                for line in header.lines() {
-                    let split_line: Vec<&str> = line.splitn(1, ':').collect();
-                    if split_line[0] == "Content-Type" {
-                        let content_type_values: Vec<&str> = split_line[1].splitn(1, ';').collect();
-                        content_type = content_type_values[0].slice_from(1).to_string();
-                        break;
+                    for part in raw_body.iter() {
+                        let header_boundary = part.as_slice().find_str("\n\n").unwrap();
+                        let header = part.as_slice().slice_to(header_boundary);
+                        let mut content_type = String::new();
+                        for line in header.lines() {
+                            let split_line: Vec<&str> = line.splitn(1, ':').collect();
+                            if split_line[0] == "Content-Type" {
+                                let content_type_values: Vec<&str> = split_line[1].splitn(1, ';').collect();
+                                content_type = content_type_values[0].slice_from(1).to_string();
+                                break;
+                            }
+                        }
+                        let body_part = MIMEPart {
+                            mime_header: content_type.to_string(),
+                            mime_body: raw_body.to_string()
+                        };
+                        body.push(body_part);
                     }
+                } else {
+                    let body_part = MIMEPart {
+                        mime_header: content_type.to_string(),
+                        mime_body: raw_body.to_string()
+                    };
+                    body.push(body_part);
                 }
-                let body_part = MIMEPart {
-                    mime_header: content_type.to_string(),
+            }
+            // No Content Type header
+            // Non-Mime message
+            _ => {
+                let non_mime_part = MIMEPart {
+                    mime_header: "text/plain".to_string(),
                     mime_body: raw_body.to_string()
                 };
-                body.push(body_part);
+                body.push(non_mime_part);
             }
-        } else {
-            let body_part = MIMEPart {
-                mime_header: content_type.to_string(),
-                mime_body: raw_body.to_string()
-            };
-            body.push(body_part);
         }
         let message = Message {
             uid: uid,
@@ -222,7 +234,8 @@ impl Message {
             deleted: false,
             size: size,
             raw_contents: raw_contents.clone(),
-            raw_header: raw_header.clone()
+            header_boundary: header_boundary
+            // raw_header: raw_header.to_string() //.into_maybe_owned()
         };
 
         Ok(message)
@@ -258,7 +271,7 @@ impl Message {
                 &RFC822(ref attr) => {
                     let rfc_attr = match attr {
                         &AllRFC822 => { "".to_string() },
-                        &HeaderRFC822 => { format!(".HEADER {{{}}}\r\n{}", self.raw_header.len(), self.raw_header) },
+                        &HeaderRFC822 => { format!(".HEADER {{{}}}\r\n{}", self.header_boundary, self.raw_contents.as_slice().slice_to(self.header_boundary)) },
                         &SizeRFC822 => { format!(".SIZE {}", self.size) },
                         &TextRFC822 => { "".to_string() }
                     };
@@ -325,8 +338,13 @@ impl Message {
                         for field in fields.iter() {
                             match self.headers.find(field) {
                                 Some(v) => {
-                                    field_keys = format!("{}{} ", field_keys, field);
-                                    field_values = format!("{}\r\n{}: {}", field_values, field, v);
+                                    let field_slice = field.as_slice();
+                                    field_keys.push_str(field_slice);
+                                    field_keys.push(' ');
+                                    field_values.push_str("\r\n");
+                                    field_values.push_str(field_slice);
+                                    field_values.push_str(": ");
+                                    field_values.push_str(v.as_slice());
                                 },
                                 None => continue
                             }
@@ -366,19 +384,19 @@ impl Message {
      */
     // TODO: Finish implementing this.
     fn get_envelope(&self) -> String {
-        let date = self.get_quoted_field_or_nil("DATE".to_string());
-        let subject = self.get_quoted_field_or_nil("SUBJECT".to_string());
+        let date = self.get_field_or_nil("DATE".to_string());
+        let subject = self.get_field_or_nil("SUBJECT".to_string());
         let from = self.get_parenthesized_addresses("FROM".to_string());
         let sender = self.get_parenthesized_addresses("SENDER".to_string());
         let reply_to = self.get_parenthesized_addresses("REPLY-TO".to_string());
         let to = self.get_parenthesized_addresses("TO".to_string());
         let cc = self.get_parenthesized_addresses("CC".to_string());
         let bcc = self.get_parenthesized_addresses("BCC".to_string());
-        let in_reply_to = self.get_quoted_field_or_nil("IN-REPLY-TO".to_string());
-        let message_id = self.get_quoted_field_or_nil("MESSAGE-ID".to_string());
+        let in_reply_to = self.get_field_or_nil("IN-REPLY-TO".to_string());
+        let message_id = self.get_field_or_nil("MESSAGE-ID".to_string());
 
         format!(
-            "({} {} {} {} {} {} {} {} {} {})",
+            "(\"{}\" \"{}\" {} {} {} {} {} {} \"{}\" \"{}\")",
             date,
             subject,
             from,
@@ -391,10 +409,10 @@ impl Message {
             message_id)
     }
 
-    fn get_quoted_field_or_nil(&self, key: String) -> String {
+    fn get_field_or_nil<'a>(&'a self, key: String) -> &'a str {
         match self.headers.find(&key) {
-            Some(v) => format!("\"{}\"", v),
-            None => "NIL".to_string()
+            Some(v) => v.as_slice(),
+            None => "NIL"
         }
     }
 
@@ -402,12 +420,11 @@ impl Message {
      * RFC3501 - 7.4.2 - P.76
      */
     // TODO: Finish implementing this.
-    fn get_parenthesized_addresses(&self, key: String) -> String {
-        let addresses = match self.headers.find(&key) {
-            Some(v) => v, // TODO: this is not parenthesized.
-            None => return "NIL".to_string()
-        };
-        addresses.clone()
+    fn get_parenthesized_addresses<'a>(&'a self, key: String) -> &'a str {
+        match self.headers.find(&key) {
+            Some(v) => v.as_slice(), // TODO: this is not parenthesized.
+            None => "NIL"
+        }
     }
 
     // TODO: rewrite this with TmFmt for 0.13.

@@ -61,7 +61,7 @@ impl Folder {
                                // populate messages
                                let mut unseen = -1;
                                for msg_path in cur.iter() {
-                                   match Message::parse(msg_path) {
+                                   match Message::new(msg_path) {
                                        Ok(message) => {
                                            if unseen == -1 &&
                                               message.is_unseen() {
@@ -76,7 +76,7 @@ impl Folder {
                                }
                                let old = i+1;
                                for msg_path in new.iter() {
-                                   match Message::parse(msg_path) {
+                                   match Message::new(msg_path) {
                                        Ok(message) => {
                                            uid_to_seqnum.insert(message.uid.to_uint().unwrap(), i);
                                            i += 1;
@@ -214,7 +214,7 @@ impl Show for Folder {
 
 fn move_new(messages: Vec<Message>, path: Path, start_index: uint) -> Vec<Message> {
     let mut new_messages = Vec::new();
-    for i in range(start_index, messages.len()) {
+    for i in range(0u, messages.len()) {
         if i < start_index {
             new_messages.push(messages[i].clone());
             continue;
