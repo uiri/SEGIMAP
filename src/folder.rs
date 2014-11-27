@@ -11,14 +11,13 @@ use message::Flag;
 //#[deriving(Clone)]
 pub struct Folder {
     pub name: String,
-    recent: uint,
+    pub recent: uint,
     pub exists: uint,
     pub unseen: uint,
     path: Path,
     messages: Vec<Message>,
-    pub readonly: bool,
-    pub uid_to_seqnum: HashMap<uint, uint>,
-    new: Vec<Path>
+    readonly: bool,
+    uid_to_seqnum: HashMap<uint, uint>
 }
 
 macro_rules! make_vec_path(
@@ -86,6 +85,7 @@ impl Folder {
                                        _ => {}
                                    }
                                }
+                               messages = move_new(messages, path.clone(), unseen-1);
                                let exists = i;
                                return Some(Folder {
                                    name: name,
@@ -96,7 +96,6 @@ impl Folder {
                                    messages: messages,
                                    readonly: readonly,
                                    uid_to_seqnum: uid_to_seqnum,
-                                   new: new
                                })}
                            )
                        );
@@ -108,24 +107,6 @@ impl Folder {
         } else {
             "".to_string()
         }
-    }
-
-    pub fn recent(&self) -> uint {
-        if !self.readonly {
-            for msg in self.new.iter() {
-                match msg.filename_str() {
-                    Some(filename) => {
-                        // Get rustc to STFU with this match block
-                        // Make sure to add some damn flags
-                        match fs::rename(msg, &self.path.join("cur").join(filename)) {
-                            _ => {}
-                        }
-                    }
-                    _ => {}
-                }
-            }
-        }
-        self.recent
     }
 
     pub fn expunge(&self) -> Vec<uint> {
@@ -162,16 +143,65 @@ impl Folder {
         return self.uid_to_seqnum.find(uid);
     }
 
-    pub fn store(&mut self, sequence_set: Vec<uint>, flag_name: StoreName, silent: bool, flags: HashSet<Flag>) -> String {
+    pub fn store(&mut self, sequence_set: Vec<uint>, flag_name: StoreName, silent: bool, flags: HashSet<Flag>, seq_uid: bool) -> String {
         let mut responses = String::new();
-        for i in sequence_set.iter() {
-            let ref mut message = self.messages.get_mut(*i-1);
-            responses = format!("{}* {} FETCH {}\r\n", responses, i, message.store(flag_name, flags.clone()));
+        for num in sequence_set.iter() {
+            let (uid, i) = if seq_uid {
+                match self.get_index_from_uid(num) {
+                    None => (*num, 0u),
+                    Some(ind) => (*num, *ind+1)
+                }
+            } else {
+                (0u, *num)
+            };
+            if i == 0 {
+                continue;
+            }
+            let ref mut message = self.messages.get_mut(i-1);
+            let uid_res = if seq_uid {
+                format!("UID {}", uid)
+            } else {
+                "".to_string()
+            };
+            responses = format!("{}* {} FETCH (FLAGS {}{})\r\n", responses, i, message.store(flag_name, flags.clone()), uid_res);
         }
         if silent {
             String::new()
         } else {
             responses
+        }
+    }
+
+    pub fn check(&mut self) {
+        if self.readonly {
+            return;
+        }
+        let mut new_messages = Vec::new();
+        for msg in self.messages.iter() {
+            let filename = msg.get_new_filename();
+            let curpath = self.path.join("cur").join(filename);
+            let msg_path = Path::new(msg.path.clone());
+            if curpath == msg_path {
+                new_messages.push(msg.clone());
+                continue;
+            }
+            match fs::rename(&msg_path, &curpath) {
+                Ok(_) => {
+                    let mut new_msg = msg.clone();
+                    new_msg.set_path(curpath.display().to_string());
+                    new_messages.push(new_msg);
+                }
+                _ => {}
+            }
+        }
+        self.messages = new_messages;
+    }
+
+    pub fn read_status(&self) -> &'static str {
+        if self.readonly {
+            "[READ-ONLY]"
+        } else {
+            "[READ-WRITE]"
         }
     }
 }
@@ -180,4 +210,26 @@ impl Show for Folder {
     fn fmt(&self, f: &mut Formatter) -> Result<(), FormatError> {
         self.name.fmt(f)
     }
+}
+
+fn move_new(messages: Vec<Message>, path: Path, start_index: uint) -> Vec<Message> {
+    let mut new_messages = Vec::new();
+    for i in range(start_index, messages.len()) {
+        if i < start_index {
+            new_messages.push(messages[i].clone());
+            continue;
+        }
+        let ref msg = messages[i];
+        let curpath = path.join("cur").join(msg.uid.to_string());
+        let msg_path = Path::new(msg.path.clone());
+        match fs::rename(&msg_path, &curpath) {
+            Ok(_) => {
+                let mut new_msg = msg.clone();
+                new_msg.set_path(curpath.display().to_string());
+                new_messages.push(new_msg);
+            }
+            _ => {}
+        }
+    }
+    new_messages
 }

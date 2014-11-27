@@ -242,10 +242,28 @@ impl Session {
                             }
                         }
                     }
+                    "check" => {
+                        match self.expunge() {
+                            _ => {}
+                        }
+                        match self.folder {
+                            None => return bad_res,
+                            Some(ref mut folder) => {
+                                folder.check();
+                                return format!("{} OK Check completed\r\n", tag);
+                            }
+                        }
+                    }
                     "close" => {
                         return match self.expunge() {
                             Err(_) => bad_res,
                             Ok(_) => {
+                                match self.folder {
+                                    Some(ref mut folder) => {
+                                        folder.check();
+                                    }
+                                    _ => {}
+                                }
                                 self.folder = None;
                                 format!("{} OK close completed\r\n", tag)
                             }
@@ -296,7 +314,7 @@ impl Session {
                                 &BodySection(_, _) => {
                                     let mut seen_flag_set = HashSet::new();
                                     seen_flag_set.insert(Seen);
-                                    folder.store(sequence_iter.clone(), Add, true, seen_flag_set);
+                                    folder.store(sequence_iter.clone(), Add, true, seen_flag_set, false);
                                 }
                                 _ => {}
                             }
@@ -367,7 +385,7 @@ impl Session {
                                                         &BodySection(_, _) => {
                                                             let mut seen_flag_set = HashSet::new();
                                                             seen_flag_set.insert(Seen);
-                                                            folder.store(sequence_iter.clone(), Add, true, seen_flag_set);
+                                                            folder.store(sequence_iter.clone(), Add, true, seen_flag_set, true);
                                                         }
                                                         _ => {}
                                                     }
@@ -384,6 +402,12 @@ impl Session {
                                         }
                                         return format!("{}{} OK UID FETCH completed\r\n", res, tag);
                                     }
+                                    "store" => {
+                                        match self.store(args.collect(), true, tag) {
+                                            Some(res) => return res,
+                                            _ => return bad_res
+                                        }
+                                    }
                                     _ => { return bad_res; }
                                 }
                             }
@@ -391,51 +415,9 @@ impl Session {
                         }
                     },
                     "store" => {
-                        let store_args: Vec<&str> = args.collect();
-                        if store_args.len() < 3 { return bad_res; }
-                        let sequence_set_opt = sequence_set::parse(store_args[0].trim_chars('"'));
-                        let data_name = store_args[1].trim_chars('"');
-                        let data_value = store_args[2].trim_chars('"'); // "
-                        let data_name_lower = data_name.to_string().into_ascii_lower();
-                        let mut data_name_parts = data_name_lower.as_slice().split('.');
-                        let flag_part = data_name_parts.next();
-                        let silent_part = data_name_parts.next();
-                        match data_name_parts.next() {
-                            Some(_) => return bad_res,
-                            _ => {}
-                        }
-                        let silent = match silent_part {
-                            None => false,
-                            Some(part) => {
-                                if part == "silent" {
-                                    true
-                                } else {
-                                    return bad_res
-                                }
-                            }
-                        };
-                        let flag_name = match message::parse_storename(flag_part) {
-                            Some(storename) => storename,
-                            None => return bad_res
-                        };
-                        let mut flags: HashSet<Flag> = HashSet::new();
-                        for flag in data_value.trim_chars('(').trim_chars(')').split(' ') {
-                            match message::parse_flag(flag) {
-                                None => { continue; }
-                                Some(insert_flag) => { flags.insert(insert_flag); }
-                            }
-                        }
-                        match self.folder {
-                            None => return bad_res,
-                            Some(ref mut folder) => {
-                                match sequence_set_opt {
-                                    None => return bad_res,
-                                    Some(sequence_set) => {
-                                        let sequence_iter = sequence_set::iterator(sequence_set, folder.message_count());
-                                        return format!("{}{} OK STORE complete\r\n", folder.store(sequence_iter, flag_name, silent, flags), tag);
-                                    }
-                                }
-                            }
+                        match self.store(args.collect(), false, tag) {
+                            Some(res) => return res,
+                            _ => return bad_res
                         }
                     }
                     _ => { return bad_res; }
@@ -456,7 +438,7 @@ impl Session {
         }
     }
 
-    pub fn select_mailbox(&mut self, mailbox_name: &str, examine: bool) {
+    fn select_mailbox(&mut self, mailbox_name: &str, examine: bool) {
         let mbox_name = regex!("INBOX").replace(mailbox_name, ".");
         match self.maildir {
             None => {}
@@ -486,7 +468,7 @@ impl Session {
                 // * <n> EXISTS
                 let mut ok_res = format!("* {} EXISTS\r\n", folder.exists);
                 // * <n> RECENT
-                ok_res.push_str(format!("* {} RECENT\r\n", folder.recent()).as_slice());
+                ok_res.push_str(format!("* {} RECENT\r\n", folder.recent).as_slice());
                 // * OK UNSEEN
                 ok_res.push_str(folder.unseen().as_slice());
                 // * Flags
@@ -497,12 +479,7 @@ impl Session {
                 ok_res.push_str("* OK [PERMANENTFLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)] Permanent flags\r\n");
                 // * OK UIDNEXT
                 // * OK UIDVALIDITY
-                let read_status = if folder.readonly {
-                    "[READ-ONLY]"
-                } else {
-                    "[READ-WRITE]"
-                };
-                ok_res.push_str(format!("{} OK {} SELECT command was successful\r\n", tag, read_status).as_slice());
+                ok_res.push_str(format!("{} OK {} SELECT command was successful\r\n", tag, folder.read_status()).as_slice());
                 return ok_res;
             }
         }
@@ -576,7 +553,6 @@ impl Session {
     }
 
     fn list(&self, regex: Regex) -> Vec<String> {
-        warn!("REGEX: {}", regex);
         match self.maildir {
             None => Vec::new(),
             Some(ref maildir) => {
@@ -605,4 +581,53 @@ impl Session {
             }
         }
     }
+
+    fn store(&mut self, store_args: Vec<&str>, seq_uid: bool, tag: &str) -> Option<String> {
+        if store_args.len() < 3 { return None; }
+        let sequence_set_opt = sequence_set::parse(store_args[0].trim_chars('"'));
+        let data_name = store_args[1].trim_chars('"');
+        let data_value = store_args[2].trim_chars('"'); // "));
+        let data_name_lower = data_name.to_string().into_ascii_lower();
+        let mut data_name_parts = data_name_lower.as_slice().split('.');
+        let flag_part = data_name_parts.next();
+        let silent_part = data_name_parts.next();
+        match data_name_parts.next() {
+            Some(_) => return None,
+            _ => {}
+        }
+        let silent = match silent_part {
+            None => false,
+            Some(part) => {
+                if part == "silent" {
+                    true
+                } else {
+                    return None
+                }
+            }
+        };
+        let flag_name = match message::parse_storename(flag_part) {
+            Some(storename) => storename,
+            None => return None
+        };
+        let mut flags: HashSet<Flag> = HashSet::new();
+        for flag in data_value.trim_chars('(').trim_chars(')').split(' ') {
+            match message::parse_flag(flag) {
+                None => { continue; }
+                Some(insert_flag) => { flags.insert(insert_flag); }
+            }
+        }
+        match self.folder {
+            None => return None,
+            Some(ref mut folder) => {
+                match sequence_set_opt {
+                    None => return None,
+                    Some(sequence_set) => {
+                        let sequence_iter = sequence_set::uid_iterator(sequence_set);
+                        return Some(format!("{}{} OK STORE complete\r\n", folder.store(sequence_iter, flag_name, silent, flags, seq_uid), tag));
+                    }
+                }
+            }
+        }
+    }
+
 }

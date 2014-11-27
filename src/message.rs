@@ -60,7 +60,7 @@ pub enum Flag {
     Deleted
 }
 
-#[deriving(Show)]
+#[deriving(Show, Clone)]
 pub struct Message {
     pub uid: u32,
     pub path: String,
@@ -485,6 +485,31 @@ impl Message {
              res = res.as_slice().slice_to(res.as_slice().len() - 1).to_string()
          }
         format!("({})", res)
+    }
+
+    pub fn get_new_filename(&self) -> String {
+        if self.flags.len() == 0 {
+            return self.uid.to_string();
+        }
+        let mut res = self.uid.to_string();
+        res.push_str(":2,");
+        if self.flags.contains(&Draft) {
+            res.push('D');
+        }
+        if self.flags.contains(&Flagged) {
+            res.push('F');
+        }
+        if self.flags.contains(&Answered) {
+            res.push('R');
+        }
+        if self.flags.contains(&Seen) {
+            res.push('S');
+        }
+        res
+    }
+
+    pub fn set_path(&mut self, path: String) {
+        self.path = path;
     }
 }
 
