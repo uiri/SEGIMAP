@@ -169,10 +169,10 @@ impl Folder {
             responses.push_str(" FETCH (FLAGS ");
             responses.push_str(message.store(flag_name, flags.clone()).as_slice());
             if seq_uid {
-                let uid_res = format!("UID {}", uid);
+                let uid_res = format!(" UID {}", uid);
                 responses.push_str(uid_res.as_slice());
             }
-            responses.push_str(")\r\n");
+            responses.push_str(" )\r\n");
         }
         if silent {
             String::new()

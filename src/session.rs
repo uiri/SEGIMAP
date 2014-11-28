@@ -255,6 +255,7 @@ impl Session {
                                         let mut ok_res = String::new();
                                         for list_response in res_iter {
                                             ok_res.push_str(list_response.as_slice());
+                                            ok_res.push_str("\r\n");
                                         }
                                         ok_res.push_str(tag);
                                         ok_res.push_str(" OK list successful\r\n");

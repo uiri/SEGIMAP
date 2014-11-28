@@ -465,7 +465,6 @@ impl Message {
     }
 
     pub fn store(&mut self, flag_name: StoreName, new_flags: HashSet<Flag>) -> String {
-        let mut response = "(".to_string();
         match flag_name {
             Sub => {
                 for flag in new_flags.iter() {
@@ -479,15 +478,8 @@ impl Message {
                 }
             }
         }
-        self.deleted = false;
-        for flag in self.flags.iter() {
-            if *flag == Deleted {
-                self.deleted = true;
-            }
-            response = format!("{}\\{} ", response, flag);
-        }
-        response.push(')');
-        response
+        self.deleted = self.flags.contains(&Deleted);
+        self.print_flags()
     }
 
     fn print_flags(&self) -> String {
