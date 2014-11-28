@@ -73,7 +73,7 @@ pub fn parse(sequence_string: &str) -> Option<Vec<SequenceItem>> {
 
 // TODO: Find a way to handle sequences in O(1) as currently, the memory usage
 // of the vec returned by this function scales at O(n).
-pub fn iterator(sequence_set: Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
+pub fn iterator(sequence_set: &Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
     // If the number of possible messages is 0, we return an empty vec.
     if max_id == 0 { return Vec::new() }
 
@@ -132,7 +132,7 @@ pub fn iterator(sequence_set: Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
 
 // TODO: Find a way to handle sequences in O(1) as currently, the memory usage
 // of the vec returned by this function scales at O(n).
-pub fn uid_iterator(sequence_set: Vec<SequenceItem>) -> Vec<uint> {
+pub fn uid_iterator(sequence_set: &Vec<SequenceItem>) -> Vec<uint> {
     let mut items = Vec::new();
     for item in sequence_set.iter() {
         match item {

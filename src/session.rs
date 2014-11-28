@@ -2,7 +2,7 @@ use std::collections::HashSet;
 use std::io::{Buffer, BufferedStream, FilePermission, fs, TcpStream};
 use std::io::fs::PathExtensions;
 use std::os::make_absolute;
-use std::str::{from_utf8, StrSlice};
+use std::str::{from_utf8, StrSlice, CharSplits};
 use std::ascii::OwnedAsciiExt;
 use std::sync::Arc;
 use regex::Regex;
@@ -10,6 +10,7 @@ use regex::Regex;
 pub use folder::Folder;
 pub use server::Server;
 
+use command::command::{Command, UID};
 use command::sequence_set;
 use command::sequence_set::{
     Number,
@@ -311,21 +312,16 @@ impl Session {
                         }
                     }
                     "fetch" => {
-                        let mut cmd = "FETCH".to_string();
-                        for arg in args {
-                            cmd.push(' ');
-                            cmd.push_str(arg);
-                        }
-                        // Parse the command with the PEG parser.
-                        let parsed_cmd = match fetch(cmd.as_slice().trim()) {
-                            Ok(cmd) => cmd,
-                            _ => return bad_res
-                        };
-                        // Retrieve the current folder, if it exists.
                         let folder = match self.folder {
                             Some(ref mut folder) => folder,
                             None => return bad_res
                         };
+
+                        let parsed_cmd = match collate_and_parse_fetch(args) {
+                            Ok(cmd) => cmd,
+                            _ => return bad_res
+                        };
+                        // Retrieve the current folder, if it exists.
                         /*
                          * Verify that the requested sequence set is valid.
                          *
@@ -336,59 +332,29 @@ impl Session {
                          * messages in the selected mailbox. This
                          * includes "*" if the selected mailbox is empty."
                          */
-                        let sequence_iter = sequence_set::iterator(parsed_cmd.sequence_set, folder.message_count());
+                        let sequence_iter = sequence_set::iterator(&parsed_cmd.sequence_set, folder.message_count());
                         if sequence_iter.len() == 0 { return bad_res }
-                        let mut res = String::new();
-                        for attr in parsed_cmd.attributes.iter() {
-                            match attr {
-                                &BodySection(_, _) => {
-                                    let mut seen_flag_set = HashSet::new();
-                                    seen_flag_set.insert(Seen);
-                                    folder.store(sequence_iter.clone(), Add, true, seen_flag_set, false);
-                                }
-                                _ => {}
-                            }
-                        }
-                        for index in sequence_iter.iter() {
-                            let msg_fetch = folder.fetch(index - 1, &parsed_cmd.attributes);
-                            res = format!("{}* {} FETCH ({})\r\n", res, index, msg_fetch);
-                        }
-                        return format!("{}{} OK FETCH completed\n", res, tag);
+                        return normal_fetch_iter_loop(parsed_cmd, folder, sequence_iter, tag, false);
                     },
                     "uid" => {
                         match args.next() {
                             Some(uidcmd) => {
                                 match uidcmd.to_string().into_ascii_lower().as_slice() {
                                     "fetch" => {
-                                        let mut cmd = "FETCH".to_string();
-                                        for arg in args {
-                                            cmd = format!("{} {}", cmd, arg);
-                                        }
-                                        // Parse the command with the PEG parser.
-                                        let parsed_cmd = match fetch(cmd.as_slice().trim()) {
-                                            Ok(cmd) => cmd,
-                                            _ => return bad_res
-                                        };
                                         // Retrieve the current folder, if it exists.
                                         let folder = match self.folder {
                                             Some(ref mut folder) => folder,
                                             None => return bad_res
                                         };
-                                        /*
-                                         * Verify that the requested sequence set is valid.
-                                         *
-                                         * Per FRC 3501 seq-number definition:
-                                         * "The server should respond with a tagged BAD
-                                         * response to a command that uses a message
-                                         * sequence number greater than the number of
-                                         * messages in the selected mailbox. This
-                                         * includes "*" if the selected mailbox is empty."
-                                         */
-                                        let mut res = String::new();
+                                        // Parse the command with the PEG parser.
+                                        let mut parsed_cmd = match collate_and_parse_fetch(args) {
+                                            Ok(cmd) => cmd,
+                                            _ => return bad_res
+                                        };
+                                        parsed_cmd.attributes.push(UID);
 
-                                        // SPECIAL CASE FOR THUNDERBIRD.
-                                        // TODO: REMOVE THIS.
-                                        match parsed_cmd.sequence_set[0] {
+                                        // SPECIAL CASE FOR RANGES WITH WILDCARDS
+                                        return match parsed_cmd.sequence_set[0] {
                                             Range(box Number(n), box Wildcard) => {
                                                 if folder.message_count() == 0 { return bad_res }
                                                 let start = match folder.get_index_from_uid(&n) {
@@ -401,36 +367,30 @@ impl Session {
                                                         }
                                                     }
                                                 };
+                                                let mut res = String::new();
                                                 for index in range(start, folder.message_count()) {
-                                                    let fetch_str = folder.fetch(index, &parsed_cmd.attributes);
-                                                    let uid = folder.get_uid_from_index(index);
-                                                    res = format!("{}* {} FETCH ({} UID {})\r\n", res, index+1, fetch_str, uid);
+                                                    res.push_str(folder.fetch(index+1, &parsed_cmd.attributes).as_slice());
                                                 }
+                                                res.push_str(tag);
+                                                res.push_str(" OK UID FETCH completed\r\n");
+                                                res
                                             }
                                             _ => {
-                                                let sequence_iter = sequence_set::uid_iterator(parsed_cmd.sequence_set);
-                                                if sequence_iter.len() == 0 { return bad_res }
-                                                for attr in parsed_cmd.attributes.iter() {
-                                                    match attr {
-                                                        &BodySection(_, _) => {
-                                                            let mut seen_flag_set = HashSet::new();
-                                                            seen_flag_set.insert(Seen);
-                                                            folder.store(sequence_iter.clone(), Add, true, seen_flag_set, true);
-                                                        }
-                                                        _ => {}
-                                                    }
-                                                }
-                                                for uid in sequence_iter.iter() {
-                                                    let index = match folder.get_index_from_uid(uid) {
-                                                        Some(index) => *index,
-                                                        None => {continue;}
-                                                    };
-                                                    let fetch_str = folder.fetch(index, &parsed_cmd.attributes);
-                                                    res = format!("{}* {} FETCH ({}UID {})\r\n", res, index+1, fetch_str, uid);
-                                                }
+                                                /*
+                                                 * Verify that the requested sequence set is valid.
+                                                 *
+                                                 * Per FRC 3501 seq-number definition:
+                                                 * "The server should respond with a tagged BAD
+                                                 * response to a command that uses a message
+                                                 * sequence number greater than the number of
+                                                 * messages in the selected mailbox. This
+                                                 * includes "*" if the selected mailbox is empty."
+                                                 */
+                                                let sequence_iter = sequence_set::uid_iterator(&parsed_cmd.sequence_set);
+                                                if sequence_iter.len() == 0 { return bad_res; }
+                                                normal_fetch_iter_loop(parsed_cmd, folder, sequence_iter, tag, true)
                                             }
-                                        }
-                                        return format!("{}{} OK UID FETCH completed\r\n", res, tag);
+                                        };
                                     }
                                     "store" => {
                                         match self.store(args.collect(), true, tag) {
@@ -652,7 +612,7 @@ impl Session {
                 match sequence_set_opt {
                     None => return None,
                     Some(sequence_set) => {
-                        let sequence_iter = sequence_set::uid_iterator(sequence_set);
+                        let sequence_iter = sequence_set::uid_iterator(&sequence_set);
                         return Some(format!("{}{} OK STORE complete\r\n", folder.store(sequence_iter, flag_name, silent, flags, seq_uid), tag));
                     }
                 }
@@ -660,4 +620,49 @@ impl Session {
         }
     }
 
+}
+
+fn collate_and_parse_fetch(mut args: CharSplits<char>) -> Result<Command,String> {
+    let mut cmd = "FETCH".to_string();
+    for arg in args {
+        cmd.push(' ');
+        cmd.push_str(arg);
+    }
+
+    // Parse the command with the PEG parser.
+   fetch(cmd.as_slice())
+}
+
+fn normal_fetch_iter_loop(parsed_cmd: Command, folder: &mut Folder, sequence_iter: Vec<uint>, tag: &str, uid: bool) -> String {
+    for attr in parsed_cmd.attributes.iter() {
+        match attr {
+            &BodySection(_, _) => {
+                let mut seen_flag_set = HashSet::new();
+                seen_flag_set.insert(Seen);
+                folder.store(sequence_iter.clone(), Add, true, seen_flag_set, false);
+                break;
+            }
+            _ => {}
+        }
+    }
+
+    let mut res = String::new();
+    for i in sequence_iter.iter() {
+        let index = if uid {
+            match folder.get_index_from_uid(i) {
+                Some(index) => *index,
+                None => {continue;}
+            }
+        } else {
+            *i-1
+        };
+        res.push_str(folder.fetch(index, &parsed_cmd.attributes).as_slice());
+    }
+    res.push_str(tag);
+    res.push_str(" OK ");
+    if uid {
+        res.push_str("UID ");
+    }
+    res.push_str("FETCH completed\r\n");
+    res
 }

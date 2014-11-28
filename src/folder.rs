@@ -138,11 +138,12 @@ impl Folder {
     }
 
     pub fn fetch(&self, index: uint, attributes: &Vec<Attribute>) -> String {
-        self.messages[index].fetch(attributes)
-    }
-
-    pub fn get_uid_from_index(&self, index: uint) -> uint {
-        self.messages[index].uid as uint
+        let mut res = "* ".to_string();
+        res.push_str((index+1).to_string().as_slice());
+        res.push_str(" FETCH (");
+        res.push_str(self.messages[index].fetch(attributes).as_slice());
+        res.push_str(")\r\n");
+        res
     }
 
     pub fn get_index_from_uid(&self, uid: &uint) -> Option<&uint> {
