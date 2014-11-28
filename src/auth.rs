@@ -13,14 +13,17 @@ use crypto::bcrypt_pbkdf::bcrypt_pbkdf;
 /// The number of rounds of bcrypt hashing to apply to the password.
 static ROUNDS: uint = 10;
 
+/// Secure representation of the user's password
 #[deriving(Decodable, Encodable, Show)]
 pub struct AuthData {
+    /// Added to the password before hashing
     salt: Vec<u8>,
-    /// The salted and bcrypt hashed password the user uses to log in.
+    /// The hash of the password
     out: Vec<u8>
 }
 
 impl AuthData {
+    /// Generates a hash and salt for secure storage of a password
     pub fn new(password: String) -> AuthData {
         let salt = gen_salt();
         let password = password.into_bytes();

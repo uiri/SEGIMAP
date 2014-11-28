@@ -23,7 +23,7 @@ pub struct Error {
 pub type ImapResult<T> = Result<T, Error>;
 
 impl Error {
-    pub fn simple(kind: ErrorKind, desc: &'static str) -> Error {
+    pub fn new(kind: ErrorKind, desc: &'static str) -> Error {
         Error {
             kind: kind,
             desc: desc,

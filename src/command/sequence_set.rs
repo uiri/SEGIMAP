@@ -1,5 +1,11 @@
 use std::iter::Iterator;
 
+/// This represents an individual item in the list of requested message ids
+/// passed by the client
+/// The client can pass a number representing a single id, a wildcard
+/// (represented by *) or a range which is made up of a start non-range sequence
+/// item and an end non-range sequence item separated by a colon
+/// A range represents all items with ids between its start and end, inclusive.
 #[deriving(Clone, PartialEq, Show)]
 pub enum SequenceItem {
     Number(uint),
@@ -7,72 +13,70 @@ pub enum SequenceItem {
     Wildcard
 }
 
+fn parse_item(item: &str) -> Option<SequenceItem> {
+    let intseq_opt: Option<uint> = from_str(item);
+    match intseq_opt {
+        Some(intseq) => {
+            // item is a valid number so return that
+            Some(Number(intseq))
+        }
+        None => {
+            // item is not a valid number
+            // If it is the wildcard value return that
+            // Otherwise, return no sequence item
+            if item == "*" {
+                Some(Wildcard)
+            } else {
+                None
+            }
+        }
+    }
+}
+
+/// Given a string as passed in from the client, create a list of sequence items
+/// If the string does not represent a valid list, return None
 pub fn parse(sequence_string: &str) -> Option<Vec<SequenceItem>> {
     let mut sequences = sequence_string.split(',');
     let mut sequence_set = Vec::new();
     for sequence in sequences {
         let mut range = sequence.split(':');
-        let start = range.next();
-        let stop = range.next();
+        let start = match range.next() {
+            None => return None,
+            Some(seq) => {
+                match parse_item(seq) {
+                    None => return None,
+                    Some(item) => item
+                }
+            }
+        };
+        let stop = match range.next() {
+            None => {
+                // Nothing after ':'
+                // Add the number or wildcard and bail out
+                sequence_set.push(start);
+                continue;
+            }
+            Some(seq) => {
+                match parse_item(seq) {
+                    None => return None,
+                    Some(item) => item
+                }
+            }
+        };
+
+        // A valid range only has one colon
         match range.next() {
             Some(_) => return None,
             _ => {}
         }
-        match stop {
-            None => {
-                match start {
-                    None => return None,
-                    Some(seq) => {
-                        let intseq_opt: Option<uint> = from_str(seq);
-                        match intseq_opt {
-                            Some(intseq) => {
-                                sequence_set.push(Number(intseq));
-                            }
-                            None => {
-                                if sequence == "*" {
-                                    sequence_set.push(Wildcard);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            Some(end) => {
-                match start {
-                    None => return None,
-                    Some(begin) => {
-                        let range_one = parse(begin);
-                        let range_two = parse(end);
-                        let mut range_val = Vec::new();
-                        match range_one {
-                            Some(range_start_vec) => {
-                                if range_start_vec.len() != 1 {
-                                    return None;
-                                }
-                                range_val = range_start_vec;
-                                match range_two {
-                                    Some(range_stop_vec) => {
-                                        if range_stop_vec.len() != 1 {
-                                            return None;
-                                        }
-                                        range_val.push(range_stop_vec[0].clone());
-                                        sequence_set.push(Range(box range_val[0].clone(), box range_val[1].clone()));
-                                    }
-                                    None => return None
-                                }
-                            },
-                            None => return None
-                        }
-                    }
-                }
-            }
-        }
+
+        sequence_set.push(Range(box start, box stop));
     }
     return Some(sequence_set);
 }
 
-// TODO: Find a way to handle sequences in O(1) as currently, the memory usage
-// of the vec returned by this function scales at O(n).
+/// Create the list of unsigned integers representing valid ids from a list of
+/// sequence items. Ideally this would handle wildcards in O(1) rather than O(n)
 pub fn iterator(sequence_set: &Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
     // If the number of possible messages is 0, we return an empty vec.
     if max_id == 0 { return Vec::new() }
@@ -82,8 +86,11 @@ pub fn iterator(sequence_set: &Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
     let mut items = Vec::new();
     for item in sequence_set.iter() {
         match item {
+            // For a number we just need the value
             &Number(num) => { items.push(num) },
+            // For a range we need all the values inside it
             &Range(ref a, ref b) => {
+                // Grab the start of the range
                 let a = match **a {
                     Number(num) => { num },
                     Wildcard => { max_id }
@@ -92,6 +99,7 @@ pub fn iterator(sequence_set: &Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
                         continue;
                     }
                 };
+                // Grab the end of the range
                 let b = match **b {
                     Number(num) => { num },
                     Wildcard => { max_id }
@@ -100,6 +108,7 @@ pub fn iterator(sequence_set: &Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
                         continue;
                     }
                 };
+                // Figure out which way the range points
                 let mut min = 0;
                 let mut max = 0;
                 if a <= b {
@@ -109,8 +118,12 @@ pub fn iterator(sequence_set: &Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
                     min = b;
                     max = a;
                 }
+
+                // Bounds checks
                 if min > stop { min = stop; }
                 if max > stop { max = stop; }
+
+                // Generate the list of values between the min and max
                 let seq_range: Vec<uint> = range(min, max + 1).collect();
                 items.push_all(seq_range.as_slice());
             },
@@ -184,34 +197,34 @@ pub fn uid_iterator(sequence_set: &Vec<SequenceItem>) -> Vec<uint> {
 
 #[test]
 fn test_sequence_num() {
-    assert_eq!(iterator(vec![Number(4324)], 5000), vec![4324]);
-    assert_eq!(iterator(vec![Number(23), Number(44)], 5000), vec![23, 44]);
-    assert_eq!(iterator(vec![Number(6), Number(6), Number(2)], 5000), vec![2, 6]);
+    assert_eq!(iterator(&vec![Number(4324)], 5000), vec![4324]);
+    assert_eq!(iterator(&vec![Number(23), Number(44)], 5000), vec![23, 44]);
+    assert_eq!(iterator(&vec![Number(6), Number(6), Number(2)], 5000), vec![2, 6]);
 }
 
 #[test]
 fn test_sequence_past_end() {
-    assert_eq!(iterator(vec![Number(4324)], 100), Vec::new());
-    assert_eq!(iterator(vec![Number(23), Number(44)], 30), vec![23]);
-    assert_eq!(iterator(vec![Number(6), Number(6), Number(2)], 4), vec![2]);
+    assert_eq!(iterator(&vec![Number(4324)], 100), Vec::new());
+    assert_eq!(iterator(&vec![Number(23), Number(44)], 30), vec![23]);
+    assert_eq!(iterator(&vec![Number(6), Number(6), Number(2)], 4), vec![2]);
 }
 
 #[test]
 fn test_sequence_range() {
-    assert_eq!(iterator(vec![Range(box Number(6), box Wildcard)], 10), vec![6, 7, 8, 9, 10]);
-    assert_eq!(iterator(vec![Range(box Number(1), box Number(10))], 4), vec![1, 2, 3, 4]);
-    assert_eq!(iterator(vec![Range(box Wildcard, box Number(8)), Number(9), Number(2), Number(2)], 12), vec![2, 8, 9, 10, 11, 12]);
+    assert_eq!(iterator(&vec![Range(box Number(6), box Wildcard)], 10), vec![6, 7, 8, 9, 10]);
+    assert_eq!(iterator(&vec![Range(box Number(1), box Number(10))], 4), vec![1, 2, 3, 4]);
+    assert_eq!(iterator(&vec![Range(box Wildcard, box Number(8)), Number(9), Number(2), Number(2)], 12), vec![2, 8, 9, 10, 11, 12]);
 }
 
 #[test]
 fn test_sequence_wildcard() {
-    assert_eq!(iterator(vec![Range(box Number(10), box Wildcard), Wildcard], 6), vec![1, 2, 3, 4, 5, 6]);
-    assert_eq!(iterator(vec![Wildcard, Number(8)], 3), vec![1, 2, 3]);
+    assert_eq!(iterator(&vec![Range(box Number(10), box Wildcard), Wildcard], 6), vec![1, 2, 3, 4, 5, 6]);
+    assert_eq!(iterator(&vec![Wildcard, Number(8)], 3), vec![1, 2, 3]);
 }
 
 #[test]
 fn test_sequence_complex() {
     assert_eq!(iterator(
-            vec![Number(1), Number(3), Range(box Number(5), box Number(7)), Number(9), Number(12), Range(box Number(15), box Wildcard)], 13),
+            &vec![Number(1), Number(3), Range(box Number(5), box Number(7)), Number(9), Number(12), Range(box Number(15), box Wildcard)], 13),
             vec![1, 3, 5, 6, 7, 9, 12, 13]);
 }

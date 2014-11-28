@@ -3,11 +3,16 @@ use std::io::File;
 use serialize::Encodable;
 use toml::{decode_str, encode_str};
 
+/// Representation of configuration data for the server
 #[deriving(Decodable, Encodable, Show)]
 pub struct Config {
+    // Host on which to listen
     pub host: String,
+    // Port on which to listen for LMTP
     pub lmtp_port: u16,
+    // Port on which to listen for IMAP
     pub imap_port: u16,
+    // User to run as... ideally
     uid: String
 }
 
@@ -19,13 +24,15 @@ impl Config {
                 match decode_str(String::from_utf8_lossy(v.as_slice()).as_slice()) {
                     Some(v) => v,
                     None => {
-                        println!("Failed to parse config.toml.\nUsing default values.");
+                        // Use default values if parsing failed.
+                        warn!("Failed to parse config.toml.\nUsing default values.");
                         default_config()
                     }
                 }
             },
             Err(_) => {
-                println!("Failed to read config.toml; creating from defaults.");
+                // Create a default config file if it doesn't exist
+                warn!("Failed to read config.toml; creating from defaults.");
                 let config = default_config();
                 let encoded = encode_str(&config);
                 let mut file = File::create(&path);
@@ -36,11 +43,12 @@ impl Config {
     }
 }
 
+/// Default config values
 fn default_config() -> Config {
     Config {
-        host: "localhost".to_string(),
+        host: "127.0.0.1".to_string(),
         lmtp_port: 3000,
-        imap_port: 143,
+        imap_port: 10000,
         uid: "imapusr".to_string()
     }
 }

@@ -421,7 +421,7 @@ impl Session {
     // should generate list of sequence numbers that were deleted
     fn expunge(&self) -> Result<Vec<uint>, Error> {
         match self.folder {
-            None => { Err(Error::simple(ImapStateError, "Not in selected state")) }
+            None => { Err(Error::new(ImapStateError, "Not in selected state")) }
             Some(ref folder) => {
                 Ok(folder.expunge())
             }
@@ -435,7 +435,7 @@ impl Session {
             Some(ref maildir) => {
                 let maildir_path = Path::new(maildir.as_slice()).join(mbox_name);
                 // TODO: recursively grab parent...
-                self.folder = Folder::new(mailbox_name.to_string(), maildir_path, examine)
+                self.folder = Folder::new(maildir_path, examine)
                     // TODO: Insert new folder into folder service
                     // folder_service.insert(mailbox_name.to_string(), box *folder);
             }

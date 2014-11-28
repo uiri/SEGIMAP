@@ -43,12 +43,14 @@ use error::{
 
 static RECEIVED: &'static str = "RECEIVED";
 
+/// Representation of a STORE operation
 pub enum StoreName {
-    Replace,
-    Add,
-    Sub
+    Replace, // replace current flags with new flags
+    Add, // add new flags to current flags
+    Sub // remove new flags from current flags
 }
 
+/// Representation of a message flag
 #[deriving(Eq, PartialEq, Hash, Show, Clone)]
 pub enum Flag {
     Answered,
@@ -58,19 +60,38 @@ pub enum Flag {
     Deleted
 }
 
+/// Representation of a Message
 #[deriving(Show, Clone)]
 pub struct Message {
+    // a unique id (timestamp) for the message
     pub uid: u32,
+
+    // filename
     pub path: String,
+
+    // maps header field names to values
     headers: HashMap<String, String>,
+
+    // contains the MIME Parts (if more than one) of the message
     body: Vec<MIMEPart>,
+
+    // contains the message's flags
     flags: HashSet<Flag>,
+
+    // marks the message for deletion
     pub deleted: bool,
+
+    // size stored in case FETCH asks for it
     size: uint,
+
+    // the raw contents of the file representing the message
     raw_contents: String,
+
+    // where in raw_contents the header ends and the body begins
     header_boundary: uint
 }
 
+/// Representation of a MIME message part
 #[deriving(Show, Clone)]
 pub struct MIMEPart {
     mime_header: String,
@@ -85,13 +106,18 @@ impl Message {
                 Ok(contents) => {
                     String::from_utf8_lossy(contents.as_slice()).to_string()
                 }
-                Err(e) => return Err(Error::simple(InternalIoError(e), "Failed to read mail file."))
+                Err(e) => return Err(Error::new(InternalIoError(e),
+                                                "Failed to read mail file."))
             },
-            Err(e) => return Err(Error::simple(InternalIoError(e), "Failed to open mail file."))
+            Err(e) => return Err(Error::new(InternalIoError(e),
+                                            "Failed to open mail file."))
         };
+
+        // This slice will avoid copying later
         let raw_slice = raw_contents.as_slice();
         let size = raw_slice.len();
 
+        // Grab the string in the filename representing the flags
         let mut path = arg_path.filename_str().unwrap().splitn(1, ':');
         let filename = path.next().unwrap();
         let path_flags = path.next();
@@ -99,12 +125,18 @@ impl Message {
         // Retrieve the UID from the provided filename.
         let uid = match from_str::<u32>(filename) {
             Some(uid) => uid,
-            None => return Err(Error::simple(MessageDecodeError, "Failed to retrieve UID from filename."))
+            None => return Err(Error::new(MessageDecodeError,
+                                          "Failed to retrieve UID from filename."))
         };
+
         // Parse the flags from the filename.
         let flags = match path_flags {
+            // if there are no flags, create an empty set
             None => HashSet::new(),
             Some(flags) => {
+                // The uid is separated from the flag part of the filename by a
+                // colon. The flag part consists of a 2 followed by a comma and
+                // then some letters. Those letters represent the message flags
                 let unparsed_flags = flags.splitn(1, ',').skip(1).next().unwrap();
                 let mut set_flags: HashSet<Flag> = HashSet::new();
                 for flag in unparsed_flags.chars() {
@@ -124,13 +156,16 @@ impl Message {
             }
         };
 
+        // Find boundary between header and body.
+        // Use it to create &str of the raw header and raw body
         let header_boundary = raw_slice.find_str("\n\n").unwrap() + 1;
-        let raw_header = raw_slice.slice_to(header_boundary); // The newline is included as part of the header.
+        let raw_header = raw_slice.slice_to(header_boundary);
         let raw_body = raw_slice.slice_from(header_boundary + 1);
 
         // Iterate over the lines of the header in reverse.
-        // If a line with leading whitespace is detected, it is merged to the line before it.
-        // This "unwraps" the header as indicated in RFC 2822 2.2.3
+        // If a line with leading whitespace is detected, it is merged to the
+        // line before it.
+        // This "unfolds" the header as indicated in RFC 2822 2.2.3
         let mut iterator = raw_header.lines().rev();
         let mut headers = HashMap::new();
         loop {
@@ -141,19 +176,25 @@ impl Message {
             if line.starts_with(" ") || line.starts_with("\t") {
                 loop {
                     let next = iterator.next().unwrap();
-                    let mut trimmed_next = next.trim_left_chars(' ').trim_left_chars('\t').to_string();
+                    let mut trimmed_next = next.trim_left_chars(' ')
+                                            .trim_left_chars('\t').to_string();
+
                     // Add a space between the merged lines.
                     trimmed_next.push(' ');
-                    trimmed_next.push_str(line.trim_left_chars(' ').trim_left_chars('\t'));
+                    trimmed_next.push_str(line.trim_left_chars(' ')
+                                           .trim_left_chars('\t'));
                     if !next.starts_with(" ") && !next.starts_with("\t") {
-                        let split: Vec<&str> = trimmed_next.as_slice().splitn(1, ':').collect();
-                        headers.insert(split[0].to_string().into_ascii_upper(), split[1].slice_from(1).to_string());
+                        let split: Vec<&str> = trimmed_next.as_slice()
+                                                .splitn(1, ':').collect();
+                        headers.insert(split[0].to_string().into_ascii_upper(),
+                                       split[1].slice_from(1).to_string());
                         break;
                     }
                 }
             } else {
                 let split: Vec<&str> = line.splitn(1, ':').collect();
-                headers.insert(split[0].to_string().into_ascii_upper(), split[1].slice_from(1).to_string());
+                headers.insert(split[0].to_string().into_ascii_upper(),
+                               split[1].slice_from(1).to_string());
             }
         }
 
@@ -169,16 +210,26 @@ impl Message {
             Some(ref content_type) => {
                 if content_type.as_slice().contains("MULTIPART") {
                     let mime_boundary = {
-                        let value: Vec<&str> = content_type.as_slice().split_str("BOUNDARY=\"").collect();
-                        if value.len() < 2 { return Err(Error::simple(MessageDecodeError, "Failed to determine MULTIPART boundary.")) }
+                        let value: Vec<&str> = content_type.as_slice()
+                                                .split_str("BOUNDARY=\"").collect();
+                        if value.len() < 2 {
+                            return Err(Error::new(
+                                MessageDecodeError,
+                                "Failed to determine MULTIPART boundary."))
+                        }
                         let value: Vec<&str> = value[1].splitn(1, '"').collect();
-                        if value.len() < 1 { return Err(Error::simple(MessageDecodeError, "Failed to determine MULTIPART boundary.")) }
+                        if value.len() < 1 {
+                            return Err(Error::new(
+                                MessageDecodeError,
+                                "Failed to determine MULTIPART boundary."))
+                        }
                         format!("--{}--\n", value[0])
                     };
 
                     let first_content_type_index = match raw_body.find_str("Content-Type") {
                         Some(val) => val,
-                        None => return Err(Error::simple(MessageDecodeError, "Missing Content-Type for body part"))
+                        None => return Err(Error::new(
+                            MessageDecodeError, "Missing Content-Type for body part"))
                     };
                     let mime_boundary_slice = mime_boundary.as_slice();
                     let raw_body = raw_body.slice_from(first_content_type_index);

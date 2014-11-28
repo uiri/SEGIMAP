@@ -1,25 +1,27 @@
 use command::sequence_set::SequenceItem;
 
+/// Only the Fetch command is complicated enough to require dedicated command
+/// parsing
 #[deriving(PartialEq, Show)]
 pub enum CommandType {
     Fetch
 }
 
-// TODO: Sort these in alphabetical order.
+/// The different Attributes which a Fetch command may request.
 #[deriving(PartialEq, Show)]
 pub enum Attribute {
+    Body,
+    BodyPeek(BodySectionType, Option<(uint, uint)>),
+    BodySection(BodySectionType, Option<(uint, uint)>),
+    BodyStructure,
     Envelope,
     Flags,
     InternalDate,
     RFC822(RFC822Attribute),
-    Body,
-    BodySection(BodySectionType, Option<(uint, uint)>),
-    BodyPeek(BodySectionType, Option<(uint, uint)>),
-    BodyStructure,
     UID
 }
 
-// TODO: Remove the suffix from this enum when enum namespacing is available.
+/// Attributes defined as part of any electronic mail message
 #[deriving(PartialEq, Show)]
 pub enum RFC822Attribute {
     AllRFC822,
@@ -45,6 +47,10 @@ pub enum Msgtext {
     MimeMsgtext
 }
 
+/// This represents a Fetch command;
+/// It has a list of message ids (either UIDs or indexes into the folder's list
+/// of messages)
+/// It has a list of message attributes which are being requested.
 #[deriving(PartialEq, Show)]
 pub struct Command {
     command_type: CommandType,

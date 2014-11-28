@@ -35,11 +35,11 @@ pub fn load_users(path_str: String) -> ImapResult<HashMap<Email, User>> {
     let path = Path::new(path_str);
     let file = match File::open(&path).read_to_end() {
         Ok(v) => v,
-        Err(err) => return Err(Error::simple(InternalIoError(err), "Failed to read users.json."))
+        Err(err) => return Err(Error::new(InternalIoError(err), "Failed to read users.json."))
     };
     let users: Vec<User> = match json::decode(String::from_utf8_lossy(file.as_slice()).as_slice()) {
         Ok(v) => v,
-        Err(err) => return Err(Error::simple(SerializationError(err), "Failed to decode users.json."))
+        Err(err) => return Err(Error::new(SerializationError(err), "Failed to decode users.json."))
     };
 
     let mut map = HashMap::<Email, User>::new();

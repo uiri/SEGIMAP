@@ -1,6 +1,5 @@
 use std::collections::{HashMap,HashSet};
 use std::io::fs;
-use std::fmt::{Show, Formatter, FormatError};
 
 use command::command::Attribute;
 
@@ -8,18 +7,23 @@ use message::Message;
 use message::StoreName;
 use message::Flag;
 
-//#[deriving(Clone)]
+/// Representation of a Folder
 pub struct Folder {
-    pub name: String,
+    // How many messages are in folder/new/
     pub recent: uint,
+    // How many messages are in the folder total
     pub exists: uint,
+    // How many messages are not marked with the Seen flag
     pub unseen: uint,
     path: Path,
     messages: Vec<Message>,
+    // Whether the folder has been opened as read-only or not
     readonly: bool,
+    // A mapping of message uids to indices in folder.messages
     uid_to_seqnum: HashMap<uint, uint>
 }
 
+// Macro to open up a directory and do stuff with it after
 macro_rules! make_vec_path(
     ($path:ident, $inp:ident, $str:expr, $next:expr) => ({
         match fs::readdir(&($path.join($str))) {
@@ -32,16 +36,35 @@ macro_rules! make_vec_path(
     });
 )
 
+// Macro to handle each message in the folder
+macro_rules! handle_message(
+    ($msg_path:ident, $uid_map:ident, $messages:ident, $i:ident, $unseen:ident) => ({
+        let message = match Message::new($msg_path) {
+            Ok(message) => message,
+            _ => continue
+        };
+        if $unseen == -1 && message.is_unseen() {
+            $unseen = $i;
+        }
+        $uid_map.insert(message.uid.to_uint().unwrap(), $i);
+        $i += 1;
+        $messages.push(message);
+    });
+)
+
 impl Folder {
-    pub fn new(name: String, path: Path, examine: bool) -> Option<Folder> {
+    pub fn new(path: Path, examine: bool) -> Option<Folder> {
+        // the EXAMINE command is always read-only
         let readonly = if examine {
             true
         } else {
+            // Test SELECT for read-only status
+            // We use a lock file to determine write access on a folder
             match fs::File::open(&path.join(".lock")) {
                 Err(_) => {
                     match fs::File::create(&path.join(".lock")) {
                         Ok(mut file) => {
-                            // Get rustc to STFU with this match
+                            // Get the compiler to STFU with this match
                             match file.write(b"selected") { _ => {} }
                             drop(file);
                             false
@@ -53,52 +76,36 @@ impl Folder {
             }
         };
         make_vec_path!(path, cur, "cur",
-            make_vec_path!(path, new, "new",
-                           {
-                               let mut messages = Vec::new();
-                               let mut uid_to_seqnum: HashMap<uint, uint> = HashMap::new();
-                               let mut i = 0u;
-                               // populate messages
-                               let mut unseen = -1;
-                               for msg_path in cur.iter() {
-                                   match Message::new(msg_path) {
-                                       Ok(message) => {
-                                           if unseen == -1 &&
-                                              message.is_unseen() {
-                                                  unseen = i+1;
-                                           }
-                                           uid_to_seqnum.insert(message.uid.to_uint().unwrap(), i);
-                                           i += 1;
-                                           messages.push(message);
-                                       }
-                                       _ => {}
-                                   }
-                               }
-                               let old = i+1;
-                               for msg_path in new.iter() {
-                                   match Message::new(msg_path) {
-                                       Ok(message) => {
-                                           uid_to_seqnum.insert(message.uid.to_uint().unwrap(), i);
-                                           i += 1;
-                                           messages.push(message);
-                                       }
-                                       _ => {}
-                                   }
-                               }
-                               messages = move_new(messages, path.clone(), unseen-1);
-                               let exists = i;
-                               return Some(Folder {
-                                   name: name,
-                                   path: path,
-                                   recent: exists-old+1,
-                                   unseen: unseen,
-                                   exists: exists,
-                                   messages: messages,
-                                   readonly: readonly,
-                                   uid_to_seqnum: uid_to_seqnum,
-                               })}
-                           )
-                       );
+            make_vec_path!(path, new, "new", {
+                let mut messages = Vec::new();
+                let mut uid_to_seqnum: HashMap<uint, uint> = HashMap::new();
+                let mut i = 0u;
+                let mut unseen = -1;
+
+                // populate messages
+                for msg_path in cur.iter() {
+                    handle_message!(msg_path, uid_to_seqnum, messages, i, unseen);
+                }
+
+                let old = i;
+
+                for msg_path in new.iter() {
+                    handle_message!(msg_path, uid_to_seqnum, messages, i, unseen);
+                }
+
+                // Move the messages from folder/new to folder/cur
+                messages = move_new(messages, path.clone(), unseen-1);
+                return Some(Folder {
+                    path: path,
+                    recent: i-old,
+                    unseen: unseen,
+                    exists: i,
+                    messages: messages,
+                    readonly: readonly,
+                    uid_to_seqnum: uid_to_seqnum,
+                })
+            })
+        );
     }
 
     pub fn unseen(&self) -> String {
@@ -121,13 +128,16 @@ impl Folder {
             let mut index = 0u;
             while index < self.messages.len() {
                 if self.messages[index].deleted {
-                    match fs::unlink(&Path::new(self.messages[index].path.clone())) { _ => {} }
+                    // Get the compiler to STFU with empty match block
+                    match fs::unlink(&Path::new(self.messages[index].path.clone())) {
+                        _ => {}
+                    }
                     result.push(index + 1);
                 } else {
                     index = index + 1;
                 }
             }
-            // Get rustc to STFU with this match block
+            // Get the compiler to STFU with empty match block
             match fs::unlink(&self.path.join(".lock")) { _ => {} }
         }
         return result;
@@ -150,7 +160,8 @@ impl Folder {
         return self.uid_to_seqnum.find(uid);
     }
 
-    pub fn store(&mut self, sequence_set: Vec<uint>, flag_name: StoreName, silent: bool, flags: HashSet<Flag>, seq_uid: bool) -> String {
+    pub fn store(&mut self, sequence_set: Vec<uint>, flag_name: StoreName,
+                 silent: bool, flags: HashSet<Flag>, seq_uid: bool) -> String {
         let mut responses = String::new();
         for num in sequence_set.iter() {
             let (uid, i) = if seq_uid {
@@ -216,13 +227,8 @@ impl Folder {
     }
 }
 
-impl Show for Folder {
-    fn fmt(&self, f: &mut Formatter) -> Result<(), FormatError> {
-        self.name.fmt(f)
-    }
-}
-
-fn move_new(messages: Vec<Message>, path: Path, start_index: uint) -> Vec<Message> {
+fn move_new(messages: Vec<Message>, path: Path,
+            start_index: uint) -> Vec<Message> {
     let mut new_messages = Vec::new();
     for i in range(0u, messages.len()) {
         if i < start_index {
