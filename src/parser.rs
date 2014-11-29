@@ -1,7 +1,11 @@
 pub use self::grammar::{fetch, sequence_set};
 
+// grammar.rustpeg contains the parsing expression grammar needed in order to
+// parse FETCH commands.
 peg_file! grammar("grammar.rustpeg")
 
+
+// Tests for the parsed FETCH commands follow
 #[cfg(test)]
 mod tests {
     use super::{fetch, sequence_set};
@@ -99,7 +103,8 @@ mod tests {
         let seq = sequence_set("1231,1342,12,98:104,16");
         assert!(seq.is_ok());
         let seq = seq.unwrap();
-        let expected = vec![Number(1231), Number(1342), Number(12), Range(box Number(98), box Number(104)), Number(16)];
+        let expected = vec![Number(1231), Number(1342), Number(12),
+                            Range(box Number(98), box Number(104)), Number(16)];
         assert_eq!(seq, expected);
     }
 
@@ -232,11 +237,13 @@ mod tests {
         assert_eq!(fetch("FETCH *:4 BODY[3.HEADER]").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
-                vec![BodySection(PartSection(vec![3], Some(HeaderMsgtext)), None)]));
+                vec![BodySection(PartSection(vec![3], Some(HeaderMsgtext)),
+                                 None)]));
         assert_eq!(fetch("FETCH *:4 BODY[3.TEXT]").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
-                vec![BodySection(PartSection(vec![3], Some(TextMsgtext)), None)]));
+                vec![BodySection(PartSection(vec![3], Some(TextMsgtext)),
+                                 None)]));
         assert_eq!(fetch("FETCH *:4 BODY[3.1]").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
@@ -248,15 +255,24 @@ mod tests {
         assert_eq!(fetch("FETCH *:4 BODY[4.1.MIME]").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
-                vec![BodySection(PartSection(vec![4, 1], Some(MimeMsgtext)), None)]));
+                vec![BodySection(PartSection(vec![4, 1], Some(MimeMsgtext)),
+                                 None)]));
         assert_eq!(fetch("FETCH *:4 BODY[4.2.HEADER]").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
-                vec![BodySection(PartSection(vec![4, 2], Some(HeaderMsgtext)), None)]));
-        assert_eq!(fetch("FETCH *:4 BODY[4.2.2.2.HEADER.FIELDS (DATE FROM)]").unwrap(), Command::new(
-                Fetch,
-                vec![Range(box Wildcard, box Number(4))],
-                vec![BodySection(PartSection(vec![4, 2, 2, 2], Some(HeaderFieldsMsgtext(vec!["DATE".to_string(), "FROM".to_string()]))), None)]));
+                vec![BodySection(PartSection(vec![4, 2], Some(HeaderMsgtext)),
+                                 None)]));
+        assert_eq!(fetch("FETCH *:4 BODY[4.2.2.2.HEADER.FIELDS (DATE FROM)]")
+                    .unwrap(), Command::new(
+                        Fetch,
+                        vec![Range(box Wildcard, box Number(4))],
+                        vec![BodySection
+                             (PartSection
+                              (vec![4, 2, 2, 2], Some
+                               (HeaderFieldsMsgtext
+                                (vec!["DATE".to_string(), "FROM".to_string()]))
+                               ),
+                              None)]));
     }
 
     #[test]
@@ -273,10 +289,11 @@ mod tests {
                 Fetch,
                 vec![Number(1), Number(2)],
                 vec![BodyPeek(AllSection, Some((0, 1)))]));
-        assert_eq!(fetch("FETCH *:4 BODY.PEEK[]<400.10000>").unwrap(), Command::new(
-                Fetch,
-                vec![Range(box Wildcard, box Number(4))],
-                vec![BodyPeek(AllSection, Some((400, 10000)))]));
+        assert_eq!(fetch("FETCH *:4 BODY.PEEK[]<400.10000>").unwrap(),
+                   Command::new(
+                       Fetch,
+                       vec![Range(box Wildcard, box Number(4))],
+                       vec![BodyPeek(AllSection, Some((400, 10000)))]));
     }
 
     #[test]
@@ -301,10 +318,12 @@ mod tests {
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
                 vec![BodyPeek(PartSection(vec![3], None), None)]));
-        assert_eq!(fetch("FETCH *:4 BODY.PEEK[3.HEADER]").unwrap(), Command::new(
-                Fetch,
-                vec![Range(box Wildcard, box Number(4))],
-                vec![BodyPeek(PartSection(vec![3], Some(HeaderMsgtext)), None)]));
+        assert_eq!(fetch("FETCH *:4 BODY.PEEK[3.HEADER]").unwrap(),
+                   Command::new(
+                       Fetch,
+                       vec![Range(box Wildcard, box Number(4))],
+                       vec![BodyPeek(PartSection(vec![3], Some(HeaderMsgtext)),
+                                     None)]));
         assert_eq!(fetch("FETCH *:4 BODY.PEEK[3.TEXT]").unwrap(), Command::new(
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
@@ -317,54 +336,97 @@ mod tests {
                 Fetch,
                 vec![Range(box Wildcard, box Number(4))],
                 vec![BodyPeek(PartSection(vec![3, 2], None), None)]));
-        assert_eq!(fetch("FETCH *:4 BODY.PEEK[4.1.MIME]").unwrap(), Command::new(
-                Fetch,
-                vec![Range(box Wildcard, box Number(4))],
-                vec![BodyPeek(PartSection(vec![4, 1], Some(MimeMsgtext)), None)]));
-        assert_eq!(fetch("FETCH *:4 BODY.PEEK[4.2.HEADER]").unwrap(), Command::new(
-                Fetch,
-                vec![Range(box Wildcard, box Number(4))],
-                vec![BodyPeek(PartSection(vec![4, 2], Some(HeaderMsgtext)), None)]));
-        assert_eq!(fetch("FETCH *:4 BODY.PEEK[4.2.2.2.HEADER.FIELDS (DATE FROM)]").unwrap(), Command::new(
-                Fetch,
-                vec![Range(box Wildcard, box Number(4))],
-                vec![BodyPeek(PartSection(vec![4, 2, 2, 2], Some(HeaderFieldsMsgtext(vec!["DATE".to_string(), "FROM".to_string()]))), None)]));
+        assert_eq!(fetch("FETCH *:4 BODY.PEEK[4.1.MIME]").unwrap(),
+                   Command::new(
+                       Fetch,
+                       vec![Range(box Wildcard, box Number(4))],
+                       vec![BodyPeek(PartSection(vec![4, 1], Some(MimeMsgtext)),
+                                     None)]));
+        assert_eq!(fetch("FETCH *:4 BODY.PEEK[4.2.HEADER]").unwrap(),
+                   Command::new(
+                       Fetch,
+                       vec![Range(box Wildcard, box Number(4))],
+                       vec![BodyPeek(PartSection(vec![4, 2], Some
+                                                 (HeaderMsgtext)), None)]));
+        assert_eq!(fetch
+                   ("FETCH *:4 BODY.PEEK[4.2.2.2.HEADER.FIELDS (DATE FROM)]")
+                    .unwrap(),
+                   Command::new(
+                       Fetch,
+                       vec![Range(box Wildcard, box Number(4))],
+                       vec![BodyPeek(PartSection(vec![4, 2, 2, 2], Some
+                                                 (HeaderFieldsMsgtext
+                                                  (vec!["DATE".to_string(),
+                                                        "FROM".to_string()]))),
+                                     None)]));
     }
 
     #[test]
     fn test_fetch_case_sensitivity() {
-        assert_eq!(fetch("fetch * (flags body[4.2.2.2.header.fields.not (date from)]<400.10000>)").unwrap(), Command::new(
-                Fetch,
-                vec![Wildcard],
-                vec![Flags, BodySection(
-                    PartSection(vec![4, 2, 2, 2], Some(HeaderFieldsNotMsgtext(vec!["DATE".to_string(), "FROM".to_string()]))),
-                    Some((400, 10000))
-                )]));
+        assert_eq!(fetch("fetch * (flags body[4.2.2.2.header.fields.not (date from)]<400.10000>)").unwrap(),
+                   Command::new(
+                       Fetch,
+                       vec![Wildcard],
+                       vec![Flags, BodySection(PartSection
+                                               (vec![4, 2, 2, 2], Some
+                                                (HeaderFieldsNotMsgtext
+                                                 (vec!["DATE".to_string(),
+                                                       "FROM".to_string()]))),
+                                               Some((400, 10000)))]));
         assert_eq!(
-            fetch("FETCH * (FLAGS BODY[4.2.2.2.HEADER.FIELDS.NOT (DATE FROM)]<400.10000>)").unwrap(),
-            fetch("fetch * (flags body[4.2.2.2.header.fields.not (date from)]<400.10000>)").unwrap());
+            fetch("FETCH * (FLAGS BODY[4.2.2.2.HEADER.FIELDS.NOT (DATE FROM)]<400.10000>)")
+                .unwrap(),
+            fetch("fetch * (flags body[4.2.2.2.header.fields.not (date from)]<400.10000>)")
+                .unwrap());
     }
 
     #[test]
     fn test_fetch_complex() {
-        assert_eq!(fetch("FETCH *:4 BODY[4.2.2.2.HEADER.FIELDS (DATE FROM)]<400.10000>").unwrap(), Command::new(
-                Fetch,
-                vec![Range(box Wildcard, box Number(4))],
-                vec![BodySection(PartSection(vec![4, 2, 2, 2], Some(HeaderFieldsMsgtext(vec!["DATE".to_string(), "FROM".to_string()]))), Some((400, 10000)))]));
-        assert_eq!(fetch("FETCH *:4 BODY.PEEK[4.2.2.2.HEADER.FIELDS (DATE FROM)]<400.10000>").unwrap(), Command::new(
-                Fetch,
-                vec![Range(box Wildcard, box Number(4))],
-                vec![BodyPeek(PartSection(vec![4, 2, 2, 2], Some(HeaderFieldsMsgtext(vec!["DATE".to_string(), "FROM".to_string()]))), Some((400, 10000)))]));
-        assert_eq!(fetch("FETCH * (FLAGS BODY[HEADER.FIELDS (DATE FROM)])").unwrap(), Command::new(
-                Fetch,
-                vec![Wildcard],
-                vec![Flags, BodySection(MsgtextSection(HeaderFieldsMsgtext(vec!["DATE".to_string(), "FROM".to_string()])), None)]));
-        assert_eq!(fetch("FETCH * (FLAGS BODY[4.2.2.2.HEADER.FIELDS.NOT (DATE FROM)]<400.10000>)").unwrap(), Command::new(
-                Fetch,
-                vec![Wildcard],
-                vec![Flags, BodySection(
-                    PartSection(vec![4, 2, 2, 2], Some(HeaderFieldsNotMsgtext(vec!["DATE".to_string(), "FROM".to_string()]))),
-                    Some((400, 10000))
-                )]));
+        assert_eq!(fetch
+                   ("FETCH *:4 BODY[4.2.2.2.HEADER.FIELDS (DATE FROM)]<400.10000>")
+                   .unwrap(),
+                   Command::new(
+                       Fetch,
+                       vec![Range(box Wildcard, box Number(4))],
+                       vec![BodySection(PartSection
+                                        (vec![4, 2, 2, 2], Some
+                                         (HeaderFieldsMsgtext
+                                          (vec!["DATE".to_string(),
+                                                "FROM".to_string()]))),
+                                        Some((400, 10000)))]));
+        assert_eq!(fetch
+                   ("FETCH *:4 BODY.PEEK[4.2.2.2.HEADER.FIELDS (DATE FROM)]<400.10000>")
+                    .unwrap(),
+                   Command::new(
+                       Fetch,
+                       vec![Range(box Wildcard, box Number(4))],
+                       vec![BodyPeek(PartSection(vec![4, 2, 2, 2],
+                                                 Some(HeaderFieldsMsgtext
+                                                      (vec!["DATE".to_string(),
+                                                            "FROM".to_string()]
+                                                       ))),
+                                     Some((400, 10000)))]));
+        assert_eq!(fetch("FETCH * (FLAGS BODY[HEADER.FIELDS (DATE FROM)])")
+                    .unwrap(),
+                   Command::new(
+                       Fetch,
+                       vec![Wildcard],
+                       vec![Flags, BodySection(MsgtextSection
+                                               (HeaderFieldsMsgtext
+                                                (vec!["DATE".to_string(),
+                                                      "FROM".to_string()])),
+                                               None)]));
+        assert_eq!(fetch
+                   ("FETCH * (FLAGS BODY[4.2.2.2.HEADER.FIELDS.NOT (DATE FROM)]<400.10000>)")
+                    .unwrap(),
+                   Command::new(
+                       Fetch,
+                       vec![Wildcard],
+                       vec![Flags, BodySection
+                            (PartSection(vec![4, 2, 2, 2], Some
+                                         (HeaderFieldsNotMsgtext
+                                          (vec!["DATE".to_string(),
+                                                "FROM".to_string()]))),
+                             Some((400, 10000)))]));
     }
 }

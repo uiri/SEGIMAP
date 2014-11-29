@@ -39,26 +39,18 @@ mod server;
 mod session;
 mod user;
 
-/// The file in which user data is stored.
-// TODO: add the ability for the user to specify the user data file as an
-// argument.
-static USER_DATA_FILE: &'static str = "./users.json";
-
 fn main() {
     // Load configuration.
     let config = Config::new();
 
-    // let mut users = Vec::new();
-    // users.push(User::new(Email::new("will".to_string(), "xqz.ca".to_string()), "54321".to_string(), "./maildir".to_string()));
-    // users.push(User::new(Email::new("nikitapekin".to_string(), "gmail.com".to_string()), "12345".to_string(), "./maildir".to_string()));
+    // This function only needs to be run once, really.
+    // create_default_users(config.users.clone());
 
-    // user::save_users(USER_DATA_FILE.to_string(), users);
+    // Create the server. We wrap it so that it is atomically reference
+    // counted. This allows us to safely share it across threads
+    let serv = Arc::new(Server::new(config));
 
-    // Load the user data from the user data file.
-    // TODO: figure out what to do for error handling.
-    let users = user::load_users(USER_DATA_FILE.to_string()).unwrap();
-
-    let serv = Arc::new(Server::new(config, users));
+    // Spawn a separate thread for listening for LMTP connections
     match serv.lmtp_listener() {
         Err(e) => {
             error!("Error listening on LMTP port: {}", e);
@@ -67,10 +59,12 @@ fn main() {
             let lmtp_serv = serv.clone();
             spawn(proc() {
                 let mut acceptor = v.listen();
+                // We spawn a separate thread for each LMTP session
                 for stream in acceptor.incoming() {
                     match stream {
                         Err(e) => {
-                            error!("Error accepting incoming LMTP connection: {}", e);
+                            error!("Error accepting incoming LMTP connection: {}",
+                                   e);
                         }
                         Ok(stream) => {
                             let session_serv = lmtp_serv.clone();
@@ -84,21 +78,27 @@ fn main() {
             });
         }
     }
+
+    // The main thread handles listening for IMAP connections
     match serv.imap_listener() {
         Err(e) => {
             error!("Error listening on IMAP port: {}", e);
         }
         Ok(v) => {
             let mut acceptor = v.listen();
+            // For each IMAP session, we spawn a separate thread.
             for stream in acceptor.incoming() {
                 match stream {
                     Err(e) => {
-                        error!("Error accepting incoming IMAP connection: {}", e)
+                        error!("Error accepting incoming IMAP connection: {}",
+                               e)
                     }
                     Ok(stream) => {
                         let session_serv = serv.clone();
                         spawn(proc() {
-                            let mut session = Session::new(BufferedStream::new(stream), session_serv);
+                            let mut session = Session::new(
+                                               BufferedStream::new(stream),
+                                               session_serv);
                             session.handle();
                         });
                     }
@@ -109,3 +109,14 @@ fn main() {
     }
 }
 
+/// Function to create our default users.json for testing
+#[allow(dead_code)]
+fn create_default_users(filename: String) {
+    let mut users = Vec::new();
+    users.push(User::new(Email::new("will".to_string(), "xqz.ca".to_string()),
+                         "54321".to_string(), "./maildir".to_string()));
+    users.push(User::new(Email::new("nikitapekin".to_string(),
+                                    "gmail.com".to_string()),
+                         "12345".to_string(), "./maildir".to_string()));
+    user::save_users(filename, users);
+}

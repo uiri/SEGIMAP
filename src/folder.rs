@@ -4,8 +4,8 @@ use std::io::fs;
 use command::command::Attribute;
 
 use message::Message;
-use message::StoreName;
 use message::Flag;
+use session::StoreName;
 
 /// Representation of a Folder
 pub struct Folder {
@@ -60,7 +60,7 @@ macro_rules! rename_message(
                 // if the rename operation succeeded then clone the message,
                 // update its path and add the clone to our new list
                 let mut new_msg = $msg.clone();
-                new_msg.set_path($curpath.display().to_string());
+                new_msg.path = $curpath.display().to_string();
                 $new_messages.push(new_msg);
             }
             _ => {

@@ -30,7 +30,6 @@ pub enum RFC822Attribute {
     TextRFC822
 }
 
-// TODO: Remove the suffix from this enum when enum namespacing is available.
 #[deriving(PartialEq, Show)]
 pub enum BodySectionType {
     AllSection,

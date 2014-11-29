@@ -9,6 +9,7 @@ use error::{
     Error, ImapResult, InternalIoError, SerializationError
 };
 
+/// Representation of a User.
 #[deriving(Decodable, Encodable, Show)]
 pub struct User {
     /// The email address through which the user logs in.
@@ -31,15 +32,20 @@ impl User {
     }
 }
 
+/// Reads a JSON file and turns it into a HashMap of emails to users.
+/// May throw an IoError, hence the Result<> type.
 pub fn load_users(path_str: String) -> ImapResult<HashMap<Email, User>> {
     let path = Path::new(path_str);
     let file = match File::open(&path).read_to_end() {
         Ok(v) => v,
-        Err(err) => return Err(Error::new(InternalIoError(err), "Failed to read users.json."))
+        Err(err) => return Err(Error::new(InternalIoError(err),
+                                          "Failed to read users.json."))
     };
-    let users: Vec<User> = match json::decode(String::from_utf8_lossy(file.as_slice()).as_slice()) {
+    let users: Vec<User> = match json::decode(String::from_utf8_lossy
+                                              (file.as_slice()).as_slice()) {
         Ok(v) => v,
-        Err(err) => return Err(Error::new(SerializationError(err), "Failed to decode users.json."))
+        Err(err) => return Err(Error::new(SerializationError(err),
+                                          "Failed to decode users.json."))
     };
 
     let mut map = HashMap::<Email, User>::new();
@@ -49,6 +55,9 @@ pub fn load_users(path_str: String) -> ImapResult<HashMap<Email, User>> {
     Ok(map)
 }
 
+/// Writes a list of users to disk
+/// Not currently used because IMAP has no provisions for user account
+/// management.
 #[allow(dead_code)]
 pub fn save_users(path_str: String, users: Vec<User>) {
     let path = Path::new(path_str);

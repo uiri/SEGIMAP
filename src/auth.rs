@@ -54,7 +54,6 @@ impl AuthData {
 /// the OS, for use with bcrypt hashing.
 fn gen_salt() -> Vec<u8> {
     // Use the cryptographically secure OsRng for randomness.
-    // TODO: Replace with proper error handling.
     let mut rng = match OsRng::new() {
         Ok(v) => v,
         Err(e) => fail!("Failed to create secure Rng: {}", e)

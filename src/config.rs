@@ -12,8 +12,8 @@ pub struct Config {
     pub lmtp_port: u16,
     // Port on which to listen for IMAP
     pub imap_port: u16,
-    // User to run as... ideally
-    uid: String
+    // file in which user data is stored
+    pub users: String
 }
 
 impl Config {
@@ -49,6 +49,6 @@ fn default_config() -> Config {
         host: "127.0.0.1".to_string(),
         lmtp_port: 3000,
         imap_port: 10000,
-        uid: "imapusr".to_string()
+        users: "./users.json".to_string()
     }
 }

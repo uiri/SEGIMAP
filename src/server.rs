@@ -5,7 +5,7 @@ use std::io::IoResult;
 
 use config::Config;
 use email::Email;
-use user::User;
+use user::{load_users, User};
 
 /// Holds configuration state and email->user map
 pub struct Server {
@@ -15,7 +15,10 @@ pub struct Server {
 
 impl Server {
     /// Create server to hold the Config and User HashMap
-    pub fn new(conf: Config, users: HashMap<Email, User>) -> Server {
+    pub fn new(conf: Config) -> Server {
+        // Load the user data from the specified user data file.
+        let users = load_users(conf.users.clone()).unwrap();
+
         Server {
             conf: conf,
             users: users
