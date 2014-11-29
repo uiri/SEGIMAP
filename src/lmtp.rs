@@ -54,7 +54,8 @@ impl<'a> Lmtp<'a> {
     }
 
     pub fn handle(&'a mut self, mut stream: BufferedStream<TcpStream>) {
-        return_on_err!(stream.write(format!("220 {} LMTP server ready\r\n", *self.serv.host()).as_bytes()));
+        return_on_err!(stream.write(format!("220 {} LMTP server ready\r\n",
+                                            *self.serv.host()).as_bytes()));
         return_on_err!(stream.flush());
         loop {
             match stream.read_line() {
@@ -88,7 +89,8 @@ impl<'a> Lmtp<'a> {
                                 "noop" => ok_res,
                                 "quit" => {
                                     self.quit = true;
-                                    format!("221 {} Closing connection\r\n", *self.serv.host())
+                                    format!("221 {} Closing connection\r\n",
+                                            *self.serv.host())
                                 }
                                 "vrfy" => {
                                     invalid

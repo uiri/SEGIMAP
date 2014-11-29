@@ -1,5 +1,6 @@
 use email::Email;
 
+/// Representation of an email and password login attempt.
 pub struct LoginData {
     pub email: Email,
     pub password: String

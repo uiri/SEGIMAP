@@ -52,6 +52,26 @@ macro_rules! handle_message(
     });
 )
 
+// Perform a rename operation on a message
+macro_rules! rename_message(
+    ($msg:ident, $msg_path:expr, $curpath:expr, $new_messages:ident) => ({
+        match fs::rename($msg_path, $curpath) {
+            Ok(_) => {
+                // if the rename operation succeeded then clone the message,
+                // update its path and add the clone to our new list
+                let mut new_msg = $msg.clone();
+                new_msg.set_path($curpath.display().to_string());
+                $new_messages.push(new_msg);
+            }
+            _ => {
+                // if the rename failed, just add the old message to our
+                // new list
+                $new_messages.push($msg.clone());
+            }
+        }
+    })
+)
+
 impl Folder {
     pub fn new(path: Path, examine: bool) -> Option<Folder> {
         // the EXAMINE command is always read-only
@@ -95,7 +115,7 @@ impl Folder {
 
                 // Move the messages from folder/new to folder/cur
                 messages = move_new(messages, path.clone(), unseen-1);
-                return Some(Folder {
+                Some(Folder {
                     path: path,
                     recent: i-old,
                     unseen: unseen,
@@ -105,9 +125,10 @@ impl Folder {
                     uid_to_seqnum: uid_to_seqnum,
                 })
             })
-        );
+        )
     }
 
+    /// Generate the UNSEEN message for the SELECT/EXAMINE response if necessary
     pub fn unseen(&self) -> String {
         if self.unseen <= self.exists {
             let unseen_str = self.unseen.to_string();
@@ -122,16 +143,26 @@ impl Folder {
         }
     }
 
+    /// Delete on disk all the messages marked for deletion
+    /// Returns the list of sequence numbers which have been deleted on disk
+    /// Per RFC 3501, the later sequence numbers are calculated based on the
+    /// sequence numbers at the time of the deletion not at the start of the function
     pub fn expunge(&self) -> Vec<uint> {
         let mut result = Vec::new();
+        // We can't perform the deletion if the folder has been opened as
+        // read-only
         if !self.readonly {
+            // Vectors are 0-indexed
             let mut index = 0u;
+
+            // self.messages will get smaller as we go through it
             while index < self.messages.len() {
                 if self.messages[index].deleted {
                     // Get the compiler to STFU with empty match block
                     match fs::unlink(&Path::new(self.messages[index].path.clone())) {
                         _ => {}
                     }
+                    // Sequence numbers are 1-indexed
                     result.push(index + 1);
                 } else {
                     index = index + 1;
@@ -147,6 +178,8 @@ impl Folder {
         self.messages.len()
     }
 
+    /// Perform a fetch of the specified attributes on self.messsages[index]
+    /// Return the FETCH response string to be sent back to the client
     pub fn fetch(&self, index: uint, attributes: &Vec<Attribute>) -> String {
         let mut res = "* ".to_string();
         res.push_str((index+1).to_string().as_slice());
@@ -156,36 +189,50 @@ impl Folder {
         res
     }
 
+    /// Turn a UID into a sequence number
     pub fn get_index_from_uid(&self, uid: &uint) -> Option<&uint> {
         return self.uid_to_seqnum.find(uid);
     }
 
+    /// Perform a STORE on the specified set of sequence numbers
+    /// This modifies the flags of the specified messages
+    /// Returns the String response to be sent back to the client.
     pub fn store(&mut self, sequence_set: Vec<uint>, flag_name: StoreName,
                  silent: bool, flags: HashSet<Flag>, seq_uid: bool) -> String {
         let mut responses = String::new();
         for num in sequence_set.iter() {
             let (uid, i) = if seq_uid {
                 match self.get_index_from_uid(num) {
+                    // 0 is an invalid sequence number
+                    // Return it if the UID isn't found
                     None => (*num, 0u),
                     Some(ind) => (*num, *ind+1)
                 }
             } else {
                 (0u, *num)
             };
+
+            // if i == 0 then the UID wasn't in the sequence number map
             if i == 0 {
                 continue;
             }
+
+            // Create the FETCH response for this STORE operation.
             let ref mut message = self.messages.get_mut(i-1);
             responses.push_str("* ");
             responses.push_str(i.to_string().as_slice());
             responses.push_str(" FETCH (FLAGS ");
             responses.push_str(message.store(flag_name, flags.clone()).as_slice());
+
+            // UID STORE needs to respond with the UID for each FETCH response
             if seq_uid {
                 let uid_res = format!(" UID {}", uid);
                 responses.push_str(uid_res.as_slice());
             }
             responses.push_str(" )\r\n");
         }
+
+        // Return an empty string if the client wanted the STORE to be SILENT
         if silent {
             String::new()
         } else {
@@ -193,31 +240,40 @@ impl Folder {
         }
     }
 
+    /// Reconcile the internal state of the folder with the disk.
     pub fn check(&mut self) {
+        // If it is read-only we can't write any changes to disk
         if self.readonly {
             return;
         }
+
+        // We need to create a new list of messages because the compiler will
+        // yell at us for inspecting the internal state of the message and
+        // modifying that state at the same time
         let mut new_messages = Vec::new();
         for msg in self.messages.iter() {
+            // Grab the new filename composed of this message's UID and its current flags.
             let filename = msg.get_new_filename();
             let curpath = self.path.join("cur").join(filename);
+
+            // Grab the current filename
             let msg_path = Path::new(msg.path.clone());
+
+            // If the new filename is the same as the current filename, add the
+            // current message to our new list and move on to the next message
             if curpath == msg_path {
                 new_messages.push(msg.clone());
                 continue;
             }
-            match fs::rename(&msg_path, &curpath) {
-                Ok(_) => {
-                    let mut new_msg = msg.clone();
-                    new_msg.set_path(curpath.display().to_string());
-                    new_messages.push(new_msg);
-                }
-                _ => {}
-            }
+            rename_message!(msg, &msg_path, &curpath, new_messages);
         }
+
+        // Set the current list of messages to the new list of messages
+        // The compiler *should* make this discard the old list...
         self.messages = new_messages;
     }
 
+    /// Generate the read state portion of the SELECT response
     pub fn read_status(&self) -> &'static str {
         if self.readonly {
             "[READ-ONLY]"
@@ -227,10 +283,15 @@ impl Folder {
     }
 }
 
+/// This moves a list of messages from folder/new/ to folder/cur/ and returns a
+/// new list of messages
 fn move_new(messages: Vec<Message>, path: Path,
             start_index: uint) -> Vec<Message> {
     let mut new_messages = Vec::new();
+
+    // Go over the messages by index
     for i in range(0u, messages.len()) {
+        // messages before start_index are already in folder/cur/
         if i < start_index {
             new_messages.push(messages[i].clone());
             continue;
@@ -238,14 +299,9 @@ fn move_new(messages: Vec<Message>, path: Path,
         let ref msg = messages[i];
         let curpath = path.join("cur").join(msg.uid.to_string());
         let msg_path = Path::new(msg.path.clone());
-        match fs::rename(&msg_path, &curpath) {
-            Ok(_) => {
-                let mut new_msg = msg.clone();
-                new_msg.set_path(curpath.display().to_string());
-                new_messages.push(new_msg);
-            }
-            _ => {}
-        }
+        rename_message!(msg, &msg_path, &curpath, new_messages);
     }
+
+    // Return the new list of messages
     new_messages
 }
