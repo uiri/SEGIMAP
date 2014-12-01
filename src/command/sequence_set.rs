@@ -143,8 +143,6 @@ pub fn iterator(sequence_set: &Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
     return items;
 }
 
-// TODO: Find a way to handle sequences in O(1) as currently, the memory usage
-// of the vec returned by this function scales at O(n).
 pub fn uid_iterator(sequence_set: &Vec<SequenceItem>) -> Vec<uint> {
     let mut items = Vec::new();
     for item in sequence_set.iter() {
@@ -153,7 +151,7 @@ pub fn uid_iterator(sequence_set: &Vec<SequenceItem>) -> Vec<uint> {
             &Range(ref a, ref b) => {
                 let a = match **a {
                     Number(num) => { num },
-                    Wildcard => { return Vec::new() } // TODO: implement
+                    Wildcard => { return Vec::new() }
                     Range(_, _) => {
                         error!("A range of ranges is invalid.");
                         continue;
@@ -161,7 +159,7 @@ pub fn uid_iterator(sequence_set: &Vec<SequenceItem>) -> Vec<uint> {
                 };
                 let b = match **b {
                     Number(num) => { num },
-                    Wildcard => { return Vec::new() } // TODO: implement
+                    Wildcard => { return Vec::new() }
                     Range(_, _) => {
                         error!("A range of ranges is invalid.");
                         continue;
@@ -182,7 +180,7 @@ pub fn uid_iterator(sequence_set: &Vec<SequenceItem>) -> Vec<uint> {
                 items.push_all(seq_range.as_slice());
             },
             &Wildcard => {
-                return Vec::new() // TODO: implement
+                return Vec::new()
             }
         }
     }

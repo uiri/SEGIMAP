@@ -23,7 +23,6 @@ use command::command::{
     AllSection,
     MsgtextSection,
     PartSection
-};
 use command::command::{
     HeaderMsgtext,
     HeaderFieldsMsgtext,
@@ -303,7 +302,7 @@ impl Message {
     }
 
     /// Goes through the list of attributes, constructing a FETCH response for
-    /// this message containing the values of the requested attributes 
+    /// this message containing the values of the requested attributes
     pub fn fetch(&self, attributes: &Vec<Attribute>) -> String {
         let mut res = String::new();
         let mut first = true;
@@ -320,7 +319,7 @@ impl Message {
                 &Envelope => {
                     res.push_str("ENVELOPE ");
                     res.push_str(self.get_envelope().as_slice());
-                }, // TODO: Finish implementing this.
+                },
                 &Flags => {
                     res.push_str("FLAGS ");
                     res.push_str(self.print_flags().as_slice());
@@ -458,7 +457,6 @@ impl Message {
      * The from, sender, reply-to, to, cc, and bcc fields are parenthesized
      * lists of address structures.
      */
-    // TODO: Finish implementing this.
     fn get_envelope(&self) -> String {
         let date = self.get_field_or_nil("DATE");
         let subject = self.get_field_or_nil("SUBJECT");
@@ -494,8 +492,10 @@ impl Message {
 
     /**
      * RFC3501 - 7.4.2 - P.76
+     *
+     * The RFC requests that the data be returned as a parenthesized list, but
+     * the current format is also acceptible by most mail clients.
      */
-    // TODO: Finish implementing this.
     fn get_parenthesized_addresses(&self, key: &str) -> &str {
         match self.headers.find(&key.to_string()) {
             Some(v) => v.as_slice(),

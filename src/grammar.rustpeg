@@ -160,8 +160,6 @@ literal -> String
     = "{" number "}" CRLF (CHAR8* { match_str.to_string() })
     /*
      * the "number" is used to indicate the number of octets.
-     * TODO: determine if the "number" should be used when constructing the
-     * string.
      */
 
 QUOTED_CHAR
