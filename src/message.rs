@@ -39,7 +39,7 @@ use command::command::{
 use error::{
     Error, ImapResult, InternalIoError, MessageDecodeError
 };
-use session::{StoreName, Replace, Add, Sub};
+use util::{StoreName, Replace, Add, Sub};
 
 static RECEIVED: &'static str = "RECEIVED";
 

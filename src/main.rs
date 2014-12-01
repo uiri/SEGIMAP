@@ -38,6 +38,7 @@ mod parser;
 mod server;
 mod session;
 mod user;
+mod util;
 
 fn main() {
     // Load configuration.

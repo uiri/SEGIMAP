@@ -5,7 +5,7 @@ use command::command::Attribute;
 
 use message::Message;
 use message::Flag;
-use session::StoreName;
+use util::StoreName;
 
 /// Representation of a Folder
 pub struct Folder {
@@ -198,7 +198,8 @@ impl Folder {
     /// This modifies the flags of the specified messages
     /// Returns the String response to be sent back to the client.
     pub fn store(&mut self, sequence_set: Vec<uint>, flag_name: StoreName,
-                 silent: bool, flags: HashSet<Flag>, seq_uid: bool) -> String {
+                 silent: bool, flags: HashSet<Flag>, seq_uid: bool,
+                 tag: &str) -> String {
         let mut responses = String::new();
         for num in sequence_set.iter() {
             let (uid, i) = if seq_uid {
@@ -234,10 +235,11 @@ impl Folder {
 
         // Return an empty string if the client wanted the STORE to be SILENT
         if silent {
-            String::new()
-        } else {
-            responses
+            responses = String::new();
         }
+        responses.push_str(tag);
+        responses.push_str(" OK STORE complete\r\n");
+        responses
     }
 
     /// Reconcile the internal state of the folder with the disk.

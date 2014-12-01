@@ -1,8 +1,5 @@
-use std::collections::HashSet;
 use std::io::{Buffer, BufferedStream, FilePermission, fs, TcpStream};
-use std::io::fs::PathExtensions;
-use std::os::make_absolute;
-use std::str::{from_utf8, StrSlice, CharSplits};
+use std::str::{from_utf8, StrSlice};
 use std::ascii::OwnedAsciiExt;
 use std::sync::Arc;
 use regex::Regex;
@@ -10,7 +7,7 @@ use regex::Regex;
 pub use folder::Folder;
 pub use server::Server;
 
-use command::command::{Command, UID};
+use command::command::UID;
 use command::sequence_set;
 use command::sequence_set::{
     Number,
@@ -19,10 +16,7 @@ use command::sequence_set::{
 };
 use error::{Error,ImapStateError};
 use login::LoginData;
-use parser::fetch;
-
-use message::{Flag, Seen, Answered, Deleted, Draft, Flagged};
-use command::command::BodySection;
+use util;
 
 // Just bail if there is some error.
 // Used when performing operations on a TCP Stream generally
@@ -46,13 +40,6 @@ macro_rules! opendirlisting(
         }
     }
 )
-
-/// Representation of a STORE operation
-pub enum StoreName {
-    Replace, // replace current flags with new flags
-    Add, // add new flags to current flags
-    Sub // remove new flags from current flags
-}
 
 // Standard IMAP greeting
 static GREET: &'static [u8] = b"* OK Server ready.\r\n";
@@ -179,25 +166,30 @@ impl Session {
                             }
                             None => { return no_res; }
                         }
-                        match self.maildir {
+                        return match self.maildir {
                             Some(_) => {
                                 let mut res = tag.to_string();
                                 res.push_str(" OK logged in successfully as ");
                                 res.push_str(email);
                                 res.push_str("\r\n");
-                                return res;
+                                res
                             }
-                            None => { return no_res; }
-                        }
+                            None => no_res
+                        };
                     }
                     "logout" => {
+                        // Close the connection after sending the response
                         self.logout = true;
+
+                        // Write out current state of selected folder (if any)
+                        // to disk
                         match self.folder {
                             Some(ref folder) => {
                                 folder.expunge();
                             }
                             _ => {}
                         }
+
                         let mut res = "* BYE Server logging out\r\n"
                                        .to_string();
                         res.push_str(tag);
@@ -206,40 +198,63 @@ impl Session {
                     }
                     // Examine and Select should be nearly identical...
                     "select" => {
-                        return self.perform_select(args.collect(), false,
-                                                   bad_res, tag);
+                        let maildir = match self.maildir {
+                            None => { return bad_res; }
+                            Some(ref maildir) => maildir
+                        };
+                        let (folder, res) = util::perform_select(maildir.as_slice(),
+                                                                 args.collect(),
+                                                                false, tag);
+                        self.folder = folder;
+                        return match self.folder {
+                            None => bad_res,
+                            _ => res
+                        };
                     }
                     "examine" => {
-                        return self.perform_select(args.collect(), true,
-                                                   bad_res, tag);
+                        let maildir = match self.maildir {
+                            None => { return bad_res; }
+                            Some(ref maildir) => maildir
+                        };
+                        let (folder, res) = util::perform_select(maildir.as_slice(),
+                                                                 args.collect(),
+                                                                true, tag);
+                        self.folder = folder;
+                        return match self.folder {
+                            None => bad_res,
+                            _ => res
+                        };
                     }
                     "create" => {
                         let create_args: Vec<&str> = args.collect();
                         if create_args.len() < 1 { return bad_res; }
-                        let mailbox_name = create_args[0].trim_chars('"');
-                        let mbox_name = regex!("INBOX").replace(mailbox_name,
-                                                                "");
+                        let mbox_name = regex!("INBOX").replace
+                                         (create_args[0].trim_chars('"'), "");
                         match self.maildir {
                             None => return bad_res,
                             Some(ref maildir) => {
                                 let mut no_res = tag.to_string();
                                 no_res.push_str(" NO Could not create folder.\r\n");
-                                let maildir_path = Path::new(maildir
-                                                              .as_slice())
+                                let maildir_path = Path::new(maildir.as_slice())
                                                     .join(mbox_name);
-                                let newmaildir_path = maildir_path.join("new");
-                                let curmaildir_path = maildir_path.join("cur");
                                 let file_perms = FilePermission::from_bits_truncate(0o755);
+
+                                // Create directory for new mail
+                                let newmaildir_path = maildir_path.join("new");
                                 match fs::mkdir_recursive(&newmaildir_path,
                                                           file_perms) {
                                     Err(_) => return no_res,
                                     _ => {}
                                 }
+
+                                // Create directory for current mail
+                                let curmaildir_path = maildir_path.join("cur");
                                 match fs::mkdir_recursive(&curmaildir_path,
                                                           file_perms) {
                                     Err(_) => return no_res,
                                     _ => {}
                                 }
+
                                 let mut ok_res = tag.to_string();
                                 ok_res.push_str(" OK CREATE successful.\r\n");
                                 return ok_res;
@@ -249,9 +264,8 @@ impl Session {
                     "delete" => {
                         let delete_args: Vec<&str> = args.collect();
                         if delete_args.len() < 1 { return bad_res; }
-                        let mailbox_name = delete_args[0].trim_chars('"');
-                        let mbox_name = regex!("INBOX").replace(mailbox_name,
-                                                                "");
+                        let mbox_name = regex!("INBOX").replace
+                                         (delete_args[0].trim_chars('"'), "");
                         match self.maildir {
                             None => return bad_res,
                             Some(ref maildir) => {
@@ -267,6 +281,7 @@ impl Session {
                                     opendirlisting!(&curmaildir_path, curlist,
                                                     no_res,
                                     {
+                                        // Delete the mail in the folder
                                         for file in newlist.iter() {
                                             match fs::unlink(file) {
                                                 Err(_) => return no_res,
@@ -279,6 +294,8 @@ impl Session {
                                                 _ => {}
                                             }
                                         }
+
+                                        // Delete the folders holding the mail
                                         match fs::rmdir(&newmaildir_path) {
                                             Err(_) => return no_res,
                                             _ => {}
@@ -287,6 +304,11 @@ impl Session {
                                             Err(_) => return no_res,
                                             _ => {}
                                         }
+
+                                        // This folder might contain subfolders
+                                        // holding mail. For this reason, we
+                                        // leave the other files, and the
+                                        // folder itself, in tact.
                                         let mut ok_res = tag.to_string();
                                         ok_res.push_str(" OK DELETE successsful.\r\n");
                                         return ok_res;
@@ -295,6 +317,7 @@ impl Session {
                             }
                         }
                     }
+                    // List folders which match the specified regular expression.
                     "list" => {
                         let list_args: Vec<&str> = args.collect();
                         if list_args.len() < 2 { return bad_res; }
@@ -322,7 +345,9 @@ impl Session {
                                 match re_opt {
                                     Err(_) => { return bad_res;}
                                     Ok(re) => {
-                                        let list_responses = self.list(re);
+                                        let list_responses = util::list(maildir
+                                                                  .as_slice(),
+                                                                  re);
                                         let mut res_iter = list_responses.iter();
                                         let mut ok_res = String::new();
                                         for list_response in res_iter {
@@ -338,6 +363,8 @@ impl Session {
                             }
                         }
                     }
+                    // Resolve state of folder in memory with state of mail on
+                    // disk
                     "check" => {
                         match self.expunge() {
                             _ => {}
@@ -352,6 +379,8 @@ impl Session {
                             }
                         }
                     }
+                    // Close the currently selected folder. Perform all
+                    // required cleanup.
                     "close" => {
                         return match self.expunge() {
                             Err(_) => bad_res,
@@ -367,6 +396,7 @@ impl Session {
                             }
                         };
                     }
+                    // Delete the messages currently marked for deletion.
                     "expunge" => {
                         match self.expunge() {
                             Err(_) => { return bad_res; }
@@ -392,7 +422,7 @@ impl Session {
                         };
 
                         // Parse command, make sure it is validly formed.
-                        let parsed_cmd = match collate_and_parse_fetch(args) {
+                        let parsed_cmd = match util::fetch(args) {
                             Ok(cmd) => cmd,
                             _ => return bad_res
                         };
@@ -411,22 +441,29 @@ impl Session {
                                              (&parsed_cmd.sequence_set,
                                               folder.message_count());
                         if sequence_iter.len() == 0 { return bad_res }
-                        return normal_fetch_iter_loop(parsed_cmd, folder,
+                        return util::fetch_loop(parsed_cmd, folder,
                                                       sequence_iter, tag,
                                                       false);
                     },
+                    // These commands use UIDs instead of sequence numbers.
+                    // Sequence numbers map onto the list of messages in the
+                    // folder directly and change whenever messages are added
+                    // or removed from the folder.
                     "uid" => {
                         match args.next() {
                             Some(uidcmd) => {
-                                match uidcmd.to_string().into_ascii_lower().as_slice() {
+                                match uidcmd.to_string().into_ascii_lower()
+                                       .as_slice() {
                                     "fetch" => {
-                                        // Retrieve the current folder, if it exists.
+                                        // Retrieve the current folder, if it
+                                        // exists.
                                         let folder = match self.folder {
                                             Some(ref mut folder) => folder,
                                             None => return bad_res
                                         };
-                                        // Parse the command with the PEG parser.
-                                        let mut parsed_cmd = match collate_and_parse_fetch(args) {
+                                        // Parse the command with the PEG
+                                        // parser.
+                                        let mut parsed_cmd = match util::fetch(args) {
                                             Ok(cmd) => cmd,
                                             _ => return bad_res
                                         };
@@ -467,13 +504,19 @@ impl Session {
                                                  */
                                                 let sequence_iter = sequence_set::uid_iterator(&parsed_cmd.sequence_set);
                                                 if sequence_iter.len() == 0 { return bad_res; }
-                                                normal_fetch_iter_loop(parsed_cmd, folder, sequence_iter, tag, true)
+                                                util::fetch_loop(parsed_cmd, folder, sequence_iter, tag, true)
                                             }
                                         };
                                     }
                                     "store" => {
-                                        match self.store(args.collect(), true,
-                                                         tag) {
+                                        // There should be a folder selected.
+                                        let folder = match self.folder {
+                                            None => return bad_res,
+                                            Some(ref mut folder) => folder
+                                        };
+
+                                        match util::store(folder, args.collect(),
+                                                    true, tag) {
                                             Some(res) => return res,
                                             _ => return bad_res
                                         }
@@ -485,7 +528,13 @@ impl Session {
                         }
                     },
                     "store" => {
-                        match self.store(args.collect(), false, tag) {
+                        // There should be a folder selected.
+                        let folder = match self.folder {
+                            None => { return bad_res; }
+                            Some(ref mut folder) => folder
+                        };
+
+                        match util::store(folder, args.collect(), false, tag) {
                             Some(res) => return res,
                             _ => return bad_res
                         }
@@ -501,265 +550,12 @@ impl Session {
     // should generate list of sequence numbers that were deleted
     fn expunge(&self) -> Result<Vec<uint>, Error> {
         match self.folder {
-            None => { Err(Error::new(ImapStateError, "Not in selected state")) }
+            None => {
+                Err(Error::new(ImapStateError, "Not in selected state"))
+            }
             Some(ref folder) => {
                 Ok(folder.expunge())
             }
         }
-    }
-
-    fn select_mailbox(&mut self, mailbox_name: &str, examine: bool) {
-        let mbox_name = regex!("INBOX").replace(mailbox_name, ".");
-        match self.maildir {
-            None => {}
-            Some(ref maildir) => {
-                let maildir_path = Path::new(maildir.as_slice()).join(mbox_name);
-                self.folder = Folder::new(maildir_path, examine)
-            }
-        }
-    }
-
-    fn perform_select(&mut self, select_args: Vec<&str>, examine: bool, bad_res: String, tag: &str) -> String {
-        if select_args.len() < 1 { return bad_res; }
-        let mailbox_name = select_args[0].trim_chars('"');
-        match self.maildir {
-            None => { return bad_res; }
-            _ => {}
-        }
-        self.select_mailbox(mailbox_name, examine);
-        match self.folder {
-            None => {
-                return format!("{} NO error finding mailbox\r\n", tag);
-            }
-            Some(ref folder) => {
-                // * <n> EXISTS
-                let mut ok_res = format!("* {} EXISTS\r\n", folder.exists);
-                // * <n> RECENT
-                ok_res.push_str(format!("* {} RECENT\r\n", folder.recent).as_slice());
-                // * OK UNSEEN
-                ok_res.push_str(folder.unseen().as_slice());
-                // * Flags
-                // Should match values in enum Flag in message.rs
-                ok_res.push_str("* FLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)\r\n");
-                // * OK PERMANENTFLAG
-                // Should match values in enum Flag in message.rs
-                ok_res.push_str("* OK [PERMANENTFLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)] Permanent flags\r\n");
-                // * OK UIDNEXT
-                // * OK UIDVALIDITY
-                ok_res.push_str(format!("{} OK {} SELECT command was successful\r\n", tag, folder.read_status()).as_slice());
-                return ok_res;
-            }
-        }
-    }
-
-    fn list_dir(&self, dir: Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
-        let dir_string = format!("{}", dir.display());
-        let dir_name = from_utf8(dir.filename().unwrap()).unwrap();
-        if  dir_name == "cur" || dir_name == "new" || dir_name == "tmp" {
-            return None;
-        }
-        let abs_dir = make_absolute(&dir);
-        let mut flags = match fs::readdir(&dir.join("cur")) {
-            Err(_) => "\\Noselect".to_string(),
-            _ => {
-                match fs::readdir(&dir.join("new")) {
-                    Err(_) => "\\Noselect".to_string(),
-                    Ok(newlisting) => {
-                        if newlisting.len() == 0 {
-                            "\\Unmarked".to_string()
-                        } else {
-                            "\\Marked".to_string()
-                        }
-                    }
-                }
-            }
-        };
-        flags = match fs::readdir(&dir) {
-            Err(_) => { return None; }
-            Ok(dir_listing) => {
-                let mut children = false;
-                for subdir in dir_listing.iter() {
-                    if dir == *maildir_path {
-                        break;
-                    }
-                    let subdir_str = from_utf8(subdir.filename().unwrap()).unwrap();
-                    if subdir_str != "cur" &&
-                       subdir_str != "new" &&
-                       subdir_str != "tmp" {
-                           match fs::readdir(&subdir.join("cur")) {
-                               Err(_) => { continue; }
-                               _ => {}
-                           }
-                           match fs::readdir(&subdir.join("new")) {
-                               Err(_) => { continue; }
-                               _ => {}
-                           }
-                           children = true;
-                           break;
-                       }
-                }
-                if children {
-                    format!("{} \\HasChildren", flags)
-                } else {
-                    format!("{} \\HasNoChildren", flags)
-                }
-            }
-        };
-        let re_path = make_absolute(maildir_path);
-        let re_opt = Regex::new(format!("^{}", re_path.display()).as_slice());
-        match re_opt {
-            Err(_) => { return None; }
-            Ok(re) => {
-                let list_str = format!("* LIST ({}) \"/\" {}", flags, regex!("INBOX/").replace(re.replace(format!("{}", abs_dir.display()).as_slice(), "INBOX").as_slice(), ""));
-                if dir.is_dir() && regex.is_match(dir_string.as_slice()) {
-                    return Some(list_str);
-                }
-                return None;
-            }
-        }
-    }
-
-    fn list(&self, regex: Regex) -> Vec<String> {
-        match self.maildir {
-            None => Vec::new(),
-            Some(ref maildir) => {
-                let maildir_path = Path::new(maildir.as_slice());
-                let mut responses = Vec::new();
-                match self.list_dir(maildir_path.clone(), &regex, &maildir_path) {
-                    Some(list_response) => {
-                        responses.push(list_response);
-                    }
-                    _ => {}
-                }
-                match fs::walk_dir(&maildir_path) {
-                    Err(_) => Vec::new(),
-                    Ok(mut dir_list) => {
-                        for dir in dir_list {
-                            match self.list_dir(dir, &regex, &maildir_path) {
-                                Some(list_response) => {
-                                    responses.push(list_response);
-                                }
-                                _ => {}
-                            }
-                        }
-                        responses
-                    }
-                }
-            }
-        }
-    }
-
-    fn store(&mut self, store_args: Vec<&str>, seq_uid: bool, tag: &str) -> Option<String> {
-        if store_args.len() < 3 { return None; }
-        let sequence_set_opt = sequence_set::parse(store_args[0].trim_chars('"'));
-        let data_name = store_args[1].trim_chars('"');
-        let data_value = store_args[2].trim_chars('"');
-        let data_name_lower = data_name.to_string().into_ascii_lower();
-        let mut data_name_parts = data_name_lower.as_slice().split('.');
-        let flag_part = data_name_parts.next();
-        let silent_part = data_name_parts.next();
-        match data_name_parts.next() {
-            Some(_) => return None,
-            _ => {}
-        }
-        let silent = match silent_part {
-            None => false,
-            Some(part) => {
-                if part == "silent" {
-                    true
-                } else {
-                    return None
-                }
-            }
-        };
-        let flag_name = match parse_storename(flag_part) {
-            Some(storename) => storename,
-            None => return None
-        };
-        let mut flags: HashSet<Flag> = HashSet::new();
-        for flag in data_value.trim_chars('(').trim_chars(')').split(' ') {
-            match parse_flag(flag) {
-                None => { continue; }
-                Some(insert_flag) => { flags.insert(insert_flag); }
-            }
-        }
-        match self.folder {
-            None => return None,
-            Some(ref mut folder) => {
-                match sequence_set_opt {
-                    None => return None,
-                    Some(sequence_set) => {
-                        let sequence_iter = sequence_set::uid_iterator(&sequence_set);
-                        return Some(format!("{}{} OK STORE complete\r\n", folder.store(sequence_iter, flag_name, silent, flags, seq_uid), tag));
-                    }
-                }
-            }
-        }
-    }
-
-}
-
-fn collate_and_parse_fetch(mut args: CharSplits<char>) -> Result<Command,String> {
-    let mut cmd = "FETCH".to_string();
-    for arg in args {
-        cmd.push(' ');
-        cmd.push_str(arg);
-    }
-
-    // Parse the command with the PEG parser.
-   fetch(cmd.as_slice())
-}
-
-fn normal_fetch_iter_loop(parsed_cmd: Command, folder: &mut Folder, sequence_iter: Vec<uint>, tag: &str, uid: bool) -> String {
-    for attr in parsed_cmd.attributes.iter() {
-        match attr {
-            &BodySection(_, _) => {
-                let mut seen_flag_set = HashSet::new();
-                seen_flag_set.insert(Seen);
-                folder.store(sequence_iter.clone(), Add, true, seen_flag_set, false);
-                break;
-            }
-            _ => {}
-        }
-    }
-
-    let mut res = String::new();
-    for i in sequence_iter.iter() {
-        let index = if uid {
-            match folder.get_index_from_uid(i) {
-                Some(index) => *index,
-                None => {continue;}
-            }
-        } else {
-            *i-1
-        };
-        res.push_str(folder.fetch(index, &parsed_cmd.attributes).as_slice());
-    }
-    res.push_str(tag);
-    res.push_str(" OK ");
-    if uid {
-        res.push_str("UID ");
-    }
-    res.push_str("FETCH completed\r\n");
-    res
-}
-
-fn parse_flag(flag: &str) -> Option<Flag> {
-    match flag {
-        "\\Deleted" => Some(Deleted),
-        "\\Seen" => Some(Seen),
-        "\\Draft" => Some(Draft),
-        "\\Answered" => Some(Answered),
-        "\\Flagged" => Some(Flagged),
-        _ => None
-    }
-}
-
-fn parse_storename(storename: Option<&str>) -> Option<StoreName> {
-    match storename {
-        Some("flags") => Some(Replace),
-        Some("+flags") => Some(Add),
-        Some("-flags") => Some(Sub),
-        _ => None
     }
 }
