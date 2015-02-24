@@ -14,15 +14,15 @@ macro_rules! return_on_err(
             _ => {}
         }
     }
-)
+);
 
 macro_rules! delivery_ioerror(
     ($res:ident) => ({
         $res.push_str("451 Error in processing.\r\n");
         break;
     })
-)
-    
+);
+
 macro_rules! grab_email_token(
     ($arg:expr) => {
         match $arg {
@@ -30,7 +30,7 @@ macro_rules! grab_email_token(
             _ => { return None; }
         }
     }
-)
+);
 
 pub struct Lmtp<'a> {
     serv: Arc<Server>,

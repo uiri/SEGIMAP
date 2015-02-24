@@ -34,7 +34,7 @@ macro_rules! make_vec_path(
             }
         }
     });
-)
+);
 
 // Macro to handle each message in the folder
 macro_rules! handle_message(
@@ -50,7 +50,7 @@ macro_rules! handle_message(
         $i += 1;
         $messages.push(message);
     });
-)
+);
 
 // Perform a rename operation on a message
 macro_rules! rename_message(
@@ -70,7 +70,7 @@ macro_rules! rename_message(
             }
         }
     })
-)
+);
 
 impl Folder {
     pub fn new(path: Path, examine: bool) -> Option<Folder> {

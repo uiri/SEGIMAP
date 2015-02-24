@@ -27,7 +27,7 @@ macro_rules! return_on_err(
             _ => {}
         }
     }
-)
+);
 
 // Used to grab every file for removal while performing DELETE on a folder.
 macro_rules! opendirlisting(
@@ -39,7 +39,7 @@ macro_rules! opendirlisting(
             }
         }
     }
-)
+);
 
 // Standard IMAP greeting
 static GREET: &'static [u8] = b"* OK Server ready.\r\n";

@@ -2,7 +2,7 @@ pub use self::grammar::{fetch, sequence_set};
 
 // grammar.rustpeg contains the parsing expression grammar needed in order to
 // parse FETCH commands.
-peg_file! grammar("grammar.rustpeg")
+peg_file! grammar("grammar.rustpeg");
 
 
 // Tests for the parsed FETCH commands follow
