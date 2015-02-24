@@ -1,14 +1,12 @@
 //! SEGIMAP is an IMAP server implementation.
-#![feature(macro_rules)]
 #![deny(non_camel_case_types)]
-#![feature(phase)]
-#![feature(default_type_params)]
+#![feature(default_type_params, macro_rules, plugin, regex_macros)]
+#![plugin(peg_syntax_ext, regex_macros)]
 
 extern crate "rust-crypto" as crypto;
-extern crate regex;
-#[phase(plugin)] extern crate regex_macros;
-#[phase(plugin, link)] extern crate log;
-#[phase(plugin)] extern crate peg_syntax_ext;
+#[macro_use] extern crate log;
+extern crate peg_syntax_ext;
+extern crate regex_macros;
 extern crate serialize;
 extern crate time;
 extern crate toml;

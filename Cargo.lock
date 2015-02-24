@@ -2,7 +2,9 @@
 name = "segimap"
 version = "0.0.1"
 dependencies = [
- "peg 0.1.7 (git+https://github.com/kevinmehall/rust-peg)",
+ "log 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "peg 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "regex_macros 0.1.8 (registry+https://github.com/rust-lang/crates.io-index)",
  "rust-crypto 0.2.18 (git+https://github.com/DaGenix/rust-crypto)",
  "toml 0.1.17 (git+https://github.com/alexcrichton/toml-rs)",
 ]
@@ -25,7 +27,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "peg"
 version = "0.1.7"
-source = "git+https://github.com/kevinmehall/rust-peg#a4910b1180845652d83bd6177e76da299f5e9099"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [[package]]
 name = "rand"
@@ -34,6 +36,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "libc 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "log 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "regex"
+version = "0.1.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "regex_macros"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "regex 0.1.15 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
