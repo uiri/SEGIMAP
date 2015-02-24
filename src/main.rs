@@ -1,6 +1,12 @@
 //! SEGIMAP is an IMAP server implementation.
 #![deny(non_camel_case_types)]
-#![feature(default_type_params, macro_rules, plugin, regex_macros)]
+#![feature(
+    box_patterns,
+    default_type_params,
+    macro_rules,
+    plugin,
+    regex_macros
+)]
 #![plugin(peg_syntax_ext, regex_macros)]
 
 extern crate "rust-crypto" as crypto;

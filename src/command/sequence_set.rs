@@ -209,20 +209,20 @@ fn test_sequence_past_end() {
 
 #[test]
 fn test_sequence_range() {
-    assert_eq!(iterator(&vec![Range(box Number(6), box Wildcard)], 10), vec![6, 7, 8, 9, 10]);
-    assert_eq!(iterator(&vec![Range(box Number(1), box Number(10))], 4), vec![1, 2, 3, 4]);
-    assert_eq!(iterator(&vec![Range(box Wildcard, box Number(8)), Number(9), Number(2), Number(2)], 12), vec![2, 8, 9, 10, 11, 12]);
+    assert_eq!(iterator(&vec![Range(Box::new(Number(6)), Box::new(Wildcard))], 10), vec![6, 7, 8, 9, 10]);
+    assert_eq!(iterator(&vec![Range(Box::new(Number(1)), Box::new(Number(10)))], 4), vec![1, 2, 3, 4]);
+    assert_eq!(iterator(&vec![Range(Box::new(Wildcard), Box::new(Number(8))), Number(9), Number(2), Number(2)], 12), vec![2, 8, 9, 10, 11, 12]);
 }
 
 #[test]
 fn test_sequence_wildcard() {
-    assert_eq!(iterator(&vec![Range(box Number(10), box Wildcard), Wildcard], 6), vec![1, 2, 3, 4, 5, 6]);
+    assert_eq!(iterator(&vec![Range(Box::new(Number(10)), Box::new(Wildcard)), Wildcard], 6), vec![1, 2, 3, 4, 5, 6]);
     assert_eq!(iterator(&vec![Wildcard, Number(8)], 3), vec![1, 2, 3]);
 }
 
 #[test]
 fn test_sequence_complex() {
     assert_eq!(iterator(
-            &vec![Number(1), Number(3), Range(box Number(5), box Number(7)), Number(9), Number(12), Range(box Number(15), box Wildcard)], 13),
+            &vec![Number(1), Number(3), Range(Box::new(Number(5)), Box::new(Number(7))), Number(9), Number(12), Range(Box::new(Number(15)), Box::new(Wildcard))], 13),
             vec![1, 3, 5, 6, 7, 9, 12, 13]);
 }
