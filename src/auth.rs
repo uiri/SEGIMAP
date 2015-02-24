@@ -14,7 +14,7 @@ use crypto::bcrypt_pbkdf::bcrypt_pbkdf;
 static ROUNDS: u32 = 10;
 
 /// Secure representation of the user's password
-#[derive(Decodable, Encodable, Show)]
+#[derive(RustcDecodable, RustcEncodable, Show)]
 pub struct AuthData {
     /// Added to the password before hashing
     salt: Vec<u8>,

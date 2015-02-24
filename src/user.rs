@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::io::File;
 
-use serialize::json;
+use rustc_serialize::json;
 
 use auth::AuthData;
 use email::Email;
@@ -10,7 +10,7 @@ use error::{
 };
 
 /// Representation of a User.
-#[derive(Decodable, Encodable, Show)]
+#[derive(RustcDecodable, RustcEncodable, Show)]
 pub struct User {
     /// The email address through which the user logs in.
     pub email: Email,

@@ -1,6 +1,6 @@
 use std::io::IoError;
 
-use serialize::json::DecoderError;
+use rustc_serialize::json::DecoderError;
 
 /// An enum of all error kinds.
 #[derive(Show)]

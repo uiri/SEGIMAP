@@ -14,7 +14,7 @@ extern crate crypto;
 extern crate peg_syntax_ext;
 extern crate regex;
 extern crate regex_macros;
-extern crate serialize;
+extern crate "rustc-serialize" as rustc_serialize;
 extern crate time;
 extern crate toml;
 
