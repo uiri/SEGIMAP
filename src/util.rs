@@ -69,7 +69,7 @@ pub fn store(folder: &mut Folder, store_args: Vec<&str>, seq_uid: bool,
     // Parse the sequence set argument
     let sequence_set_opt = sequence_set::parse(store_args[0].trim_matches('"'));
     // Grab how to handle the flags. It should be case insensitive.
-    let data_name = store_args[1].trim_matches('"').to_string().into_ascii_lower();
+    let data_name = store_args[1].trim_matches('"').to_string().into_ascii_lowercase();
 
     // Split into "flag" part and "silent" part.
     let mut data_name_parts = data_name.as_slice().split('.');

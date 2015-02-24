@@ -74,7 +74,7 @@ impl<'a> Lmtp<'a> {
                     let res = match args.next() {
                         Some(cmd) => {
                             warn!("LMTP Cmd: {}", trimmed_command);
-                            match cmd.to_string().into_ascii_lower().as_slice() {
+                            match cmd.to_string().into_ascii_lowercase().as_slice() {
                                 "lhlo" => {
                                     match args.next() {
                                         Some(domain) => {
@@ -218,7 +218,7 @@ pub fn grab_email(arg: Option<&str>) -> Option<Email> {
             let mut split_arg = full_from_path.split(':');
             match split_arg.next() {
                 Some(from_str) => {
-                    match from_str.to_string().into_ascii_lower().as_slice() {
+                    match from_str.to_string().into_ascii_lowercase().as_slice() {
                         "from" => {
                             grab_email_token!(split_arg.next())
                         }

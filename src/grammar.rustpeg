@@ -108,7 +108,7 @@ header_list -> Vec<String>
 
 header_fld_name -> String
     = a:astring
-    { a.into_ascii_upper().to_string() }
+    { a.into_ascii_uppercase().to_string() }
 
 section_part -> Vec<usize>
     = a:nz_number b:("." nz_number)*

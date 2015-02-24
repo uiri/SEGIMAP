@@ -126,7 +126,7 @@ impl Session {
         match args.next() {
             Some(cmd) => {
                 warn!("Cmd: {}", command.trim());
-                match cmd.to_string().into_ascii_lower().as_slice() {
+                match cmd.to_string().into_ascii_lowercase().as_slice() {
                     "noop" => {
                         let mut res = tag.to_string();
                         res.push_str(" OK NOOP\r\n");
@@ -453,7 +453,7 @@ impl Session {
                     "uid" => {
                         match args.next() {
                             Some(uidcmd) => {
-                                match uidcmd.to_string().into_ascii_lower()
+                                match uidcmd.to_string().into_ascii_lowercase()
                                        .as_slice() {
                                     "fetch" => {
                                         // Retrieve the current folder, if it

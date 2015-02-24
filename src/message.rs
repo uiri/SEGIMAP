@@ -182,14 +182,14 @@ impl Message {
                     if !next.starts_with(" ") && !next.starts_with("\t") {
                         let split: Vec<&str> = trimmed_next.as_slice()
                                                 .splitn(1, ':').collect();
-                        headers.insert(split[0].to_string().into_ascii_upper(),
+                        headers.insert(split[0].to_string().into_ascii_uppercase(),
                                        split[1].slice_from(1).to_string());
                         break;
                     }
                 }
             } else {
                 let split: Vec<&str> = line.splitn(1, ':').collect();
-                headers.insert(split[0].to_string().into_ascii_upper(),
+                headers.insert(split[0].to_string().into_ascii_uppercase(),
                                split[1].slice_from(1).to_string());
             }
         }
@@ -360,9 +360,9 @@ impl Message {
 
                     // Retrieve the subtype of the content type.
                     let mut subtype = String::new();
-                    if content_type.len() > 1 { subtype = content_type[1].to_string().into_ascii_upper() }
+                    if content_type.len() > 1 { subtype = content_type[1].to_string().into_ascii_uppercase() }
 
-                    let content_type = content_type[0].to_string().into_ascii_upper();
+                    let content_type = content_type[0].to_string().into_ascii_uppercase();
                     println!("Content-type: {}/{}", content_type, subtype);
                     match content_type.as_slice() {
                         "MESSAGE" => {
