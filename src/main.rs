@@ -58,7 +58,7 @@ fn main() {
         }
         Ok(v) => {
             let lmtp_serv = serv.clone();
-            spawn(proc() {
+            spawn(move || {
                 let mut acceptor = v.listen();
                 // We spawn a separate thread for each LMTP session
                 for stream in acceptor.incoming() {
@@ -69,7 +69,7 @@ fn main() {
                         }
                         Ok(stream) => {
                             let session_serv = lmtp_serv.clone();
-                            spawn(proc() {
+                            spawn(move || {
                                 let mut lmtp = Lmtp::new(session_serv);
                                 lmtp.handle(BufferedStream::new(stream));
                             });
@@ -96,7 +96,7 @@ fn main() {
                     }
                     Ok(stream) => {
                         let session_serv = serv.clone();
-                        spawn(proc() {
+                        spawn(move || {
                             let mut session = Session::new(
                                                BufferedStream::new(stream),
                                                session_serv);
