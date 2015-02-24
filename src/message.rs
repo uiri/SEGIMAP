@@ -118,7 +118,7 @@ impl Message {
         let path_flags = path.next();
 
         // Retrieve the UID from the provided filename.
-        let uid = match from_str::<u32>(filename) {
+        let uid = match filename.parse() {
             Some(uid) => uid,
             None => return Err(Error::new(MessageDecodeError,
                                           "Failed to retrieve UID from filename."))
