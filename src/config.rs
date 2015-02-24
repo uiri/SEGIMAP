@@ -1,10 +1,9 @@
-use std::io::File;
+use std::old_io::File;
 
-use serialize::RustcEncodable;
 use toml::{decode_str, encode_str};
 
 /// Representation of configuration data for the server
-#[derive(RustcDecodable, RustcEncodable, Show)]
+#[derive(RustcDecodable, RustcEncodable, Debug)]
 pub struct Config {
     // Host on which to listen
     pub host: String,

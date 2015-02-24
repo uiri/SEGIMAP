@@ -27,8 +27,9 @@ pub use server::Server;
 pub use session::Session;
 pub use user::User;
 
-use std::io::{Listener, Acceptor, BufferedStream};
+use std::old_io::{Listener, Acceptor, BufferedStream};
 use std::sync::Arc;
+use std::thread::spawn;
 
 mod auth;
 mod command;

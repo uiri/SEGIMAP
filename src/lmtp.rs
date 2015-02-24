@@ -1,6 +1,8 @@
 use std::ascii::OwnedAsciiExt;
-use std::io::{Buffer, BufferedStream, TcpStream, File, PathAlreadyExists};
+use std::num::ToPrimitive;
+use std::old_io::{Buffer, BufferedStream, TcpStream, File, PathAlreadyExists};
 use std::sync::Arc;
+
 use time;
 
 use email::Email;

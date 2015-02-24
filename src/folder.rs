@@ -1,8 +1,8 @@
 use std::collections::{HashMap,HashSet};
-use std::io::fs;
+use std::num::ToPrimitive;
+use std::old_io::fs;
 
 use command::command::Attribute;
-
 use message::Message;
 use message::Flag;
 use util::StoreName;

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use std::io::TcpListener;
-use std::io::IoResult;
+use std::old_io::TcpListener;
+use std::old_io::IoResult;
 
 use config::Config;
 use email::Email;

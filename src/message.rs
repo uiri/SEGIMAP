@@ -1,13 +1,13 @@
 use std::ascii::OwnedAsciiExt;
 use std::collections::{HashSet, HashMap};
-use std::io::File;
+use std::old_io::File;
 use std::hash::Hash;
 
 use time;
 use time::Timespec;
 
-use command::command::{
-    Attribute,
+use command::command::{Attribute, BodySectionType};
+use command::command::Attribute::{
     Envelope,
     Flags,
     InternalDate,
@@ -15,35 +15,38 @@ use command::command::{
     Body,
     BodyPeek,
     BodySection,
-    BodySectionType,
     BodyStructure,
     UID
 };
-use command::command::{
+use command::command::BodySectionType::{
     AllSection,
     MsgtextSection,
-    PartSection,
+    PartSection
+};
+use command::command::Msgtext::{
     HeaderMsgtext,
     HeaderFieldsMsgtext,
     HeaderFieldsNotMsgtext,
     TextMsgtext,
     MimeMsgtext
 };
-use command::command::{
+use command::command::RFC822Attribute::{
     AllRFC822,
     HeaderRFC822,
     SizeRFC822,
     TextRFC822
 };
-use error::{
-    Error, ImapResult, InternalIoError, MessageDecodeError
-};
-use util::{StoreName, Replace, Add, Sub};
+use error::{Error, ImapResult};
+use error::ErrorKind::{InternalIoError, MessageDecodeError};
+use util::StoreName;
+use util::StoreName::{Replace, Add, Sub};
+
+use self::Flag::{Answered, Deleted, Draft, Flagged, Seen};
 
 static RECEIVED: &'static str = "RECEIVED";
 
 /// Representation of a message flag
-#[derive(Eq, PartialEq, Hash, Show, Clone)]
+#[derive(Eq, PartialEq, Hash, Debug, Clone)]
 pub enum Flag {
     Answered,
     Draft,
@@ -53,7 +56,7 @@ pub enum Flag {
 }
 
 /// Representation of a Message
-#[derive(Show, Clone)]
+#[derive(Debug, Clone)]
 pub struct Message {
     // a unique id (timestamp) for the message
     pub uid: u32,
@@ -84,7 +87,7 @@ pub struct Message {
 }
 
 /// Representation of a MIME message part
-#[derive(Show, Clone)]
+#[derive(Debug, Clone)]
 pub struct MIMEPart {
     mime_header: String,
     mime_body: String

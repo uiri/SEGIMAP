@@ -1,12 +1,14 @@
 use std::iter::Iterator;
 
+use self::SequenceItem::{Number, Range, Wildcard};
+
 /// This represents an individual item in the list of requested message ids
 /// passed by the client
 /// The client can pass a number representing a single id, a wildcard
 /// (represented by *) or a range which is made up of a start non-range sequence
 /// item and an end non-range sequence item separated by a colon
 /// A range represents all items with ids between its start and end, inclusive.
-#[derive(Clone, PartialEq, Show)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum SequenceItem {
     Number(usize),
     Range(Box<SequenceItem>, Box<SequenceItem>),

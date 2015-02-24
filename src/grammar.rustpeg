@@ -2,42 +2,45 @@ use std::ascii::OwnedAsciiExt;
 
 use command::command::{
     Attribute,
+    BodySectionType,
+    Command,
+    Msgtext,
+    RFC822Attribute
+};
+use command::command::Attribute::{
     Body,
     BodyPeek,
     BodySection,
-    BodySectionType,
     BodyStructure,
-    Command,
     Envelope,
-    Fetch,
     Flags,
     InternalDate,
     RFC822,
     UID
 };
-use command::command::{
-    AllRFC822,
-    HeaderRFC822,
-    SizeRFC822,
-    TextRFC822
-};
-use command::command::{
+use command::command::BodySectionType::{
     AllSection,
     MsgtextSection,
     PartSection
 };
-use command::command::{
-    Msgtext,
+use command::command::CommandType::Fetch;
+use command::command::Msgtext::{
     HeaderMsgtext,
     HeaderFieldsMsgtext,
     HeaderFieldsNotMsgtext,
     TextMsgtext,
     MimeMsgtext
 };
-use command::sequence_set::{
+use command::command::RFC822Attribute::{
+    AllRFC822,
+    HeaderRFC822,
+    SizeRFC822,
+    TextRFC822
+};
+use command::sequence_set::SequenceItem;
+use command::sequence_set::SequenceItem::{
     Number,
     Range,
-    SequenceItem,
     Wildcard
 };
 

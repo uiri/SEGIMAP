@@ -1,5 +1,5 @@
-use std::io::{Buffer, BufferedStream, FilePermission, fs, TcpStream};
-use std::str::{from_utf8, StrSlice};
+use std::old_io::{Buffer, BufferedStream, FilePermission, fs, TcpStream};
+use std::str::from_utf8;
 use std::ascii::OwnedAsciiExt;
 use std::sync::Arc;
 use regex::Regex;
@@ -7,14 +7,15 @@ use regex::Regex;
 pub use folder::Folder;
 pub use server::Server;
 
-use command::command::UID;
+use command::command::Attribute::UID;
 use command::sequence_set;
-use command::sequence_set::{
+use command::sequence_set::SequenceItem::{
     Number,
     Range,
     Wildcard
 };
-use error::{Error,ImapStateError};
+use error::Error;
+use error::ErrorKind::ImapStateError;
 use login::LoginData;
 use util;
 

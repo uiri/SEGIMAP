@@ -21,25 +21,25 @@ mod tests {
         RFC822,
         UID
     };
-    use command::command::{
-        AllRFC822,
-        HeaderRFC822,
-        SizeRFC822,
-        TextRFC822
-    };
-    use command::command::{
+    use command::command::Attribute::{
         AllSection,
         MsgtextSection,
         PartSection
     };
-    use command::command::{
+    use command::command::MsgText::{
         HeaderMsgtext,
         HeaderFieldsMsgtext,
         HeaderFieldsNotMsgtext,
         MimeMsgtext,
         TextMsgtext
     };
-    use command::sequence_set::{
+    use command::command::RFC822Attribute::{
+        AllRFC822,
+        HeaderRFC822,
+        SizeRFC822,
+        TextRFC822
+    };
+    use command::sequence_set::SequenceItem::{
         Number,
         Range,
         Wildcard

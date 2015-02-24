@@ -1,16 +1,15 @@
 use std::collections::HashMap;
-use std::io::File;
+use std::old_io::File;
 
 use rustc_serialize::json;
 
 use auth::AuthData;
 use email::Email;
-use error::{
-    Error, ImapResult, InternalIoError, SerializationError
-};
+use error::{Error, ImapResult};
+use error::ErrorKind::{InternalIoError, SerializationError};
 
 /// Representation of a User.
-#[derive(RustcDecodable, RustcEncodable, Show)]
+#[derive(RustcDecodable, RustcEncodable, Debug)]
 pub struct User {
     /// The email address through which the user logs in.
     pub email: Email,

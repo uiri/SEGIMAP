@@ -4,20 +4,23 @@
 // called by the session in multiple places.
 
 use std::collections::HashSet;
-use std::io::fs;
-use std::io::fs::PathExtensions;
+use std::old_io::fs;
+use std::old_io::fs::PathExtensions;
 use std::os::make_absolute;
-use std::str::{from_utf8, StrSlice, CharSplits};
+use std::str::{from_utf8, Split};
 use std::ascii::OwnedAsciiExt;
 use regex::Regex;
 
 use parser;
 use folder::Folder;
-use message::{Flag, Seen, Answered, Deleted, Draft, Flagged};
+use message::Flag;
+use message::Flag::{Seen, Answered, Deleted, Draft, Flagged};
 
 use command::command::Command;
-use command::command::BodySection;
+use command::command::Attribute::BodySection;
 use command::sequence_set;
+
+use self::StoreName::{Add, Replace, Sub};
 
 /// Representation of a STORE operation
 pub enum StoreName {
@@ -131,7 +134,7 @@ pub fn store(folder: &mut Folder, store_args: Vec<&str>, seq_uid: bool,
 
 /// Take the rest of the arguments provided by the client and parse them into a
 /// Command object with command::fetch.
-pub fn fetch(mut args: CharSplits<char>) -> Result<Command,String> {
+pub fn fetch(mut args: Split<char>) -> Result<Command,String> {
     let mut cmd = "FETCH".to_string();
     for arg in args {
         cmd.push(' ');

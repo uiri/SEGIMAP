@@ -1,9 +1,9 @@
-use std::io::IoError;
+use std::old_io::IoError;
 
 use rustc_serialize::json::DecoderError;
 
 /// An enum of all error kinds.
-#[derive(Show)]
+#[derive(Debug)]
 pub enum ErrorKind {
     InternalIoError(IoError),
     MessageDecodeError,
@@ -12,7 +12,7 @@ pub enum ErrorKind {
 }
 
 /// Represents a SEGIMAP error.
-#[derive(Show)]
+#[derive(Debug)]
 pub struct Error {
     pub kind: ErrorKind,
     pub desc: &'static str,
