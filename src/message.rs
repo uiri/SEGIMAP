@@ -172,13 +172,13 @@ impl Message {
             if line.starts_with(" ") || line.starts_with("\t") {
                 loop {
                     let next = iterator.next().unwrap();
-                    let mut trimmed_next = next.trim_left_chars(' ')
-                                            .trim_left_chars('\t').to_string();
+                    let mut trimmed_next = next.trim_left_matches(' ')
+                                            .trim_left_matches('\t').to_string();
 
                     // Add a space between the merged lines.
                     trimmed_next.push(' ');
-                    trimmed_next.push_str(line.trim_left_chars(' ')
-                                           .trim_left_chars('\t'));
+                    trimmed_next.push_str(line.trim_left_matches(' ')
+                                           .trim_left_matches('\t'));
                     if !next.starts_with(" ") && !next.starts_with("\t") {
                         let split: Vec<&str> = trimmed_next.as_slice()
                                                 .splitn(1, ':').collect();

@@ -28,7 +28,7 @@ macro_rules! delivery_ioerror(
 macro_rules! grab_email_token(
     ($arg:expr) => {
         match $arg {
-            Some(from_path) => from_path.trim_left_chars('<').trim_right_chars('>'),
+            Some(from_path) => from_path.trim_left_matches('<').trim_right_matches('>'),
             _ => { return None; }
         }
     }

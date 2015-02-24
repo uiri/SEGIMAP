@@ -145,8 +145,8 @@ impl Session {
                     "login" => {
                         let login_args: Vec<&str> = args.collect();
                         if login_args.len() < 2 { return bad_res; }
-                        let email = login_args[0].trim_chars('"');
-                        let password = login_args[1].trim_chars('"');
+                        let email = login_args[0].trim_matches('"');
+                        let password = login_args[1].trim_matches('"');
                         let mut no_res  = tag.to_string();
                         no_res.push_str(" NO invalid username or password\r\n");
                         match LoginData::new(email.to_string(),
@@ -230,7 +230,7 @@ impl Session {
                         let create_args: Vec<&str> = args.collect();
                         if create_args.len() < 1 { return bad_res; }
                         let mbox_name = regex!("INBOX").replace
-                                         (create_args[0].trim_chars('"'), "");
+                                         (create_args[0].trim_matches('"'), "");
                         match self.maildir {
                             None => return bad_res,
                             Some(ref maildir) => {
@@ -266,7 +266,7 @@ impl Session {
                         let delete_args: Vec<&str> = args.collect();
                         if delete_args.len() < 1 { return bad_res; }
                         let mbox_name = regex!("INBOX").replace
-                                         (delete_args[0].trim_chars('"'), "");
+                                         (delete_args[0].trim_matches('"'), "");
                         match self.maildir {
                             None => return bad_res,
                             Some(ref maildir) => {
@@ -322,8 +322,8 @@ impl Session {
                     "list" => {
                         let list_args: Vec<&str> = args.collect();
                         if list_args.len() < 2 { return bad_res; }
-                        let reference = list_args[0].trim_chars('"');
-                        let mailbox_name = list_args[1].trim_chars('"');
+                        let reference = list_args[0].trim_matches('"');
+                        let mailbox_name = list_args[1].trim_matches('"');
                         match self.maildir {
                             None => { return bad_res; }
                             Some(ref maildir) => {

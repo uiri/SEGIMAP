@@ -33,7 +33,7 @@ pub fn perform_select(maildir: &str, select_args: Vec<&str>, examine: bool,
                       tag: &str) -> (Option<Folder>, String) {
     let err_res = (None, "".to_string());
     if select_args.len() < 1 { return err_res; }
-    let mbox_name = regex!("INBOX").replace(select_args[0].trim_chars('"'), "."); // "));
+    let mbox_name = regex!("INBOX").replace(select_args[0].trim_matches('"'), "."); // "));
     let maildir_path = Path::new(maildir.as_slice()).join(mbox_name);
     let folder = match Folder::new(maildir_path, examine) {
         None => { return err_res; }
@@ -67,9 +67,9 @@ pub fn store(folder: &mut Folder, store_args: Vec<&str>, seq_uid: bool,
     if store_args.len() < 3 { return None; }
 
     // Parse the sequence set argument
-    let sequence_set_opt = sequence_set::parse(store_args[0].trim_chars('"'));
+    let sequence_set_opt = sequence_set::parse(store_args[0].trim_matches('"'));
     // Grab how to handle the flags. It should be case insensitive.
-    let data_name = store_args[1].trim_chars('"').to_string().into_ascii_lower();
+    let data_name = store_args[1].trim_matches('"').to_string().into_ascii_lower();
 
     // Split into "flag" part and "silent" part.
     let mut data_name_parts = data_name.as_slice().split('.');
@@ -83,7 +83,7 @@ pub fn store(folder: &mut Folder, store_args: Vec<&str>, seq_uid: bool,
     }
 
     // Grab the flags themselves.
-    let data_value = store_args[2].trim_chars('"');
+    let data_value = store_args[2].trim_matches('"');
 
     // Set the silent flag if it is present. If there is something else
     // instead of the word "silent", a BAD response should be sent to the
@@ -108,7 +108,7 @@ pub fn store(folder: &mut Folder, store_args: Vec<&str>, seq_uid: bool,
 
     // Create the Set of flags to be STORE'd from the data_value argument.
     let mut flags: HashSet<Flag> = HashSet::new();
-    for flag in data_value.trim_chars('(').trim_chars(')').split(' ') {
+    for flag in data_value.trim_matches('(').trim_matches(')').split(' ') {
         match parse_flag(flag) {
             None => { continue; }
             Some(insert_flag) => { flags.insert(insert_flag); }
@@ -218,7 +218,7 @@ fn list_dir(dir: Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
         return None;
     }
 
-    let abs_dir = make_absolute(&dir);
+    let abs_dir = make_absolute(&dir).unwrap();
 
     // If it doesn't have any mail, then it isn't selectable as a mail
     // folder but it may contain subfolders which hold mail.
@@ -278,7 +278,7 @@ fn list_dir(dir: Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
         }
     }
 
-    let re_path = make_absolute(maildir_path);
+    let re_path = make_absolute(maildir_path).unwrap();
     let re_opt = Regex::new(format!("^{}", re_path.display()).as_slice());
     return match re_opt {
         Err(_) =>  None,
