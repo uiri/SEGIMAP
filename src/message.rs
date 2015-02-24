@@ -22,8 +22,7 @@ use command::command::{
 use command::command::{
     AllSection,
     MsgtextSection,
-    PartSection
-use command::command::{
+    PartSection,
     HeaderMsgtext,
     HeaderFieldsMsgtext,
     HeaderFieldsNotMsgtext,
