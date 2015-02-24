@@ -477,7 +477,7 @@ impl Session {
                                                     Some(start) => *start,
                                                     None => {
                                                         if n == 1 {
-                                                            0u
+                                                            0usize
                                                         } else {
                                                             return bad_res;
                                                         }
@@ -548,7 +548,7 @@ impl Session {
     }
 
     // should generate list of sequence numbers that were deleted
-    fn expunge(&self) -> Result<Vec<uint>, Error> {
+    fn expunge(&self) -> Result<Vec<usize>, Error> {
         match self.folder {
             None => {
                 Err(Error::new(ImapStateError, "Not in selected state"))

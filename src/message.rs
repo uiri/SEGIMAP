@@ -74,13 +74,13 @@ pub struct Message {
     pub deleted: bool,
 
     // size stored in case FETCH asks for it
-    size: uint,
+    size: usize,
 
     // the raw contents of the file representing the message
     raw_contents: String,
 
     // where in raw_contents the header ends and the body begins
-    header_boundary: uint
+    header_boundary: usize
 }
 
 /// Representation of a MIME message part
@@ -396,7 +396,7 @@ impl Message {
     // BodyPeek does not set the Seen flag while BodySection does.
     // Setting the Seen flag is handled in the Session by detecting BodySection
     fn get_body<'a>(&self, section: &'a BodySectionType,
-                    _octets: &Option<(uint, uint)>) -> String {
+                    _octets: &Option<(usize, usize)>) -> String {
         let empty_string = "".to_string();
         let peek_attr = match section {
             &AllSection => {

@@ -145,7 +145,7 @@ pub fn fetch(mut args: CharSplits<char>) -> Result<Command,String> {
 /// Perform the fetch operation on each sequence number indicated and return
 /// the response to be sent back to the client.
 pub fn fetch_loop(parsed_cmd: Command, folder: &mut Folder,
-                  sequence_iter: Vec<uint>, tag: &str, uid: bool) -> String {
+                  sequence_iter: Vec<usize>, tag: &str, uid: bool) -> String {
     for attr in parsed_cmd.attributes.iter() {
         match attr {
             &BodySection(_, _) => {

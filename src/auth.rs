@@ -11,7 +11,7 @@ use std::rand::{
 use crypto::bcrypt_pbkdf::bcrypt_pbkdf;
 
 /// The number of rounds of bcrypt hashing to apply to the password.
-static ROUNDS: uint = 10;
+static ROUNDS: u32 = 10;
 
 /// Secure representation of the user's password
 #[derive(Decodable, Encodable, Show)]

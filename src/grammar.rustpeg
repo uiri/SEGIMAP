@@ -107,7 +107,7 @@ header_fld_name -> String
     = a:astring
     { a.into_ascii_upper().to_string() }
 
-section_part -> Vec<uint>
+section_part -> Vec<usize>
     = a:nz_number b:("." nz_number)*
     {
         let mut parts = vec![a];
@@ -188,23 +188,23 @@ sequence_set -> Vec<SequenceItem>
 
 seq_range -> SequenceItem
     = a:seq_number ":" b:seq_number
-    { Range(box a, box b) }
+    { Range(Box::new(a), Box::new(b)) }
 
 seq_number -> SequenceItem
     = (num:nz_number { Number(num) }) / ("*" { Wildcard })
 
 /* RFC 3501 BOILERPLATE */
 
-number -> uint
-    = u:(DIGIT+ { from_str::<uint>(match_str).unwrap() })
+number -> usize
+    = u:(DIGIT+ { from_str::<usize>(match_str).unwrap() })
     { u }
     /*
      * unsigned 32-bit integer
      * (0 <= n < 4,294,967,296)
      */
 
-nz_number -> uint
-    = u:(digit_nz DIGIT* { from_str::<uint>(match_str).unwrap() })
+nz_number -> usize
+    = u:(digit_nz DIGIT* { from_str::<usize>(match_str).unwrap() })
     { u }
     /*
      * non-zero unsigned 32-bit integer

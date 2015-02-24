@@ -11,8 +11,8 @@ pub enum CommandType {
 #[derive(PartialEq, Show)]
 pub enum Attribute {
     Body,
-    BodyPeek(BodySectionType, Option<(uint, uint)>),
-    BodySection(BodySectionType, Option<(uint, uint)>),
+    BodyPeek(BodySectionType, Option<(usize, usize)>),
+    BodySection(BodySectionType, Option<(usize, usize)>),
     BodyStructure,
     Envelope,
     Flags,
@@ -34,7 +34,7 @@ pub enum RFC822Attribute {
 pub enum BodySectionType {
     AllSection,
     MsgtextSection(Msgtext),
-    PartSection(Vec<uint>, Option<Msgtext>)
+    PartSection(Vec<usize>, Option<Msgtext>)
 }
 
 #[derive(PartialEq, Show)]

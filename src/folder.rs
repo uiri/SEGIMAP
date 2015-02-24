@@ -10,17 +10,17 @@ use util::StoreName;
 /// Representation of a Folder
 pub struct Folder {
     // How many messages are in folder/new/
-    pub recent: uint,
+    pub recent: usize,
     // How many messages are in the folder total
-    pub exists: uint,
+    pub exists: usize,
     // How many messages are not marked with the Seen flag
-    pub unseen: uint,
+    pub unseen: usize,
     path: Path,
     messages: Vec<Message>,
     // Whether the folder has been opened as read-only or not
     readonly: bool,
     // A mapping of message uids to indices in folder.messages
-    uid_to_seqnum: HashMap<uint, uint>
+    uid_to_seqnum: HashMap<usize, usize>
 }
 
 // Macro to open up a directory and do stuff with it after
@@ -98,8 +98,8 @@ impl Folder {
         make_vec_path!(path, cur, "cur",
             make_vec_path!(path, new, "new", {
                 let mut messages = Vec::new();
-                let mut uid_to_seqnum: HashMap<uint, uint> = HashMap::new();
-                let mut i = 0u;
+                let mut uid_to_seqnum: HashMap<usize, usize> = HashMap::new();
+                let mut i = 0usize;
                 let mut unseen = -1;
 
                 // populate messages
@@ -147,13 +147,13 @@ impl Folder {
     /// Returns the list of sequence numbers which have been deleted on disk
     /// Per RFC 3501, the later sequence numbers are calculated based on the
     /// sequence numbers at the time of the deletion not at the start of the function
-    pub fn expunge(&self) -> Vec<uint> {
+    pub fn expunge(&self) -> Vec<usize> {
         let mut result = Vec::new();
         // We can't perform the deletion if the folder has been opened as
         // read-only
         if !self.readonly {
             // Vectors are 0-indexed
-            let mut index = 0u;
+            let mut index = 0usize;
 
             // self.messages will get smaller as we go through it
             while index < self.messages.len() {
@@ -174,13 +174,13 @@ impl Folder {
         return result;
     }
 
-    pub fn message_count(&self) -> uint {
+    pub fn message_count(&self) -> usize {
         self.messages.len()
     }
 
     /// Perform a fetch of the specified attributes on self.messsages[index]
     /// Return the FETCH response string to be sent back to the client
-    pub fn fetch(&self, index: uint, attributes: &Vec<Attribute>) -> String {
+    pub fn fetch(&self, index: usize, attributes: &Vec<Attribute>) -> String {
         let mut res = "* ".to_string();
         res.push_str((index+1).to_string().as_slice());
         res.push_str(" FETCH (");
@@ -190,14 +190,14 @@ impl Folder {
     }
 
     /// Turn a UID into a sequence number
-    pub fn get_index_from_uid(&self, uid: &uint) -> Option<&uint> {
+    pub fn get_index_from_uid(&self, uid: &usize) -> Option<&usize> {
         return self.uid_to_seqnum.find(uid);
     }
 
     /// Perform a STORE on the specified set of sequence numbers
     /// This modifies the flags of the specified messages
     /// Returns the String response to be sent back to the client.
-    pub fn store(&mut self, sequence_set: Vec<uint>, flag_name: StoreName,
+    pub fn store(&mut self, sequence_set: Vec<usize>, flag_name: StoreName,
                  silent: bool, flags: HashSet<Flag>, seq_uid: bool,
                  tag: &str) -> String {
         let mut responses = String::new();
@@ -206,11 +206,11 @@ impl Folder {
                 match self.get_index_from_uid(num) {
                     // 0 is an invalid sequence number
                     // Return it if the UID isn't found
-                    None => (*num, 0u),
+                    None => (*num, 0usize),
                     Some(ind) => (*num, *ind+1)
                 }
             } else {
-                (0u, *num)
+                (0usize, *num)
             };
 
             // if i == 0 then the UID wasn't in the sequence number map
@@ -288,11 +288,11 @@ impl Folder {
 /// This moves a list of messages from folder/new/ to folder/cur/ and returns a
 /// new list of messages
 fn move_new(messages: Vec<Message>, path: Path,
-            start_index: uint) -> Vec<Message> {
+            start_index: usize) -> Vec<Message> {
     let mut new_messages = Vec::new();
 
     // Go over the messages by index
-    for i in range(0u, messages.len()) {
+    for i in range(0usize, messages.len()) {
         // messages before start_index are already in folder/cur/
         if i < start_index {
             new_messages.push(messages[i].clone());

@@ -8,13 +8,13 @@ use std::iter::Iterator;
 /// A range represents all items with ids between its start and end, inclusive.
 #[derive(Clone, PartialEq, Show)]
 pub enum SequenceItem {
-    Number(uint),
+    Number(usize),
     Range(Box<SequenceItem>, Box<SequenceItem>),
     Wildcard
 }
 
 fn parse_item(item: &str) -> Option<SequenceItem> {
-    let intseq_opt: Option<uint> = from_str(item);
+    let intseq_opt: Option<usize> = from_str(item);
     match intseq_opt {
         Some(intseq) => {
             // item is a valid number so return that
@@ -70,14 +70,14 @@ pub fn parse(sequence_string: &str) -> Option<Vec<SequenceItem>> {
             _ => {}
         }
 
-        sequence_set.push(Range(box start, box stop));
+        sequence_set.push(Range(Box::new(start), Box::new(stop)));
     }
     return Some(sequence_set);
 }
 
 /// Create the list of unsigned integers representing valid ids from a list of
 /// sequence items. Ideally this would handle wildcards in O(1) rather than O(n)
-pub fn iterator(sequence_set: &Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
+pub fn iterator(sequence_set: &Vec<SequenceItem>, max_id: usize) -> Vec<usize> {
     // If the number of possible messages is 0, we return an empty vec.
     if max_id == 0 { return Vec::new() }
 
@@ -124,7 +124,7 @@ pub fn iterator(sequence_set: &Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
                 if max > stop { max = stop; }
 
                 // Generate the list of values between the min and max
-                let seq_range: Vec<uint> = range(min, max + 1).collect();
+                let seq_range: Vec<usize> = range(min, max + 1).collect();
                 items.push_all(seq_range.as_slice());
             },
             &Wildcard => {
@@ -139,11 +139,11 @@ pub fn iterator(sequence_set: &Vec<SequenceItem>, max_id: uint) -> Vec<uint> {
     items.sort();
     items.dedup();
     // Remove all elements that are greater than the maximum.
-    let items: Vec<uint> = items.into_iter().filter(|&x| x <= max_id).collect();
+    let items: Vec<usize> = items.into_iter().filter(|&x| x <= max_id).collect();
     return items;
 }
 
-pub fn uid_iterator(sequence_set: &Vec<SequenceItem>) -> Vec<uint> {
+pub fn uid_iterator(sequence_set: &Vec<SequenceItem>) -> Vec<usize> {
     let mut items = Vec::new();
     for item in sequence_set.iter() {
         match item {
@@ -176,7 +176,7 @@ pub fn uid_iterator(sequence_set: &Vec<SequenceItem>) -> Vec<uint> {
                 }
                 //if min > stop { min = stop; }
                 //if max > stop { max = stop; }
-                let seq_range: Vec<uint> = range(min, max + 1).collect();
+                let seq_range: Vec<usize> = range(min, max + 1).collect();
                 items.push_all(seq_range.as_slice());
             },
             &Wildcard => {
@@ -189,7 +189,7 @@ pub fn uid_iterator(sequence_set: &Vec<SequenceItem>) -> Vec<uint> {
     items.sort();
     items.dedup();
     // Remove all elements that are greater than the maximum.
-    //let items: Vec<uint> = items.into_iter().filter(|&x| x <= max_id).collect();
+    //let items: Vec<usize> = items.into_iter().filter(|&x| x <= max_id).collect();
     return items;
 }
 
