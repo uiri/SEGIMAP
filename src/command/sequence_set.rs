@@ -6,7 +6,7 @@ use std::iter::Iterator;
 /// (represented by *) or a range which is made up of a start non-range sequence
 /// item and an end non-range sequence item separated by a colon
 /// A range represents all items with ids between its start and end, inclusive.
-#[deriving(Clone, PartialEq, Show)]
+#[derive(Clone, PartialEq, Show)]
 pub enum SequenceItem {
     Number(uint),
     Range(Box<SequenceItem>, Box<SequenceItem>),

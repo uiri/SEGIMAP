@@ -10,7 +10,7 @@ use error::{
 };
 
 /// Representation of a User.
-#[deriving(Decodable, Encodable, Show)]
+#[derive(Decodable, Encodable, Show)]
 pub struct User {
     /// The email address through which the user logs in.
     pub email: Email,

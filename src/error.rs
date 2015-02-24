@@ -3,7 +3,7 @@ use std::io::IoError;
 use serialize::json::DecoderError;
 
 /// An enum of all error kinds.
-#[deriving(Show)]
+#[derive(Show)]
 pub enum ErrorKind {
     InternalIoError(IoError),
     MessageDecodeError,
@@ -12,7 +12,7 @@ pub enum ErrorKind {
 }
 
 /// Represents a SEGIMAP error.
-#[deriving(Show)]
+#[derive(Show)]
 pub struct Error {
     pub kind: ErrorKind,
     pub desc: &'static str,

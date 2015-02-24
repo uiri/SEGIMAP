@@ -2,13 +2,13 @@ use command::sequence_set::SequenceItem;
 
 /// Only the Fetch command is complicated enough to require dedicated command
 /// parsing
-#[deriving(PartialEq, Show)]
+#[derive(PartialEq, Show)]
 pub enum CommandType {
     Fetch
 }
 
 /// The different Attributes which a Fetch command may request.
-#[deriving(PartialEq, Show)]
+#[derive(PartialEq, Show)]
 pub enum Attribute {
     Body,
     BodyPeek(BodySectionType, Option<(uint, uint)>),
@@ -22,7 +22,7 @@ pub enum Attribute {
 }
 
 /// Attributes defined as part of any electronic mail message
-#[deriving(PartialEq, Show)]
+#[derive(PartialEq, Show)]
 pub enum RFC822Attribute {
     AllRFC822,
     HeaderRFC822,
@@ -30,14 +30,14 @@ pub enum RFC822Attribute {
     TextRFC822
 }
 
-#[deriving(PartialEq, Show)]
+#[derive(PartialEq, Show)]
 pub enum BodySectionType {
     AllSection,
     MsgtextSection(Msgtext),
     PartSection(Vec<uint>, Option<Msgtext>)
 }
 
-#[deriving(PartialEq, Show)]
+#[derive(PartialEq, Show)]
 pub enum Msgtext {
     HeaderMsgtext,
     HeaderFieldsMsgtext(Vec<String>),
@@ -50,7 +50,7 @@ pub enum Msgtext {
 /// It has a list of message ids (either UIDs or indexes into the folder's list
 /// of messages)
 /// It has a list of message attributes which are being requested.
-#[deriving(PartialEq, Show)]
+#[derive(PartialEq, Show)]
 pub struct Command {
     command_type: CommandType,
     pub sequence_set: Vec<SequenceItem>,

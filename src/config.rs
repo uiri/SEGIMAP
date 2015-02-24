@@ -4,7 +4,7 @@ use serialize::Encodable;
 use toml::{decode_str, encode_str};
 
 /// Representation of configuration data for the server
-#[deriving(Decodable, Encodable, Show)]
+#[derive(Decodable, Encodable, Show)]
 pub struct Config {
     // Host on which to listen
     pub host: String,

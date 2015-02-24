@@ -43,7 +43,7 @@ use util::{StoreName, Replace, Add, Sub};
 static RECEIVED: &'static str = "RECEIVED";
 
 /// Representation of a message flag
-#[deriving(Eq, PartialEq, Hash, Show, Clone)]
+#[derive(Eq, PartialEq, Hash, Show, Clone)]
 pub enum Flag {
     Answered,
     Draft,
@@ -53,7 +53,7 @@ pub enum Flag {
 }
 
 /// Representation of a Message
-#[deriving(Show, Clone)]
+#[derive(Show, Clone)]
 pub struct Message {
     // a unique id (timestamp) for the message
     pub uid: u32,
@@ -84,7 +84,7 @@ pub struct Message {
 }
 
 /// Representation of a MIME message part
-#[deriving(Show, Clone)]
+#[derive(Show, Clone)]
 pub struct MIMEPart {
     mime_header: String,
     mime_body: String
