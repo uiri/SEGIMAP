@@ -56,7 +56,7 @@ fn gen_salt() -> Vec<u8> {
     // Use the cryptographically secure OsRng for randomness.
     let mut rng = match OsRng::new() {
         Ok(v) => v,
-        Err(e) => fail!("Failed to create secure Rng: {}", e)
+        Err(e) => panic!("Failed to create secure Rng: {}", e)
     };
     // Generate the salt from a set of random ascii characters.
     let mut salt = String::new();

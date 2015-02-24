@@ -521,7 +521,7 @@ impl Message {
             10 => "Nov",
             11 => "Dec",
             // NOTE: this should never happen.
-            _ => fail!("Unable to determine month!")
+            _ => panic!("Unable to determine month!")
         };
 
         format!(
