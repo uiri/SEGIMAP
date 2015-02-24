@@ -9,9 +9,10 @@
 )]
 #![plugin(peg_syntax_ext, regex_macros)]
 
-extern crate "rust-crypto" as crypto;
+extern crate crypto;
 #[macro_use] extern crate log;
 extern crate peg_syntax_ext;
+extern crate regex;
 extern crate regex_macros;
 extern crate serialize;
 extern crate time;

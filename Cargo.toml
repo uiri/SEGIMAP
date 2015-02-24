@@ -10,14 +10,11 @@ name = "segimap"
 path = "src/main.rs"
 
 [dependencies]
-log = "0.2"
-peg = "0.1.7"
-regex_macros = "0.1.8"
-
-[dependencies.rust-crypto]
-
-git = "https://github.com/DaGenix/rust-crypto"
-
-[dependencies.toml]
-
-git = "https://github.com/alexcrichton/toml-rs"
+log = "*"
+peg = "*"
+regex = "*"
+regex_macros = "*"
+rustc-serialize = "*"
+rust-crypto = "*"
+time = "*"
+toml = "*"
