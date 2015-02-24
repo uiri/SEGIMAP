@@ -2,23 +2,69 @@
 name = "segimap"
 version = "0.0.1"
 dependencies = [
- "peg 0.1.0 (git+https://github.com/kevinmehall/rust-peg?ref=8b0852d15f881b335a4281df931e527aa52322a6)",
- "rust-crypto 0.1.0 (git+https://github.com/DaGenix/rust-crypto?ref=475643257a712af8522f544ad668b620c8476612)",
- "toml 0.1.0 (git+https://github.com/alexcrichton/toml-rs?ref=05c1eb420f54569336b8481c28a46b5a7c51ec99)",
+ "peg 0.1.7 (git+https://github.com/kevinmehall/rust-peg)",
+ "rust-crypto 0.2.18 (git+https://github.com/DaGenix/rust-crypto)",
+ "toml 0.1.17 (git+https://github.com/alexcrichton/toml-rs)",
 ]
 
 [[package]]
+name = "gcc"
+version = "0.1.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "libc"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "log"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
 name = "peg"
-version = "0.1.0"
-source = "git+https://github.com/kevinmehall/rust-peg?ref=8b0852d15f881b335a4281df931e527aa52322a6#8b0852d15f881b335a4281df931e527aa52322a6"
+version = "0.1.7"
+source = "git+https://github.com/kevinmehall/rust-peg#a4910b1180845652d83bd6177e76da299f5e9099"
+
+[[package]]
+name = "rand"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "libc 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "log 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "rust-crypto"
-version = "0.1.0"
-source = "git+https://github.com/DaGenix/rust-crypto?ref=475643257a712af8522f544ad668b620c8476612#475643257a712af8522f544ad668b620c8476612"
+version = "0.2.18"
+source = "git+https://github.com/DaGenix/rust-crypto#d06c8672a212add38edfcc5b504e4b4cb30c5a8b"
+dependencies = [
+ "rand 0.1.3 (registry+https://github.com/rust-lang/crates.io-index)",
+ "rustc-serialize 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "time 0.1.17 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "rustc-serialize"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+
+[[package]]
+name = "time"
+version = "0.1.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+dependencies = [
+ "gcc 0.1.7 (registry+https://github.com/rust-lang/crates.io-index)",
+ "libc 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
 [[package]]
 name = "toml"
-version = "0.1.0"
-source = "git+https://github.com/alexcrichton/toml-rs?ref=05c1eb420f54569336b8481c28a46b5a7c51ec99#05c1eb420f54569336b8481c28a46b5a7c51ec99"
+version = "0.1.17"
+source = "git+https://github.com/alexcrichton/toml-rs#77547e8d08d6f989b3300a78c07a5bd0bcb7a314"
+dependencies = [
+ "rustc-serialize 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
 
