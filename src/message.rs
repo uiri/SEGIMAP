@@ -119,8 +119,8 @@ impl Message {
 
         // Retrieve the UID from the provided filename.
         let uid = match filename.parse() {
-            Some(uid) => uid,
-            None => return Err(Error::new(MessageDecodeError,
+            Ok(uid) => uid,
+            Err(_) => return Err(Error::new(MessageDecodeError,
                                           "Failed to retrieve UID from filename."))
         };
 

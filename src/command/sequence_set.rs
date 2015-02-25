@@ -18,11 +18,11 @@ pub enum SequenceItem {
 fn parse_item(item: &str) -> Option<SequenceItem> {
     let intseq_opt: Option<usize> = item.parse();
     match intseq_opt {
-        Some(intseq) => {
+        Ok(intseq) => {
             // item is a valid number so return that
             Some(Number(intseq))
         }
-        None => {
+        Err(_) => {
             // item is not a valid number
             // If it is the wildcard value return that
             // Otherwise, return no sequence item
