@@ -191,7 +191,7 @@ impl Folder {
 
     /// Turn a UID into a sequence number
     pub fn get_index_from_uid(&self, uid: &usize) -> Option<&usize> {
-        return self.uid_to_seqnum.find(uid);
+        return self.uid_to_seqnum.get(uid);
     }
 
     /// Perform a STORE on the specified set of sequence numbers

@@ -196,14 +196,14 @@ impl Message {
 
         // Remove the "Received" key from the HashMap.
         let received_key = &RECEIVED.to_string();
-        match headers.find(received_key) {
+        match headers.get(received_key) {
             Some(_) => { headers.remove(received_key); }
             _ => {}
         }
 
         // Determine whether the message is MULTIPART or not.
         let mut body = Vec::new();
-        match headers.find(&"CONTENT-TYPE".to_string()) {
+        match headers.get(&"CONTENT-TYPE".to_string()) {
             Some(ref content_type) => {
                 if content_type.as_slice().contains("MULTIPART") {
                     // We need the boundary to determine where this part ends
@@ -414,7 +414,7 @@ impl Message {
                         let mut field_values = String::new();
                         let mut first = true;
                         for field in fields.iter() {
-                            match self.headers.find(field) {
+                            match self.headers.get(field) {
                                 Some(v) => {
                                     let field_slice = field.as_slice();
                                     if first {
@@ -486,7 +486,7 @@ impl Message {
     }
 
     fn get_field_or_nil(&self, key: &str) -> &str {
-        match self.headers.find(&key.to_string()) {
+        match self.headers.get(&key.to_string()) {
             Some(v) => v.as_slice(),
             None => "NIL"
         }
@@ -499,7 +499,7 @@ impl Message {
      * the current format is also acceptible by most mail clients.
      */
     fn get_parenthesized_addresses(&self, key: &str) -> &str {
-        match self.headers.find(&key.to_string()) {
+        match self.headers.get(&key.to_string()) {
             Some(v) => v.as_slice(),
             None => "NIL"
         }

@@ -113,7 +113,7 @@ impl<'a> Lmtp<'a> {
                                             match grab_email(args.next()) {
                                                 None => invalid,
                                                 Some(email) => {
-                                                    match self.serv.users.find(&email) {
+                                                    match self.serv.users.get(&email) {
                                                         None => no_such_user,
                                                         Some(user) => {
                                                             self.to_path.push(user);
