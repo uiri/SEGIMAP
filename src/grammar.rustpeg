@@ -48,7 +48,7 @@ use command::sequence_set::SequenceItem::{
 
 #[export]
 fetch -> Command
-    = [fF][eE][tT][cC][hH] SP set:sequence_set SP attrs:(
+    = "FETCH"i SP set:sequence_set SP attrs:(
     "(" a:fetch_att b:(SP fetch_att)* ")"
     {
         let mut attrs = vec![a];
@@ -58,20 +58,20 @@ fetch -> Command
         attrs
     }
     / attr:fetch_att { vec![attr] }
-    / [aA][lL][lL] { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope] }
-    / [fF][uU][lL][lL] { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body] }
-    / [fF][aA][sS][tT] { vec![Flags, InternalDate, RFC822(SizeRFC822)] })
+    / "ALL"i { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope] }
+    / "FULL"i { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body] }
+    / "FAST"i { vec![Flags, InternalDate, RFC822(SizeRFC822)] })
     { Command::new(Fetch, set, attrs) }
 
 fetch_att -> Attribute
-    = [eE][nN][vV][eE][lL][oO][pP][eE] { Envelope }
-    / [fF][lL][aA][gG][sS] { Flags }
-    / [iI][nN][tT][eE][rR][nN][aA][lL][dD][aA][tT][eE] { InternalDate }
-    / [rR][fF][cC] "822" sub_attr:(".HEADER" { HeaderRFC822 } / ".SIZE" { SizeRFC822 } / ".TEXT" { TextRFC822 })? { RFC822(sub_attr.unwrap_or(AllRFC822)) }
-    / [uU][iI][dD] { UID }
-    / [bB][oO][dD][yY] "." [pP][eE][eE][kK] section:section octets:("<" first_octet:number "." last_octet:nz_number ">" { (first_octet, last_octet) })? { BodyPeek(section, octets) }
-    / [bB][oO][dD][yY] section:section octets:("<" first_octet:number "." last_octet:nz_number ">" { (first_octet, last_octet) })? { BodySection(section, octets) }
-    / [bB][oO][dD][yY] sub_attr:("STRUCTURE" { BodyStructure })? { sub_attr.unwrap_or(Body) }
+    = "ENVELOPE"i { Envelope }
+    / "FLAGS"i { Flags }
+    / "INTERNALDATE"i { InternalDate }
+    / "RFC"i "822" sub_attr:(".HEADER" { HeaderRFC822 } / ".SIZE" { SizeRFC822 } / ".TEXT" { TextRFC822 })? { RFC822(sub_attr.unwrap_or(AllRFC822)) }
+    / "UID"i { UID }
+    / "BODY"i "." "PEEK"i section:section octets:("<" first_octet:number "." last_octet:nz_number ">" { (first_octet, last_octet) })? { BodyPeek(section, octets) }
+    / "BODY"i section:section octets:("<" first_octet:number "." last_octet:nz_number ">" { (first_octet, last_octet) })? { BodySection(section, octets) }
+    / "BODY"i sub_attr:("STRUCTURE" { BodyStructure })? { sub_attr.unwrap_or(Body) }
 
 section -> BodySectionType
     = "[" section:(section_spec)? "]"
@@ -82,7 +82,7 @@ section_spec -> BodySectionType
     / (a:section_part b:("." section_text)? { PartSection(a, b) })
 
 section_msgtext -> Msgtext
-    = [hH][eE][aA][dD][eE][rR] "." [fF][iI][eE][lL][dD][sS] not:("." [nN][oO][tT])? SP headers:header_list {
+    = "HEADER"i "." "FIELDS"i not:("." "NOT"i)? SP headers:header_list {
             match not {
                 Some(_) => {
                     HeaderFieldsNotMsgtext(headers)
@@ -92,8 +92,8 @@ section_msgtext -> Msgtext
                 }
             }
         }
-    / [hH][eE][aA][dD][eE][rR] { HeaderMsgtext }
-    / [tT][eE][xX][tT] { TextMsgtext }
+    / "HEADER"i { HeaderMsgtext }
+    / "TEXT"i { TextMsgtext }
     /* top-level or MESSAGE/RFC822 part */
 
 header_list -> Vec<String>
@@ -122,7 +122,7 @@ section_part -> Vec<usize>
     /* body part nesting */
 
 section_text -> Msgtext
-    = section_msgtext / [mM][iI][mM][eE] { MimeMsgtext }
+    = section_msgtext / "MIME"i { MimeMsgtext }
     /* text other than actual body part (headers, etc.) */
 
 astring -> String
