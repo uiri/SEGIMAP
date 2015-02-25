@@ -16,7 +16,7 @@ pub enum SequenceItem {
 }
 
 fn parse_item(item: &str) -> Option<SequenceItem> {
-    let intseq_opt: Option<usize> = item.parse();
+    let intseq_opt = item.parse();
     match intseq_opt {
         Ok(intseq) => {
             // item is a valid number so return that
