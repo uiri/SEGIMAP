@@ -27,12 +27,12 @@ impl Server {
 
     /// Create a TCP listener on the server host and imap post
     pub fn imap_listener(&self) -> IoResult<TcpListener> {
-        return TcpListener::bind(self.conf.host.as_slice(), self.conf.imap_port);
+        return TcpListener::bind((self.conf.host.as_slice(), self.conf.imap_port));
     }
 
     /// Create a TCP listener on the server host and lmtp port
     pub fn lmtp_listener<'r>(&self) -> IoResult<TcpListener> {
-        return TcpListener::bind(self.conf.host.as_slice(), self.conf.lmtp_port);
+        return TcpListener::bind((self.conf.host.as_slice(), self.conf.lmtp_port));
     }
 
     /// Return the server's host
