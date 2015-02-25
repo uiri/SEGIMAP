@@ -125,7 +125,7 @@ pub fn store(folder: &mut Folder, store_args: Vec<&str>, seq_uid: bool,
             } else {
                 sequence_set::iterator(&sequence_set, folder.message_count())
             };
-            let res = folder.store(sequence_iter, flag_name, silent, flags,
+            let res = folder.store(sequence_iter, &flag_name, silent, flags,
                                    seq_uid, tag);
             Some(res)
         }
@@ -154,7 +154,7 @@ pub fn fetch_loop(parsed_cmd: Command, folder: &mut Folder,
             &BodySection(_, _) => {
                 let mut seen_flag_set = HashSet::new();
                 seen_flag_set.insert(Seen);
-                folder.store(sequence_iter.clone(), Add, true, seen_flag_set,
+                folder.store(sequence_iter.clone(), &Add, true, seen_flag_set,
                              false, tag);
                 break;
             }

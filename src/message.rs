@@ -542,18 +542,18 @@ impl Message {
     // Perform a STORE operation on the message. This involves replacing,
     // adding or removing (as specified by flag_name) the set of new_flags
     // Returns a string containing the new set of flags.
-    pub fn store(&mut self, flag_name: StoreName,
+    pub fn store(&mut self, flag_name: &StoreName,
                  new_flags: HashSet<Flag>) -> String {
         match flag_name {
-            Sub => {
+            &Sub => {
                 for flag in new_flags.iter() {
                     self.flags.remove(flag);
                 }
             }
-            Replace => { self.flags = new_flags; }
-            Add => {
-                for flag in new_flags.iter() {
-                    self.flags.insert(*flag);
+            &Replace => { self.flags = new_flags; }
+            &Add => {
+                for flag in new_flags.into_iter() {
+                    self.flags.insert(flag);
                 }
             }
         }

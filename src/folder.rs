@@ -197,7 +197,7 @@ impl Folder {
     /// Perform a STORE on the specified set of sequence numbers
     /// This modifies the flags of the specified messages
     /// Returns the String response to be sent back to the client.
-    pub fn store(&mut self, sequence_set: Vec<usize>, flag_name: StoreName,
+    pub fn store(&mut self, sequence_set: Vec<usize>, flag_name: &StoreName,
                  silent: bool, flags: HashSet<Flag>, seq_uid: bool,
                  tag: &str) -> String {
         let mut responses = String::new();
