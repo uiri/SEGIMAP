@@ -260,7 +260,9 @@ impl Message {
                         }
                         let body_part = MIMEPart {
                             mime_header: content_type.to_string(),
-                            mime_body: raw_body.to_string()
+                            // TODO: double check that this is working as
+                            // intended.
+                            mime_body: part.to_string()
                         };
                         body.push(body_part);
                     }
