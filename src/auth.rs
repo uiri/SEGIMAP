@@ -28,8 +28,8 @@ impl AuthData {
         let salt = gen_salt();
         let password = password.into_bytes();
         // Perform the bcrypt hashing, storing it to an output vector.
-        let mut out = [0u8, ..32];
-        bcrypt_pbkdf(password.as_slice(), salt.as_slice(), ROUNDS, out);
+        let mut out = [0u8; 32];
+        bcrypt_pbkdf(password.as_slice(), salt.as_slice(), ROUNDS, out.as_mut_slice());
 
         AuthData {
             salt: salt.to_vec(),
@@ -40,12 +40,12 @@ impl AuthData {
     /// Verify a password string against the stored auth data to see if it
     /// matches.
     pub fn verify_auth(&self, password: String) -> bool {
-        let mut out = [0u8, ..32];
+        let mut out = [0u8; 32];
         bcrypt_pbkdf(
                 password.into_bytes().as_slice(),
                 self.salt.as_slice(),
                 ROUNDS,
-                out);
+                out.as_mut_slice());
         self.out == out.to_vec()
     }
 }
