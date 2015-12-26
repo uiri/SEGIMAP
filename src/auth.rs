@@ -1,9 +1,7 @@
 // Use OsRng to ensure that the randomly generated data is cryptographically
 // secure.
-use std::rand::{
-    OsRng,
-    Rng
-};
+use rand::Rng;
+use rand::os::OsRng;
 
 // Use bcrypt for the hashing algorithm to ensure that the outputted data is
 // cryptograpically secure and difficult to crack, even if the authentication
@@ -28,11 +26,11 @@ impl AuthData {
         let salt = gen_salt();
         let password = password.into_bytes();
         // Perform the bcrypt hashing, storing it to an output vector.
-        let mut out = [0u8; 32];
-        bcrypt_pbkdf(password.as_slice(), salt.as_slice(), ROUNDS, out.as_mut_slice());
+        let ref mut out = [0u8; 32];
+        bcrypt_pbkdf(&password[..], &salt[..], ROUNDS, out);
 
         AuthData {
-            salt: salt.to_vec(),
+            salt: salt,
             out: out.to_vec()
         }
     }
@@ -40,12 +38,12 @@ impl AuthData {
     /// Verify a password string against the stored auth data to see if it
     /// matches.
     pub fn verify_auth(&self, password: String) -> bool {
-        let mut out = [0u8; 32];
+        let ref mut out = [0u8; 32];
         bcrypt_pbkdf(
-                password.into_bytes().as_slice(),
-                self.salt.as_slice(),
+                &password.into_bytes()[..],
+                &self.salt[..],
                 ROUNDS,
-                out.as_mut_slice());
+                out);
         self.out == out.to_vec()
     }
 }

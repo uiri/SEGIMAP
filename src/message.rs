@@ -1,7 +1,9 @@
-use std::ascii::OwnedAsciiExt;
+use std::ascii::AsciiExt;
 use std::collections::{HashSet, HashMap};
-use std::old_io::File;
-use std::hash::Hash;
+use std::fs::File;
+use std::io::Read;
+use std::path::Path;
+use std::str;
 
 use time;
 use time::Timespec;
@@ -59,7 +61,7 @@ pub enum Flag {
 #[derive(Debug, Clone)]
 pub struct Message {
     // a unique id (timestamp) for the message
-    pub uid: u32,
+    pub uid: usize,
 
     // filename
     pub path: String,
@@ -96,24 +98,23 @@ pub struct MIMEPart {
 impl Message {
     pub fn new(arg_path: &Path) -> ImapResult<Message> {
         // Load the file contents.
+        let mut contents : Vec<u8> = Vec::new(); 
         let raw_contents = match File::open(arg_path) {
-            Ok(mut file) => match file.read_to_end() {
-                Ok(contents) => {
-                    String::from_utf8_lossy(contents.as_slice()).to_string()
+            Ok(mut file) => {
+                match file.read_to_end(&mut contents) {
+                    Ok(_) => {
+                        str::from_utf8(&contents[..]).unwrap()
+                    }
+                    Err(e) => return Err(Error::new(InternalIoError(e),
+                                                    "Failed to read mail file."))
                 }
-                Err(e) => return Err(Error::new(InternalIoError(e),
-                                                "Failed to read mail file."))
             },
             Err(e) => return Err(Error::new(InternalIoError(e),
                                             "Failed to open mail file."))
         };
 
-        // This slice will avoid copying later
-        let raw_slice = raw_contents.as_slice();
-        let size = raw_slice.len();
-
         // Grab the string in the filename representing the flags
-        let mut path = arg_path.filename_str().unwrap().splitn(1, ':');
+        let mut path = arg_path.file_name().unwrap().to_str().unwrap().splitn(1, ':');
         let filename = path.next().unwrap();
         let path_flags = path.next();
 
@@ -152,11 +153,14 @@ impl Message {
             }
         };
 
+        // This slice will avoid copying later
+        let size = raw_contents.len();
+
         // Find boundary between header and body.
         // Use it to create &str of the raw header and raw body
-        let header_boundary = raw_slice.find_str("\n\n").unwrap() + 1;
-        let raw_header = raw_slice.slice_to(header_boundary);
-        let raw_body = raw_slice.slice_from(header_boundary + 1);
+        let header_boundary = raw_contents.find("\n\n").unwrap() + 1;
+        let raw_header = &raw_contents[ .. header_boundary];
+        let raw_body = &raw_contents[header_boundary .. ];
 
         // Iterate over the lines of the header in reverse.
         // If a line with leading whitespace is detected, it is merged to the
@@ -180,17 +184,17 @@ impl Message {
                     trimmed_next.push_str(line.trim_left_matches(' ')
                                            .trim_left_matches('\t'));
                     if !next.starts_with(" ") && !next.starts_with("\t") {
-                        let split: Vec<&str> = trimmed_next.as_slice()
+                        let split: Vec<&str> = (&trimmed_next[..])
                                                 .splitn(1, ':').collect();
-                        headers.insert(split[0].to_string().into_ascii_uppercase(),
-                                       split[1].slice_from(1).to_string());
+                        headers.insert(split[0].to_ascii_uppercase(),
+                                       split[1][1 .. ].to_string());
                         break;
                     }
                 }
             } else {
                 let split: Vec<&str> = line.splitn(1, ':').collect();
-                headers.insert(split[0].to_string().into_ascii_uppercase(),
-                               split[1].slice_from(1).to_string());
+                headers.insert(split[0].to_ascii_uppercase(),
+                               split[1][1 .. ].to_string());
             }
         }
 
@@ -205,11 +209,11 @@ impl Message {
         let mut body = Vec::new();
         match headers.get(&"CONTENT-TYPE".to_string()) {
             Some(ref content_type) => {
-                if content_type.as_slice().contains("MULTIPART") {
+                if (&content_type[..]).contains("MULTIPART") {
                     // We need the boundary to determine where this part ends
                     let mime_boundary = {
-                        let value: Vec<&str> = content_type.as_slice()
-                                                .split_str("BOUNDARY=\"")
+                        let value: Vec<&str> = (&content_type[..])
+                                                .split("BOUNDARY=\"")
                                                 .collect();
                         if value.len() < 2 {
                             return Err(Error::new(
@@ -228,24 +232,25 @@ impl Message {
 
                     // Grab the content type for this part
                     let first_content_type_index =
-                        match raw_body.find_str("Content-Type") {
+                        match raw_body.find("Content-Type") {
                             Some(val) => val,
                             None =>
                                 return Err(Error::new(
                                     MessageDecodeError,
                                     "Missing Content-Type for body part"))
                     };
-                    let mime_boundary_slice = mime_boundary.as_slice();
-                    let raw_body = raw_body.slice_from(first_content_type_index);
-                    let raw_body: Vec<&str> = raw_body.split_str(
-                                               mime_boundary_slice).collect();
-                    let raw_body = raw_body.slice_to(raw_body.len() - 1);
+                    let mime_boundary_slice = &mime_boundary[..];
+                    let raw_body = &raw_body[first_content_type_index .. ];
+                    let raw_body: Vec<&str> = raw_body.split(
+                        mime_boundary_slice).collect();
+                    let raw_body_end = raw_body.len() - 1;
+                    let raw_body = &raw_body[ .. raw_body_end];
 
                     // Throw the parts of the message into a list of MIMEParts
                     for part in raw_body.iter() {
-                        let header_boundary = part.as_slice().find_str("\n\n")
+                        let header_boundary = part.find("\n\n")
                                                .unwrap();
-                        let header = part.as_slice().slice_to(header_boundary);
+                        let header = &part[ .. header_boundary];
                         let mut content_type = String::new();
                         for line in header.lines() {
                             let split_line: Vec<&str> = line.splitn(1, ':')
@@ -253,8 +258,7 @@ impl Message {
                             if split_line[0] == "Content-Type" {
                                 let content_type_values: Vec<&str> =
                                     split_line[1].splitn(1, ';').collect();
-                                content_type = content_type_values[0]
-                                                .slice_from(1).to_string();
+                                content_type = content_type_values[0][1 .. ].to_string();
                                 break;
                             }
                         }
@@ -292,7 +296,7 @@ impl Message {
             flags: flags,
             deleted: false,
             size: size,
-            raw_contents: raw_contents.clone(),
+            raw_contents: raw_contents.to_string(),
             header_boundary: header_boundary
         };
 
@@ -322,15 +326,15 @@ impl Message {
             match attr {
                 &Envelope => {
                     res.push_str("ENVELOPE ");
-                    res.push_str(self.get_envelope().as_slice());
+                    res.push_str(&self.get_envelope()[..]);
                 },
                 &Flags => {
                     res.push_str("FLAGS ");
-                    res.push_str(self.print_flags().as_slice());
+                    res.push_str(&self.print_flags()[..]);
                 },
                 &InternalDate => {
                     res.push_str("INTERNALDATE \"");
-                    res.push_str(self.date_received().as_slice());
+                    res.push_str(&self.date_received()[..]);
                     res.push('"');
                 }
                 &RFC822(ref attr) => {
@@ -339,36 +343,34 @@ impl Message {
                         &AllRFC822 => {},
                         &HeaderRFC822 => {
                             res.push_str(".HEADER {");
-                            res.push_str(self.header_boundary.to_string()
-                                          .as_slice());
+                            res.push_str(&self.header_boundary.to_string()[..]);
                             res.push_str("}\r\n");
-                            res.push_str(self.raw_contents.as_slice()
-                                          .slice_to(self.header_boundary));
+                            res.push_str(&self.raw_contents[ .. self.header_boundary]);
                         },
                         &SizeRFC822 => {
                             res.push_str(".SIZE ");
-                            res.push_str(self.size.to_string().as_slice()) },
+                            res.push_str(&self.size.to_string()[..]) },
                         &TextRFC822 => {}
                     };
                 },
                 &Body => {},
                 &BodySection(ref section, ref octets) => {
-                    res.push_str(self.get_body(section, octets).as_slice()) },
+                    res.push_str(&self.get_body(section, octets)[..]) },
                 &BodyPeek(ref section, ref octets) => {
-                    res.push_str(self.get_body(section, octets).as_slice()) },
+                    res.push_str(&self.get_body(section, octets)[..]) },
                 &BodyStructure => {
-                    /*let content_type: Vec<&str> = self.headers["CONTENT-TYPE".to_string()].as_slice().splitn(1, ';').take(1).collect();
+                    /*let content_type: Vec<&str> = (&self.headers["CONTENT-TYPE".to_string()][..]).splitn(1, ';').take(1).collect();
                     let content_type: Vec<&str> = content_type[0].splitn(1, '/').collect();
 
                     // Retrieve the subtype of the content type.
                     let mut subtype = String::new();
-                    if content_type.len() > 1 { subtype = content_type[1].to_string().into_ascii_uppercase() }
+                    if content_type.len() > 1 { subtype = content_type[1].to_ascii_uppercase() }
 
-                    let content_type = content_type[0].to_string().into_ascii_uppercase();
+                    let content_type = content_type[0].to_ascii_uppercase();
                     println!("Content-type: {}/{}", content_type, subtype);
-                    match content_type.as_slice() {
+                    match &content_type[..] {
                         "MESSAGE" => {
-                            match subtype.as_slice() {
+                            match &subtype[..] {
                                 "RFC822" => {
                                     // Immediately after the basic fields, add the envelope
                                     // structure, body structure, and size in text lines of
@@ -390,7 +392,7 @@ impl Message {
                 },
                 &UID => {
                     res.push_str("UID ");
-                    res.push_str(self.uid.to_string().as_slice())
+                    res.push_str(&self.uid.to_string()[..])
                 }
             }
         }
@@ -405,7 +407,7 @@ impl Message {
         let empty_string = "".to_string();
         let peek_attr = match section {
             &AllSection => {
-                format!("] {{{}}}\r\n{} ", self.raw_contents.as_slice().len(),
+                format!("] {{{}}}\r\n{} ", (&self.raw_contents[..]).len(),
                         self.raw_contents)
             }
             &MsgtextSection(ref msgtext) => {
@@ -418,7 +420,7 @@ impl Message {
                         for field in fields.iter() {
                             match self.headers.get(field) {
                                 Some(v) => {
-                                    let field_slice = field.as_slice();
+                                    let field_slice = &field[..];
                                     if first {
                                         first = false;
                                     } else {
@@ -428,13 +430,13 @@ impl Message {
                                     field_values.push_str("\r\n");
                                     field_values.push_str(field_slice);
                                     field_values.push_str(": ");
-                                    field_values.push_str(v.as_slice());
+                                    field_values.push_str(&v[..]);
                                 },
                                 None => continue
                             }
                         }
                         format!("HEADER.FIELDS ({})] {{{}}}{}", field_keys,
-                                field_values.as_slice().len(), field_values)
+                                &field_values[..].len(), field_values)
                     },
                     &HeaderFieldsNotMsgtext(_) => { empty_string },
                     &TextMsgtext => { empty_string },
@@ -489,7 +491,7 @@ impl Message {
 
     fn get_field_or_nil(&self, key: &str) -> &str {
         match self.headers.get(&key.to_string()) {
-            Some(v) => v.as_slice(),
+            Some(v) => &v[..],
             None => "NIL"
         }
     }
@@ -502,7 +504,7 @@ impl Message {
      */
     fn get_parenthesized_addresses(&self, key: &str) -> &str {
         match self.headers.get(&key.to_string()) {
-            Some(v) => v.as_slice(),
+            Some(v) => &v[..],
             None => "NIL"
         }
     }

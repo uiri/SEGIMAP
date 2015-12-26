@@ -16,7 +16,7 @@ impl Email {
     pub fn to_string(&self) -> String {
         let mut res = self.local_part.clone();
         res.push('@');
-        res.push_str(self.domain_part.as_slice());
+        res.push_str(&self.domain_part[..]);
         res
     }
 }

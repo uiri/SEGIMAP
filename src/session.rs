@@ -1,7 +1,11 @@
-use std::old_io::{Buffer, BufferedStream, FilePermission, fs, TcpStream};
-use std::str::from_utf8;
-use std::ascii::OwnedAsciiExt;
+use std::ascii::AsciiExt;
+use std::fs;
+use std::io::{BufRead, Write};
+use std::net::TcpStream;
+use std::os::unix::fs::PermissionsExt;
+use std::path::Path;
 use std::sync::Arc;
+use bufstream::BufStream;
 use regex::Regex;
 
 pub use folder::Folder;
@@ -33,7 +37,7 @@ macro_rules! return_on_err(
 // Used to grab every file for removal while performing DELETE on a folder.
 macro_rules! opendirlisting(
     ($inp:expr, $listing:ident, $err:ident, $next:expr) => {
-        match fs::readdir($inp) {
+        match fs::read_dir($inp) {
             Err(_) => return $err,
             Ok($listing) => {
                 $next
@@ -48,7 +52,7 @@ static GREET: &'static [u8] = b"* OK Server ready.\r\n";
 /// Representation of a session
 pub struct Session {
     /// The TCP connection
-    stream: BufferedStream<TcpStream>,
+    stream: BufStream<TcpStream>,
     /// Shared wrapper for config and user data
     serv: Arc<Server>,
     /// Whether to logout and close the connection after interpreting the
@@ -63,7 +67,7 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(stream: BufferedStream<TcpStream>,
+    pub fn new(stream: BufStream<TcpStream>,
                serv: Arc<Server>) -> Session {
         Session {
             stream: stream,
@@ -81,8 +85,9 @@ impl Session {
         return_on_err!(self.stream.write(GREET));
         return_on_err!(self.stream.flush());
         loop {
-            match self.stream.read_line() {
-                Ok(command) => {
+            let mut command = String::new();
+            match self.stream.read_line(&mut command) {
+                Ok(_) => {
                     // If the command is empty, exit.
                     // Exitting will close the stream for us.
                     if command.len() == 0 {
@@ -90,7 +95,7 @@ impl Session {
                     }
 
                     // Interpret the command and generate a response
-                    let res = self.interpret(command.as_slice());
+                    let res = self.interpret(&command[..]);
 
                     // Log the response
                     warn!("Response:\n{}", res);
@@ -126,7 +131,7 @@ impl Session {
         match args.next() {
             Some(cmd) => {
                 warn!("Cmd: {}", command.trim());
-                match cmd.to_string().into_ascii_lowercase().as_slice() {
+                match &cmd.to_ascii_lowercase()[..] {
                     "noop" => {
                         let mut res = tag.to_string();
                         res.push_str(" OK NOOP\r\n");
@@ -201,9 +206,9 @@ impl Session {
                     "select" => {
                         let maildir = match self.maildir {
                             None => { return bad_res; }
-                            Some(ref maildir) => maildir
+                            Some(ref maildir) => maildir.clone()
                         };
-                        let (folder, res) = util::perform_select(maildir.as_slice(),
+                        let (folder, res) = util::perform_select(&maildir[..],
                                                                  args.collect(),
                                                                 false, tag);
                         self.folder = folder;
@@ -215,9 +220,9 @@ impl Session {
                     "examine" => {
                         let maildir = match self.maildir {
                             None => { return bad_res; }
-                            Some(ref maildir) => maildir
+                            Some(ref maildir) => maildir.clone()
                         };
-                        let (folder, res) = util::perform_select(maildir.as_slice(),
+                        let (folder, res) = util::perform_select(&maildir[..],
                                                                  args.collect(),
                                                                 true, tag);
                         self.folder = folder;
@@ -236,22 +241,29 @@ impl Session {
                             Some(ref maildir) => {
                                 let mut no_res = tag.to_string();
                                 no_res.push_str(" NO Could not create folder.\r\n");
-                                let maildir_path = Path::new(maildir.as_slice())
+                                let maildir_path = Path::new(&maildir[..])
                                                     .join(mbox_name);
-                                let file_perms = FilePermission::from_bits_truncate(0o755);
 
                                 // Create directory for new mail
                                 let newmaildir_path = maildir_path.join("new");
-                                match fs::mkdir_recursive(&newmaildir_path,
-                                                          file_perms) {
+                                match fs::create_dir_all(&newmaildir_path) {
+                                    Err(_) => return no_res,
+                                    _ => {}
+                                }
+                                match fs::set_permissions(&newmaildir_path,
+                                                          fs::Permissions::from_mode(0o755)) {
                                     Err(_) => return no_res,
                                     _ => {}
                                 }
 
                                 // Create directory for current mail
                                 let curmaildir_path = maildir_path.join("cur");
-                                match fs::mkdir_recursive(&curmaildir_path,
-                                                          file_perms) {
+                                match fs::create_dir_all(&curmaildir_path) {
+                                    Err(_) => return no_res,
+                                    _ => {}
+                                }
+                                match fs::set_permissions(&curmaildir_path,
+                                                          fs::Permissions::from_mode(0o755)) {
                                     Err(_) => return no_res,
                                     _ => {}
                                 }
@@ -272,8 +284,7 @@ impl Session {
                             Some(ref maildir) => {
                                 let mut no_res = tag.to_string();
                                 no_res.push_str(" NO Invalid folder.\r\n");
-                                let maildir_path = Path::new(maildir
-                                                              .as_slice())
+                                let maildir_path = Path::new(&maildir[..])
                                                     .join(mbox_name);
                                 let newmaildir_path = maildir_path.join("new");
                                 let curmaildir_path = maildir_path.join("cur");
@@ -283,25 +294,35 @@ impl Session {
                                                     no_res,
                                     {
                                         // Delete the mail in the folder
-                                        for file in newlist.iter() {
-                                            match fs::unlink(file) {
-                                                Err(_) => return no_res,
-                                                _ => {}
+                                        for file_entry in newlist {
+                                            match file_entry {
+                                                Ok(file) => {
+                                                    match fs::remove_file(file.path()) {
+                                                        Err(_) => return no_res,
+                                                        _ => {}
+                                                    }
+                                                }
+                                                Err(_) => return no_res
                                             }
                                         }
-                                        for file in curlist.iter() {
-                                            match fs::unlink(file) {
-                                                Err(_) => return no_res,
-                                                _ => {}
+                                        for file_entry in curlist {
+                                            match file_entry {
+                                                Ok(file) => {
+                                                    match fs::remove_file(file.path()) {
+                                                        Err(_) => return no_res,
+                                                        _ => {}
+                                                    }
+                                                }
+                                                Err(_) => return no_res
                                             }
                                         }
 
                                         // Delete the folders holding the mail
-                                        match fs::rmdir(&newmaildir_path) {
+                                        match fs::remove_dir(&newmaildir_path) {
                                             Err(_) => return no_res,
                                             _ => {}
                                         }
-                                        match fs::rmdir(&curmaildir_path) {
+                                        match fs::remove_dir(&curmaildir_path) {
                                             Err(_) => return no_res,
                                             _ => {}
                                         }
@@ -334,26 +355,22 @@ impl Session {
                                 let mailbox_name = mailbox_name
                                                     .replace("*", ".*")
                                                     .replace("%", "[^/]*");
-                                let maildir_path = Path::new(maildir.as_slice());
+                                let maildir_path = Path::new(&maildir[..]);
                                 let re_opt = Regex::new
-                                              (format!
+                                              (&format!
                                                ("{}/?{}/?{}$",
-                                                from_utf8(maildir_path
-                                                          .filename().unwrap())
+                                                maildir_path.file_name().unwrap().to_str()
                                                 .unwrap(), reference,
                                                 mailbox_name.replace
-                                                ("INBOX", "")).as_slice());
+                                                ("INBOX", ""))[..]);
                                 match re_opt {
                                     Err(_) => { return bad_res;}
                                     Ok(re) => {
-                                        let list_responses = util::list(maildir
-                                                                  .as_slice(),
+                                        let list_responses = util::list(&maildir[..],
                                                                   re);
-                                        let mut res_iter = list_responses.iter();
                                         let mut ok_res = String::new();
-                                        for list_response in res_iter {
-                                            ok_res.push_str(list_response
-                                                             .as_slice());
+                                        for list_response in list_responses.iter() {
+                                            ok_res.push_str(&list_response[..]);
                                             ok_res.push_str("\r\n");
                                         }
                                         ok_res.push_str(tag);
@@ -405,7 +422,7 @@ impl Session {
                                 let mut ok_res = String::new();
                                 for i in v.iter() {
                                     ok_res.push_str("* ");
-                                    ok_res.push_str(i.to_string().as_slice());
+                                    ok_res.push_str(&i.to_string()[..]);
                                     ok_res.push_str(" EXPUNGE\r\n");
                                 }
                                 ok_res.push_str(tag);
@@ -453,8 +470,7 @@ impl Session {
                     "uid" => {
                         match args.next() {
                             Some(uidcmd) => {
-                                match uidcmd.to_string().into_ascii_lowercase()
-                                       .as_slice() {
+                                match &uidcmd.to_ascii_lowercase()[..] {
                                     "fetch" => {
                                         // Retrieve the current folder, if it
                                         // exists.
@@ -485,8 +501,8 @@ impl Session {
                                                     }
                                                 };
                                                 let mut res = String::new();
-                                                for index in range(start, folder.message_count()) {
-                                                    res.push_str(folder.fetch(index+1, &parsed_cmd.attributes).as_slice());
+                                                for index in start..folder.message_count() {
+                                                    res.push_str(&folder.fetch(index+1, &parsed_cmd.attributes)[..]);
                                                 }
                                                 res.push_str(tag);
                                                 res.push_str(" OK UID FETCH completed\r\n");

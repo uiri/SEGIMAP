@@ -1,8 +1,13 @@
-use std::ascii::OwnedAsciiExt;
-use std::num::ToPrimitive;
-use std::old_io::{Buffer, BufferedStream, TcpStream, File, PathAlreadyExists};
+use std::ascii::AsciiExt;
+use std::fs::File;
+use std::io::{BufRead, Write};
+use std::io::ErrorKind::AlreadyExists;
+use std::net::TcpStream;
+use std::path::Path;
 use std::sync::Arc;
 
+use bufstream::BufStream;
+use rustc::util::num::ToPrimitive;
 use time;
 
 use email::Email;
@@ -55,17 +60,18 @@ impl<'a> Lmtp<'a> {
         }
     }
 
-    pub fn handle(&'a mut self, mut stream: BufferedStream<TcpStream>) {
+    pub fn handle(&'a mut self, mut stream: BufStream<TcpStream>) {
         return_on_err!(stream.write(format!("220 {} LMTP server ready\r\n",
                                             *self.serv.host()).as_bytes()));
         return_on_err!(stream.flush());
         loop {
-            match stream.read_line() {
-                Ok(command) => {
+            let mut command = String::new();
+            match stream.read_line(&mut command) {
+                Ok(_) => {
                     if command.len() == 0 {
                         return;
                     }
-                    let trimmed_command = command.as_slice().trim();
+                    let trimmed_command = (&command[..]).trim();
                     let mut args = trimmed_command.split(' ');
                     let invalid = "500 Invalid command\r\n".to_string();
                     let no_such_user = "550 No such user".to_string();
@@ -74,7 +80,7 @@ impl<'a> Lmtp<'a> {
                     let res = match args.next() {
                         Some(cmd) => {
                             warn!("LMTP Cmd: {}", trimmed_command);
-                            match cmd.to_string().into_ascii_lowercase().as_slice() {
+                            match &cmd.to_ascii_lowercase()[..] {
                                 "lhlo" => {
                                     match args.next() {
                                         Some(domain) => {
@@ -130,12 +136,13 @@ impl<'a> Lmtp<'a> {
                                     return_on_err!(stream.flush());
                                     let mut loop_res = invalid;
                                     loop {
-                                        match stream.read_line() {
-                                            Ok(data_command) => {
+                                        let mut data_command = String::new();
+                                        match stream.read_line(&mut data_command) {
+                                            Ok(_) => {
                                                 if data_command.len() == 0 {
                                                     break;
                                                 }
-                                                let data_cmd = data_command.as_slice().trim();
+                                                let data_cmd = (&data_command[..]).trim();
                                                 if data_cmd == "." {
                                                     loop_res = self.deliver();
                                                     self.data = String::new();
@@ -179,11 +186,11 @@ impl<'a> Lmtp<'a> {
                 }
             };
             let maildir = rcpt.maildir.clone();
-            let newdir_path = Path::new(maildir).join("new");
+            let newdir_path = Path::new(&maildir[..]).join("new");
             loop {
                 match File::create(&newdir_path.join(timestamp.to_string())) {
                     Err(e) => {
-                        if e.kind == PathAlreadyExists {
+                        if e.kind() == AlreadyExists {
                             timestamp += 1;
                         } else {
                             delivery_ioerror!(res);
@@ -218,7 +225,7 @@ pub fn grab_email(arg: Option<&str>) -> Option<Email> {
             let mut split_arg = full_from_path.split(':');
             match split_arg.next() {
                 Some(from_str) => {
-                    match from_str.to_string().into_ascii_lowercase().as_slice() {
+                    match &from_str.to_ascii_lowercase()[..] {
                         "from" => {
                             grab_email_token!(split_arg.next())
                         }

@@ -3,13 +3,15 @@
 // on the session (or take what they do need as arguments) and/or they are
 // called by the session in multiple places.
 
+use std::ascii::AsciiExt;
 use std::collections::HashSet;
-use std::old_io::fs;
-use std::old_io::fs::PathExtensions;
-use std::os::make_absolute;
-use std::str::{from_utf8, Split};
-use std::ascii::OwnedAsciiExt;
+use std::env::current_dir;
+use std::fs;
+use std::path::Path;
+use std::path::PathBuf;
+use std::str::Split;
 use regex::Regex;
+use walkdir::WalkDir;
 
 use parser;
 use folder::Folder;
@@ -29,22 +31,30 @@ pub enum StoreName {
     Sub // remove new flags from current flags
 }
 
+fn make_absolute(dir: &Path) -> String {
+    let mut abs_path = current_dir().unwrap();
+    abs_path.push(dir);
+    return abs_path.as_path().display().to_string();
+}
+
 pub fn perform_select(maildir: &str, select_args: Vec<&str>, examine: bool,
                       tag: &str) -> (Option<Folder>, String) {
     let err_res = (None, "".to_string());
     if select_args.len() < 1 { return err_res; }
     let mbox_name = regex!("INBOX").replace(select_args[0].trim_matches('"'), "."); // "));
-    let maildir_path = Path::new(maildir.as_slice()).join(mbox_name);
-    let folder = match Folder::new(maildir_path, examine) {
+    let mut maildir_path = PathBuf::new();
+    maildir_path.push(maildir);
+    maildir_path.push(mbox_name);
+    let folder =  match Folder::new(maildir_path, examine) {
         None => { return err_res; }
-        Some(folder) => folder
+        Some(folder) => folder.clone()
     };
     // * <n> EXISTS
     let mut ok_res = format!("* {} EXISTS\r\n", folder.exists);
     // * <n> RECENT
-    ok_res.push_str(format!("* {} RECENT\r\n", folder.recent).as_slice());
+    ok_res.push_str(&(format!("* {} RECENT\r\n", folder.recent))[..]);
     // * OK UNSEEN
-    ok_res.push_str(folder.unseen().as_slice());
+    ok_res.push_str(&folder.unseen()[..]);
     // * Flags
     // Should match values in enum Flag in message.rs
     ok_res.push_str("* FLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)\r\n");
@@ -53,8 +63,8 @@ pub fn perform_select(maildir: &str, select_args: Vec<&str>, examine: bool,
     ok_res.push_str("* OK [PERMANENTFLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)] Permanent flags\r\n");
     // * OK UIDNEXT
     // * OK UIDVALIDITY
-    ok_res.push_str(format!("{} OK {} SELECT command was successful\r\n", tag,
-                            folder.read_status()).as_slice());
+    ok_res.push_str(&(format!("{} OK {} SELECT command was successful\r\n", tag,
+                            folder.read_status()))[..]);
     return (Some(folder), ok_res);
 }
 
@@ -69,10 +79,10 @@ pub fn store(folder: &mut Folder, store_args: Vec<&str>, seq_uid: bool,
     // Parse the sequence set argument
     let sequence_set_opt = sequence_set::parse(store_args[0].trim_matches('"'));
     // Grab how to handle the flags. It should be case insensitive.
-    let data_name = store_args[1].trim_matches('"').to_string().into_ascii_lowercase();
+    let data_name = store_args[1].trim_matches('"').to_ascii_lowercase();
 
     // Split into "flag" part and "silent" part.
-    let mut data_name_parts = data_name.as_slice().split('.');
+    let mut data_name_parts = (&data_name[..]).split('.');
     let flag_part = data_name_parts.next();
     let silent_part = data_name_parts.next();
 
@@ -134,7 +144,7 @@ pub fn store(folder: &mut Folder, store_args: Vec<&str>, seq_uid: bool,
 
 /// Take the rest of the arguments provided by the client and parse them into a
 /// Command object with command::fetch.
-pub fn fetch(mut args: Split<char>) -> Result<Command,String> {
+pub fn fetch(args: Split<char>) -> Result<Command, parser::ParseError> {
     let mut cmd = "FETCH".to_string();
     for arg in args {
         cmd.push(' ');
@@ -142,7 +152,7 @@ pub fn fetch(mut args: Split<char>) -> Result<Command,String> {
     }
 
     // Parse the command with the PEG parser.
-   parser::fetch(cmd.as_slice())
+   parser::fetch(&cmd[..])
 }
 
 /// Perform the fetch operation on each sequence number indicated and return
@@ -172,7 +182,7 @@ pub fn fetch_loop(parsed_cmd: Command, folder: &mut Folder,
         } else {
             *i-1
         };
-        res.push_str(folder.fetch(index, &parsed_cmd.attributes).as_slice());
+        res.push_str(&folder.fetch(index, &parsed_cmd.attributes)[..]);
     }
     res.push_str(tag);
     res.push_str(" OK ");
@@ -208,9 +218,9 @@ fn parse_storename(storename: Option<&str>) -> Option<StoreName> {
 
 /// For the given dir, make sure it is a valid mail folder and, if it is,
 /// generate the LIST response for it.
-fn list_dir(dir: Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
+fn list_dir(dir: &Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
     let dir_string = dir.display().to_string();
-    let dir_name = from_utf8(dir.filename().unwrap()).unwrap();
+    let dir_name = dir.file_name().unwrap().to_str().unwrap();
 
     // These folder names are used to hold mail. Every other folder is
     // valid.
@@ -218,14 +228,14 @@ fn list_dir(dir: Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
         return None;
     }
 
-    let abs_dir = make_absolute(&dir).unwrap();
+    let abs_dir = make_absolute(dir);
 
     // If it doesn't have any mail, then it isn't selectable as a mail
     // folder but it may contain subfolders which hold mail.
-    let mut flags = match fs::readdir(&dir.join("cur")) {
+    let mut flags = match fs::read_dir(&dir.join("cur")) {
         Err(_) => "\\Noselect".to_string(),
         _ => {
-            match fs::readdir(&dir.join("new")) {
+            match fs::read_dir(&dir.join("new")) {
                 Err(_) => "\\Noselect".to_string(),
                 // If there is new mail in the folder, we should inform the
                 // client. We do this only because we have to perform the
@@ -233,7 +243,7 @@ fn list_dir(dir: Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
                 // not to perform the check if it would slow down the
                 // response time.
                 Ok(newlisting) => {
-                    if newlisting.len() == 0 {
+                    if newlisting.count() == 0 {
                         "\\Unmarked".to_string()
                     } else {
                         "\\Marked".to_string()
@@ -246,29 +256,35 @@ fn list_dir(dir: Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
     // Changing folders in mutt doesn't work properly if we don't indicate
     // whether or not a given folder has subfolders. Mutt has issues
     // selecting folders with subfolders for reading mail, unfortunately.
-    match fs::readdir(&dir) {
+    match fs::read_dir(&dir) {
         Err(_) => { return None; }
         Ok(dir_listing) => {
             let mut children = false;
-            for subdir in dir_listing.iter() {
-                if dir == *maildir_path {
-                    break;
+            for subdir_entry in dir_listing {
+                match subdir_entry {
+                    Ok(subdir) => {
+                        if *dir == *maildir_path {
+                            break;
+                        }
+                        let subdir_path = subdir.path();
+                        let subdir_str = subdir_path.as_path().file_name().unwrap().to_str().unwrap();
+                        if subdir_str != "cur" &&
+                            subdir_str != "new" &&
+                            subdir_str != "tmp" {
+                                match fs::read_dir(&subdir.path().join("cur")) {
+                                    Err(_) => { continue; }
+                                    _ => {}
+                                }
+                                match fs::read_dir(&subdir.path().join("new")) {
+                                    Err(_) => { continue; }
+                                    _ => {}
+                                }
+                                children = true;
+                                break;
+                            }
+                    },
+                    _ => {}
                 }
-                let subdir_str = from_utf8(subdir.filename().unwrap()).unwrap();
-                if subdir_str != "cur" &&
-                    subdir_str != "new" &&
-                    subdir_str != "tmp" {
-                        match fs::readdir(&subdir.join("cur")) {
-                            Err(_) => { continue; }
-                            _ => {}
-                        }
-                        match fs::readdir(&subdir.join("new")) {
-                            Err(_) => { continue; }
-                            _ => {}
-                        }
-                        children = true;
-                        break;
-                    }
             }
             if children {
                 flags.push_str(" \\HasChildren");
@@ -278,21 +294,20 @@ fn list_dir(dir: Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
         }
     }
 
-    let re_path = make_absolute(maildir_path).unwrap();
-    let re_opt = Regex::new(format!("^{}", re_path.display()).as_slice());
+    let re_path = make_absolute(maildir_path);
+    let re_opt = Regex::new(&(format!("^{}", re_path))[..]);
     return match re_opt {
         Err(_) =>  None,
         Ok(re) => {
-            if !dir.is_dir() || !regex.is_match(dir_string.as_slice()) {
+            if !fs::metadata(dir).unwrap().is_dir() || !regex.is_match(&dir_string[..]) {
                 return None;
             }
             let mut list_str = "* LIST (".to_string();
-            list_str.push_str(flags.as_slice());
+            list_str.push_str(&flags[..]);
             list_str.push_str(") \"/\" ");
-            list_str.push_str(regex!("INBOX/").replace
-                              (re.replace(abs_dir.display().to_string()
-                                          .as_slice(), "INBOX").as_slice(),
-                               "").as_slice());
+            list_str.push_str(&(regex!("INBOX/").replace
+                              (&re.replace(&abs_dir[..], "INBOX")[..],
+                               ""))[..]);
             Some(list_str)
         }
     };
@@ -309,18 +324,18 @@ pub fn list(maildir: &str, regex: Regex) -> Vec<String> {
         }
         _ => {}
     }
-    match fs::walk_dir(&maildir_path) {
-        Err(_) => Vec::new(),
-        Ok(mut dir_list) => {
-            for dir in dir_list {
-                match list_dir(dir, &regex, &maildir_path) {
+    for dir_res in WalkDir::new(&maildir_path) {
+        match dir_res {
+            Ok(dir) => {
+                match list_dir(dir.path(), &regex, &maildir_path) {
                     Some(list_response) => {
                         responses.push(list_response);
                     }
                     _ => {}
                 }
             }
-            responses
+            _ => {}
         }
     }
+    responses
 }

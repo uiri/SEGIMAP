@@ -38,7 +38,7 @@ fn parse_item(item: &str) -> Option<SequenceItem> {
 /// Given a string as passed in from the client, create a list of sequence items
 /// If the string does not represent a valid list, return None
 pub fn parse(sequence_string: &str) -> Option<Vec<SequenceItem>> {
-    let mut sequences = sequence_string.split(',');
+    let sequences = sequence_string.split(',');
     let mut sequence_set = Vec::new();
     for sequence in sequences {
         let mut range = sequence.split(':');
@@ -111,28 +111,24 @@ pub fn iterator(sequence_set: &Vec<SequenceItem>, max_id: usize) -> Vec<usize> {
                     }
                 };
                 // Figure out which way the range points
-                let mut min = 0;
-                let mut max = 0;
-                if a <= b {
-                    min = a;
-                    max = b;
+                let (mut min, mut max) = if a <= b {
+                    (a, b)
                 } else {
-                    min = b;
-                    max = a;
-                }
+                    (b, a)
+                };
 
                 // Bounds checks
                 if min > stop { min = stop; }
                 if max > stop { max = stop; }
 
                 // Generate the list of values between the min and max
-                let seq_range: Vec<usize> = range(min, max + 1).collect();
-                items.push_all(seq_range.as_slice());
+                let seq_range: Vec<usize> = (min..max + 1).collect();
+                items.extend(seq_range.iter());
             },
             &Wildcard => {
                 // If the sequence set contains the wildcard operator, it spans
                 // the entire possible range of messages.
-                return range(1, stop).collect()
+                return (1..stop).collect()
             }
         }
     }
@@ -167,19 +163,15 @@ pub fn uid_iterator(sequence_set: &Vec<SequenceItem>) -> Vec<usize> {
                         continue;
                     }
                 };
-                let mut min = 0;
-                let mut max = 0;
-                if a <= b {
-                    min = a;
-                    max = b;
+                let (min, max) = if a <= b {
+                    (a, b)
                 } else {
-                    min = b;
-                    max = a;
-                }
+                    (b, a)
+                };
                 //if min > stop { min = stop; }
                 //if max > stop { max = stop; }
-                let seq_range: Vec<usize> = range(min, max + 1).collect();
-                items.push_all(seq_range.as_slice());
+                let seq_range: Vec<usize> = (min..max + 1).collect();
+                items.extend(seq_range.iter());
             },
             &Wildcard => {
                 return Vec::new()

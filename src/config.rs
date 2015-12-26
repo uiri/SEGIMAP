@@ -1,4 +1,7 @@
-use std::old_io::File;
+use std::io::{Read, Write};
+use std::fs::File;
+use std::path::Path;
+use std::str;
 
 use toml::{decode_str, encode_str};
 
@@ -18,9 +21,10 @@ pub struct Config {
 impl Config {
     pub fn new() -> Config {
         let path = Path::new("./config.toml");
-        match File::open(&path).read_to_end() {
-            Ok(v) => {
-                match decode_str(String::from_utf8_lossy(v.as_slice()).as_slice()) {
+        let mut conf_buf : Vec<u8> = Vec::new();
+        match File::open(&path).unwrap().read_to_end(&mut conf_buf) {
+            Ok(_) => {
+                match decode_str(str::from_utf8(&conf_buf[..]).unwrap()) {
                     Some(v) => v,
                     None => {
                         // Use default values if parsing failed.
@@ -34,8 +38,8 @@ impl Config {
                 warn!("Failed to read config.toml; creating from defaults.");
                 let config = default_config();
                 let encoded = encode_str(&config);
-                let mut file = File::create(&path);
-                file.write(encoded.into_bytes().as_slice()).ok();
+                let mut file = File::create(&path).unwrap();
+                file.write(&encoded.into_bytes()[..]).ok();
                 config
             }
         }

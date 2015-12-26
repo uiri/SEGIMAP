@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use std::old_io::TcpListener;
-use std::old_io::IoResult;
+use std::io::Result;
+use std::net::TcpListener;
 
 use config::Config;
 use email::Email;
@@ -26,13 +26,13 @@ impl Server {
     }
 
     /// Create a TCP listener on the server host and imap post
-    pub fn imap_listener(&self) -> IoResult<TcpListener> {
-        return TcpListener::bind((self.conf.host.as_slice(), self.conf.imap_port));
+    pub fn imap_listener(&self) -> Result<TcpListener> {
+        return TcpListener::bind((&self.conf.host[..], self.conf.imap_port));
     }
 
     /// Create a TCP listener on the server host and lmtp port
-    pub fn lmtp_listener<'r>(&self) -> IoResult<TcpListener> {
-        return TcpListener::bind((self.conf.host.as_slice(), self.conf.lmtp_port));
+    pub fn lmtp_listener<'r>(&self) -> Result<TcpListener> {
+        return TcpListener::bind((&self.conf.host[..], self.conf.lmtp_port));
     }
 
     /// Return the server's host

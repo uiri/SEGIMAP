@@ -1,4 +1,4 @@
-use std::ascii::OwnedAsciiExt;
+use std::ascii::AsciiExt;
 
 use command::command::{
     Attribute,
@@ -108,7 +108,7 @@ header_list -> Vec<String>
 
 header_fld_name -> String
     = a:astring
-    { a.into_ascii_uppercase().to_string() }
+    { (&a[..]).to_ascii_uppercase().to_string() }
 
 section_part -> Vec<usize>
     = a:nz_number b:("." nz_number)*

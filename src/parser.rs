@@ -1,4 +1,5 @@
 pub use self::grammar::{fetch, sequence_set};
+pub use self::grammar::ParseError;
 
 // grammar.rustpeg contains the parsing expression grammar needed in order to
 // parse FETCH commands.

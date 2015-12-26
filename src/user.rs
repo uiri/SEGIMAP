@@ -1,5 +1,8 @@
 use std::collections::HashMap;
-use std::old_io::File;
+use std::fs::File;
+use std::io::{Read, Write};
+use std::path::Path;
+use std::str;
 
 use rustc_serialize::json;
 
@@ -34,14 +37,14 @@ impl User {
 /// Reads a JSON file and turns it into a HashMap of emails to users.
 /// May throw an IoError, hence the Result<> type.
 pub fn load_users(path_str: String) -> ImapResult<HashMap<Email, User>> {
-    let path = Path::new(path_str);
-    let file = match File::open(&path).read_to_end() {
-        Ok(v) => v,
+    let path = Path::new(&path_str[..]);
+    let mut file_buf : Vec<u8> = Vec::new();
+    let file = match File::open(&path).unwrap().read_to_end(&mut file_buf) {
+        Ok(_) => str::from_utf8(&file_buf[..]).unwrap(),
         Err(err) => return Err(Error::new(InternalIoError(err),
                                           "Failed to read users.json."))
     };
-    let users: Vec<User> = match json::decode(String::from_utf8_lossy
-                                              (file.as_slice()).as_slice()) {
+    let users: Vec<User> = match json::decode(file) {
         Ok(v) => v,
         Err(err) => return Err(Error::new(SerializationError(err),
                                           "Failed to decode users.json."))
@@ -59,8 +62,8 @@ pub fn load_users(path_str: String) -> ImapResult<HashMap<Email, User>> {
 /// management.
 #[allow(dead_code)]
 pub fn save_users(path_str: String, users: Vec<User>) {
-    let path = Path::new(path_str);
-    let encoded = json::encode(&users);
-    let mut file = File::create(&path);
-    file.write(encoded.into_bytes().as_slice()).ok();
+    let path = Path::new(&path_str[..]);
+    let encoded = json::encode(&users).unwrap();
+    let mut file = File::create(&path).unwrap();
+    file.write(&encoded.into_bytes()[..]).ok();
 }

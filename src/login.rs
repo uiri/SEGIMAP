@@ -8,7 +8,7 @@ pub struct LoginData {
 
 impl LoginData {
     pub fn new(email: String, password: String) -> Option<LoginData> {
-        let mut parts = email.as_slice().split('@');
+        let mut parts = (&email[..]).split('@');
         match parts.next() {
             Some(local_part) => {
                 match parts.next() {

@@ -2,21 +2,24 @@
 #![deny(non_camel_case_types)]
 #![feature(
     box_patterns,
-    default_type_params,
-    macro_rules,
+    negate_unsigned,
     plugin,
-    regex_macros
+    rustc_private
 )]
 #![plugin(peg_syntax_ext, regex_macros)]
 
+extern crate bufstream;
 extern crate crypto;
 #[macro_use] extern crate log;
-extern crate peg_syntax_ext;
+//extern crate peg_syntax_ext;
+extern crate rand;
 extern crate regex;
-extern crate regex_macros;
-extern crate "rustc-serialize" as rustc_serialize;
+//extern crate regex_macros;
+extern crate rustc;
+extern crate rustc_serialize;
 extern crate time;
 extern crate toml;
+extern crate walkdir;
 
 pub use config::Config;
 pub use email::Email;
@@ -27,9 +30,9 @@ pub use server::Server;
 pub use session::Session;
 pub use user::User;
 
-use std::old_io::{Listener, Acceptor, BufferedStream};
 use std::sync::Arc;
 use std::thread::spawn;
+use bufstream::BufStream;
 
 mod auth;
 mod command;
@@ -65,9 +68,9 @@ fn main() {
         Ok(v) => {
             let lmtp_serv = serv.clone();
             spawn(move || {
-                let mut acceptor = v.listen();
+                // let mut acceptor = v.listen();
                 // We spawn a separate thread for each LMTP session
-                for stream in acceptor.incoming() {
+                for stream in v.incoming() {
                     match stream {
                         Err(e) => {
                             error!("Error accepting incoming LMTP connection: {}",
@@ -77,7 +80,7 @@ fn main() {
                             let session_serv = lmtp_serv.clone();
                             spawn(move || {
                                 let mut lmtp = Lmtp::new(session_serv);
-                                lmtp.handle(BufferedStream::new(stream));
+                                lmtp.handle(BufStream::new(stream));
                             });
                         }
                     }
@@ -92,9 +95,9 @@ fn main() {
             error!("Error listening on IMAP port: {}", e);
         }
         Ok(v) => {
-            let mut acceptor = v.listen();
+            // let mut acceptor = v.listen();
             // For each IMAP session, we spawn a separate thread.
-            for stream in acceptor.incoming() {
+            for stream in v.incoming() {
                 match stream {
                     Err(e) => {
                         error!("Error accepting incoming IMAP connection: {}",
@@ -104,14 +107,14 @@ fn main() {
                         let session_serv = serv.clone();
                         spawn(move || {
                             let mut session = Session::new(
-                                               BufferedStream::new(stream),
+                                               BufStream::new(stream),
                                                session_serv);
                             session.handle();
                         });
                     }
                 }
             }
-            drop(acceptor);
+            drop(v);
         }
     }
 }

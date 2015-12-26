@@ -1,11 +1,10 @@
-use std::old_io::IoError;
-
 use rustc_serialize::json::DecoderError;
+use std::io;
 
 /// An enum of all error kinds.
 #[derive(Debug)]
 pub enum ErrorKind {
-    InternalIoError(IoError),
+    InternalIoError(io::Error),
     MessageDecodeError,
     ImapStateError,
     SerializationError(DecoderError)
