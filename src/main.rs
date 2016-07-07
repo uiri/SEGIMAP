@@ -2,11 +2,10 @@
 #![deny(non_camel_case_types)]
 #![feature(
     box_patterns,
-    negate_unsigned,
     plugin,
     rustc_private
 )]
-#![plugin(peg_syntax_ext, regex_macros)]
+#![plugin(peg_syntax_ext)]
 
 extern crate bufstream;
 extern crate crypto;
@@ -14,7 +13,6 @@ extern crate crypto;
 //extern crate peg_syntax_ext;
 extern crate rand;
 extern crate regex;
-//extern crate regex_macros;
 extern crate rustc;
 extern crate rustc_serialize;
 extern crate time;

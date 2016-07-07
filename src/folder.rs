@@ -48,7 +48,7 @@ macro_rules! handle_message(
                     Ok(message) => message,
                     _ => continue
                 };
-                if $unseen == -1 && message.is_unseen() {
+                if $unseen == !0usize && message.is_unseen() {
                     $unseen = $i;
                 }
                 $uid_map.insert(message.uid, $i);
@@ -108,7 +108,7 @@ impl Folder {
                 let mut messages = Vec::new();
                 let mut uid_to_seqnum: HashMap<usize, usize> = HashMap::new();
                 let mut i = 0usize;
-                let mut unseen = -1;
+                let mut unseen = !0usize;
 
                 // populate messages
                 for msg_path in cur {
