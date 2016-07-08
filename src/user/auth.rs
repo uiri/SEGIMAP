@@ -76,9 +76,8 @@ mod tests {
     }
 
     #[test]
-    #[should_fail]
     fn test_invalid_auth_data() {
         let auth_data = auth::AuthData::new("12345".to_string());
-        assert!(auth_data.verify_auth("54321".to_string()));
+        assert!(!auth_data.verify_auth("54321".to_string()));
     }
 }

@@ -4,9 +4,9 @@ use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 
-use command::command::Attribute;
-use message::Message;
-use message::Flag;
+use command::Attribute;
+use mime::Message;
+use mime::Flag;
 use util::StoreName;
 
 /// Representation of a Folder
@@ -79,6 +79,25 @@ macro_rules! rename_message(
         }
     })
 );
+
+fn store_message(msg: &mut Message, flag_name: &StoreName,
+                 new_flags: HashSet<Flag>) -> String {
+    match flag_name {
+        &StoreName::Sub => {
+            for flag in new_flags.iter() {
+                msg.flags.remove(flag);
+            }
+        }
+        &StoreName::Replace => { msg.flags = new_flags; }
+        &StoreName::Add => {
+            for flag in new_flags.into_iter() {
+                msg.flags.insert(flag);
+            }
+        }
+    }
+    msg.deleted = msg.flags.contains(&Flag::Deleted);
+    msg.print_flags()
+}
 
 impl Folder {
     pub fn new(path: PathBuf, examine: bool) -> Option<Folder> {
@@ -231,7 +250,7 @@ impl Folder {
             responses.push_str("* ");
             responses.push_str(&i.to_string()[..]);
             responses.push_str(" FETCH (FLAGS ");
-            responses.push_str(&message.store(flag_name, flags.clone())[..]);
+            responses.push_str(&*store_message(message, flag_name, flags.clone()));
 
             // UID STORE needs to respond with the UID for each FETCH response
             if seq_uid {

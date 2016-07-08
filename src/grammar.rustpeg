@@ -1,13 +1,13 @@
 use std::ascii::AsciiExt;
 
-use command::command::{
+use command::{
     Attribute,
     BodySectionType,
     Command,
     Msgtext,
     RFC822Attribute
 };
-use command::command::Attribute::{
+use command::Attribute::{
     Body,
     BodyPeek,
     BodySection,
@@ -18,20 +18,20 @@ use command::command::Attribute::{
     RFC822,
     UID
 };
-use command::command::BodySectionType::{
+use command::BodySectionType::{
     AllSection,
     MsgtextSection,
     PartSection
 };
-use command::command::CommandType::Fetch;
-use command::command::Msgtext::{
+use command::CommandType::Fetch;
+use command::Msgtext::{
     HeaderMsgtext,
     HeaderFieldsMsgtext,
     HeaderFieldsNotMsgtext,
     TextMsgtext,
     MimeMsgtext
 };
-use command::command::RFC822Attribute::{
+use command::RFC822Attribute::{
     AllRFC822,
     HeaderRFC822,
     SizeRFC822,

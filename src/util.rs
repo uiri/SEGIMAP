@@ -10,17 +10,16 @@ use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::Split;
-use regex;
 use regex::Regex;
 use walkdir::WalkDir;
 
 use parser;
 use folder::Folder;
-use message::Flag;
-use message::Flag::{Seen, Answered, Deleted, Draft, Flagged};
+use mime::Flag;
+use mime::Flag::{Seen, Answered, Deleted, Draft, Flagged};
 
-use command::command::Command;
-use command::command::Attribute::BodySection;
+use command::Command;
+use command::Attribute::BodySection;
 use command::sequence_set;
 
 use self::StoreName::{Add, Replace, Sub};

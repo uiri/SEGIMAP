@@ -8,8 +8,8 @@ use std::str;
 use time;
 use time::Timespec;
 
-use command::command::{Attribute, BodySectionType};
-use command::command::Attribute::{
+use command::{Attribute, BodySectionType};
+use command::Attribute::{
     Envelope,
     Flags,
     InternalDate,
@@ -20,19 +20,19 @@ use command::command::Attribute::{
     BodyStructure,
     UID
 };
-use command::command::BodySectionType::{
+use command::BodySectionType::{
     AllSection,
     MsgtextSection,
     PartSection
 };
-use command::command::Msgtext::{
+use command::Msgtext::{
     HeaderMsgtext,
     HeaderFieldsMsgtext,
     HeaderFieldsNotMsgtext,
     TextMsgtext,
     MimeMsgtext
 };
-use command::command::RFC822Attribute::{
+use command::RFC822Attribute::{
     AllRFC822,
     HeaderRFC822,
     SizeRFC822,
@@ -40,8 +40,6 @@ use command::command::RFC822Attribute::{
 };
 use error::{Error, ImapResult};
 use error::ErrorKind::{InternalIoError, MessageDecodeError};
-use util::StoreName;
-use util::StoreName::{Replace, Add, Sub};
 
 use self::Flag::{Answered, Deleted, Draft, Flagged, Seen};
 
@@ -73,7 +71,7 @@ pub struct Message {
     body: Vec<MIMEPart>,
 
     // contains the message's flags
-    flags: HashSet<Flag>,
+    pub flags: HashSet<Flag>,
 
     // marks the message for deletion
     pub deleted: bool,
@@ -90,7 +88,7 @@ pub struct Message {
 
 /// Representation of a MIME message part
 #[derive(Debug, Clone)]
-pub struct MIMEPart {
+struct MIMEPart {
     mime_header: String,
     mime_body: String
 }
@@ -541,31 +539,9 @@ impl Message {
             date_received_tm.tm_sec)
     }
 
-    // Perform a STORE operation on the message. This involves replacing,
-    // adding or removing (as specified by flag_name) the set of new_flags
-    // Returns a string containing the new set of flags.
-    pub fn store(&mut self, flag_name: &StoreName,
-                 new_flags: HashSet<Flag>) -> String {
-        match flag_name {
-            &Sub => {
-                for flag in new_flags.iter() {
-                    self.flags.remove(flag);
-                }
-            }
-            &Replace => { self.flags = new_flags; }
-            &Add => {
-                for flag in new_flags.into_iter() {
-                    self.flags.insert(flag);
-                }
-            }
-        }
-        self.deleted = self.flags.contains(&Deleted);
-        self.print_flags()
-    }
-
     // Creates a string of the current set of flags based on what is in
     // self.flags.
-    fn print_flags(&self) -> String {
+    pub fn print_flags(&self) -> String {
         let mut res = "(".to_string();
         let mut first = true;
         for flag in self.flags.iter() {

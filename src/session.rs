@@ -11,7 +11,7 @@ use regex::Regex;
 pub use folder::Folder;
 pub use server::Server;
 
-use command::command::Attribute::UID;
+use command::Attribute::UID;
 use command::sequence_set;
 use command::sequence_set::SequenceItem::{
     Number,
