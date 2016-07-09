@@ -1,4 +1,4 @@
-use email::Email;
+use super::email::Email;
 
 /// Representation of an email and password login attempt.
 pub struct LoginData {

@@ -19,30 +19,23 @@ extern crate time;
 extern crate toml;
 extern crate walkdir;
 
-pub use config::Config;
-pub use email::Email;
-pub use lmtp::Lmtp;
-pub use login::LoginData;
-pub use mime::Message;
-pub use server::Server;
-pub use session::Session;
-pub use user::User;
+use server::Config;
+use server::Server;
+use server::Lmtp;
+use user::Session;
+use user::User;
+use user::Email;
 
 use std::sync::Arc;
 use std::thread::spawn;
 use bufstream::BufStream;
 
 mod command;
-mod config;
-mod email;
 mod error;
 mod folder;
-mod lmtp;
-mod login;
 mod mime;
 mod parser;
 mod server;
-mod session;
 mod user;
 mod util;
 

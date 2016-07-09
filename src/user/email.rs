@@ -13,7 +13,9 @@ impl Email {
             domain_part: domain_part
         }
     }
-    pub fn to_string(&self) -> String {
+
+    #[allow(dead_code)]
+    fn to_string(&self) -> String {
         let mut res = self.local_part.clone();
         res.push('@');
         res.push_str(&self.domain_part[..]);

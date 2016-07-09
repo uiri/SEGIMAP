@@ -10,8 +10,8 @@ use bufstream::BufStream;
 use rustc::util::num::ToPrimitive;
 use time;
 
-use email::Email;
 pub use server::Server;
+use user::Email;
 use user::User;
 
 macro_rules! return_on_err(

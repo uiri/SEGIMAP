@@ -3,9 +3,13 @@ use std::collections::HashMap;
 use std::io::Result;
 use std::net::TcpListener;
 
-use config::Config;
-use email::Email;
-use user::{load_users, User};
+pub use self::config::Config;
+use user::{load_users, Email, User};
+
+pub use self::lmtp::Lmtp;
+
+mod config;
+mod lmtp;
 
 /// Holds configuration state and email->user map
 pub struct Server {

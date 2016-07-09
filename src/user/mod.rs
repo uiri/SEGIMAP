@@ -7,11 +7,15 @@ use std::str;
 use rustc_serialize::json;
 
 use self::auth::AuthData;
-use email::Email;
+pub use self::email::Email;
 use error::{Error, ImapResult};
 use error::ErrorKind::{InternalIoError, SerializationError};
+pub use self::session::Session;
 
 mod auth;
+mod email;
+mod login;
+mod session;
 
 /// Representation of a User.
 #[derive(RustcDecodable, RustcEncodable, Debug)]

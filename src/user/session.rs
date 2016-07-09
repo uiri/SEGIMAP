@@ -8,8 +8,8 @@ use std::sync::Arc;
 use bufstream::BufStream;
 use regex::Regex;
 
-pub use folder::Folder;
-pub use server::Server;
+use folder::Folder;
+use server::Server;
 
 use command::Attribute::UID;
 use command::sequence_set;
@@ -20,7 +20,7 @@ use command::sequence_set::SequenceItem::{
 };
 use error::Error;
 use error::ErrorKind::ImapStateError;
-use login::LoginData;
+use super::login::LoginData;
 use util;
 
 // Just bail if there is some error.
