@@ -5,9 +5,11 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use command::Attribute;
+use command::store::message as store_message;
 use mime::Message;
 use mime::Flag;
-use util::StoreName;
+
+use command::store::StoreName;
 
 /// Representation of a Folder
 #[derive(Clone)]
@@ -79,25 +81,6 @@ macro_rules! rename_message(
         }
     })
 );
-
-fn store_message(msg: &mut Message, flag_name: &StoreName,
-                 new_flags: HashSet<Flag>) -> String {
-    match flag_name {
-        &StoreName::Sub => {
-            for flag in new_flags.iter() {
-                msg.flags.remove(flag);
-            }
-        }
-        &StoreName::Replace => { msg.flags = new_flags; }
-        &StoreName::Add => {
-            for flag in new_flags.into_iter() {
-                msg.flags.insert(flag);
-            }
-        }
-    }
-    msg.deleted = msg.flags.contains(&Flag::Deleted);
-    msg.print_flags()
-}
 
 impl Folder {
     pub fn new(path: PathBuf, examine: bool) -> Option<Folder> {

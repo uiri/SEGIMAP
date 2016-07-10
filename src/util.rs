@@ -3,33 +3,14 @@
 // on the session (or take what they do need as arguments) and/or they are
 // called by the session in multiple places.
 
-use std::ascii::AsciiExt;
-use std::collections::HashSet;
 use std::env::current_dir;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
-use std::str::Split;
 use regex::Regex;
 use walkdir::WalkDir;
 
-use parser;
 use folder::Folder;
-use mime::Flag;
-use mime::Flag::{Seen, Answered, Deleted, Draft, Flagged};
-
-use command::Command;
-use command::Attribute::BodySection;
-use command::sequence_set;
-
-use self::StoreName::{Add, Replace, Sub};
-
-/// Representation of a STORE operation
-pub enum StoreName {
-    Replace, // replace current flags with new flags
-    Add, // add new flags to current flags
-    Sub // remove new flags from current flags
-}
 
 fn make_absolute(dir: &Path) -> String {
     let mut abs_path = current_dir().unwrap();
@@ -68,154 +49,6 @@ pub fn perform_select(maildir: &str, select_args: Vec<&str>, examine: bool,
     ok_res.push_str(&(format!("{} OK {} SELECT command was successful\r\n", tag,
                             folder.read_status()))[..]);
     return (Some(folder), ok_res);
-}
-
-
-/// Parse and perform the store operation specified by store_args. Returns the
-/// response to the client or None if a BAD response should be sent back to
-/// the client
-pub fn store(folder: &mut Folder, store_args: Vec<&str>, seq_uid: bool,
-                 tag: &str) -> Option<String> {
-    if store_args.len() < 3 { return None; }
-
-    // Parse the sequence set argument
-    let sequence_set_opt = sequence_set::parse(store_args[0].trim_matches('"'));
-    // Grab how to handle the flags. It should be case insensitive.
-    let data_name = store_args[1].trim_matches('"').to_ascii_lowercase();
-
-    // Split into "flag" part and "silent" part.
-    let mut data_name_parts = (&data_name[..]).split('.');
-    let flag_part = data_name_parts.next();
-    let silent_part = data_name_parts.next();
-
-    // There shouldn't be any more parts to the data name argument
-    match data_name_parts.next() {
-        Some(_) => return None,
-        _ => {}
-    }
-
-    // Grab the flags themselves.
-    let data_value = store_args[2].trim_matches('"');
-
-    // Set the silent flag if it is present. If there is something else
-    // instead of the word "silent", a BAD response should be sent to the
-    // client.
-    let silent = match silent_part {
-        None => false,
-        Some(part) => {
-            if part == "silent" {
-                true
-            } else {
-                return None
-            }
-        }
-    };
-
-    // Parse the flag_part into an enum describing what to do with the
-    // data_value.
-    let flag_name = match parse_storename(flag_part) {
-        Some(storename) => storename,
-        None => return None
-    };
-
-    // Create the Set of flags to be STORE'd from the data_value argument.
-    let mut flags: HashSet<Flag> = HashSet::new();
-    for flag in data_value.trim_matches('(').trim_matches(')').split(' ') {
-        match parse_flag(flag) {
-            None => { continue; }
-            Some(insert_flag) => { flags.insert(insert_flag); }
-        }
-    }
-
-    // Perform the STORE operation on each message specified by the
-    // sequence set.
-    return match sequence_set_opt {
-        None => None,
-        Some(sequence_set) => {
-            let sequence_iter = if seq_uid {
-                sequence_set::uid_iterator(&sequence_set)
-            } else {
-                sequence_set::iterator(&sequence_set, folder.message_count())
-            };
-            let res = folder.store(sequence_iter, &flag_name, silent, flags,
-                                   seq_uid, tag);
-            Some(res)
-        }
-    };
-}
-
-/// Take the rest of the arguments provided by the client and parse them into a
-/// Command object with command::fetch.
-pub fn fetch(args: Split<char>) -> Result<Command, parser::ParseError> {
-    let mut cmd = "FETCH".to_string();
-    for arg in args {
-        cmd.push(' ');
-        cmd.push_str(arg);
-    }
-
-    // Parse the command with the PEG parser.
-   parser::fetch(&cmd[..])
-}
-
-/// Perform the fetch operation on each sequence number indicated and return
-/// the response to be sent back to the client.
-pub fn fetch_loop(parsed_cmd: Command, folder: &mut Folder,
-                  sequence_iter: Vec<usize>, tag: &str, uid: bool) -> String {
-    for attr in parsed_cmd.attributes.iter() {
-        match attr {
-            &BodySection(_, _) => {
-                let mut seen_flag_set = HashSet::new();
-                seen_flag_set.insert(Seen);
-                folder.store(sequence_iter.clone(), &Add, true, seen_flag_set,
-                             false, tag);
-                break;
-            }
-            _ => {}
-        }
-    }
-
-    let mut res = String::new();
-    for i in sequence_iter.iter() {
-        let index = if uid {
-            match folder.get_index_from_uid(i) {
-                Some(index) => *index,
-                None => {continue;}
-            }
-        } else {
-            *i-1
-        };
-        res.push_str(&folder.fetch(index, &parsed_cmd.attributes)[..]);
-    }
-    res.push_str(tag);
-    res.push_str(" OK ");
-    if uid {
-        res.push_str("UID ");
-    }
-    res.push_str("FETCH completed\r\n");
-    res
-}
-
-/// Takes a flag argument and returns the corresponding enum.
-fn parse_flag(flag: &str) -> Option<Flag> {
-    match flag {
-        "\\Deleted" => Some(Deleted),
-        "\\Seen" => Some(Seen),
-        "\\Draft" => Some(Draft),
-        "\\Answered" => Some(Answered),
-        "\\Flagged" => Some(Flagged),
-        _ => None
-    }
-}
-
-/// Takes the argument specifying what to do with the provided flags in a store
-/// operation and returns the corresponding enum.
-fn parse_storename(storename: Option<&str>) -> Option<StoreName> {
-    match storename {
-        Some("flags") => Some(Replace),
-        Some("+flags") => Some(Add),
-        Some("-flags") => Some(Sub),
-        _ => None
-    }
 }
 
 /// For the given dir, make sure it is a valid mail folder and, if it is,

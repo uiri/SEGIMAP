@@ -1,4 +1,7 @@
 pub mod sequence_set;
+pub mod store;
+pub mod fetch;
+
 use command::sequence_set::SequenceItem;
 
 /// Only the Fetch command is complicated enough to require dedicated command

@@ -12,6 +12,8 @@ use folder::Folder;
 use server::Server;
 
 use command::Attribute::UID;
+use command::fetch;
+use command::store;
 use command::sequence_set;
 use command::sequence_set::SequenceItem::{
     Number,
@@ -440,7 +442,7 @@ impl Session {
                         };
 
                         // Parse command, make sure it is validly formed.
-                        let parsed_cmd = match util::fetch(args) {
+                        let parsed_cmd = match fetch::fetch(args) {
                             Ok(cmd) => cmd,
                             _ => return bad_res
                         };
@@ -459,7 +461,7 @@ impl Session {
                                              (&parsed_cmd.sequence_set,
                                               folder.message_count());
                         if sequence_iter.len() == 0 { return bad_res }
-                        return util::fetch_loop(parsed_cmd, folder,
+                        return fetch::fetch_loop(parsed_cmd, folder,
                                                       sequence_iter, tag,
                                                       false);
                     },
@@ -480,7 +482,7 @@ impl Session {
                                         };
                                         // Parse the command with the PEG
                                         // parser.
-                                        let mut parsed_cmd = match util::fetch(args) {
+                                        let mut parsed_cmd = match fetch::fetch(args) {
                                             Ok(cmd) => cmd,
                                             _ => return bad_res
                                         };
@@ -521,7 +523,7 @@ impl Session {
                                                  */
                                                 let sequence_iter = sequence_set::uid_iterator(&parsed_cmd.sequence_set);
                                                 if sequence_iter.len() == 0 { return bad_res; }
-                                                util::fetch_loop(parsed_cmd, folder, sequence_iter, tag, true)
+                                                fetch::fetch_loop(parsed_cmd, folder, sequence_iter, tag, true)
                                             }
                                         };
                                     }
@@ -532,7 +534,7 @@ impl Session {
                                             Some(ref mut folder) => folder
                                         };
 
-                                        match util::store(folder, args.collect(),
+                                        match store::store(folder, args.collect(),
                                                     true, tag) {
                                             Some(res) => return res,
                                             _ => return bad_res
@@ -551,7 +553,7 @@ impl Session {
                             Some(ref mut folder) => folder
                         };
 
-                        match util::store(folder, args.collect(), false, tag) {
+                        match store::store(folder, args.collect(), false, tag) {
                             Some(res) => return res,
                             _ => return bad_res
                         }

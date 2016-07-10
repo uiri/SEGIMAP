@@ -41,8 +41,6 @@ use command::RFC822Attribute::{
 use error::{Error, ImapResult};
 use error::ErrorKind::{InternalIoError, MessageDecodeError};
 
-use self::Flag::{Answered, Deleted, Draft, Flagged, Seen};
-
 static RECEIVED: &'static str = "RECEIVED";
 
 /// Representation of a message flag
@@ -93,6 +91,18 @@ struct MIMEPart {
     mime_body: String
 }
 
+/// Takes a flag argument and returns the corresponding enum.
+pub fn parse_flag(flag: &str) -> Option<Flag> {
+    match flag {
+        "\\Deleted" => Some(Flag::Deleted),
+        "\\Seen" => Some(Flag::Seen),
+        "\\Draft" => Some(Flag::Draft),
+        "\\Answered" => Some(Flag::Answered),
+        "\\Flagged" => Some(Flag::Flagged),
+        _ => None
+    }
+}
+
 impl Message {
     pub fn new(arg_path: &Path) -> ImapResult<Message> {
         // Load the file contents.
@@ -136,10 +146,10 @@ impl Message {
                 let mut set_flags: HashSet<Flag> = HashSet::new();
                 for flag in unparsed_flags.chars() {
                     let parsed_flag = match flag {
-                        'D' => Some(Draft),
-                        'F' => Some(Flagged),
-                        'R' => Some(Answered),
-                        'S' => Some(Seen),
+                        'D' => Some(Flag::Draft),
+                        'F' => Some(Flag::Flagged),
+                        'R' => Some(Flag::Answered),
+                        'S' => Some(Flag::Seen),
                         _ => None
                     };
                     match parsed_flag {
@@ -304,7 +314,7 @@ impl Message {
 
     /// convenience method for determining if Seen is in this message's flags
     pub fn is_unseen(&self) -> bool {
-        self.flags.contains(&Seen)
+        self.flags.contains(&Flag::Seen)
     }
 
     /// Goes through the list of attributes, constructing a FETCH response for
@@ -552,11 +562,11 @@ impl Message {
                 res.push(' ');
             }
             let flag_str = match flag {
-                &Answered => { "\\Answered" },
-                &Draft => { "\\Draft" },
-                &Flagged => { "\\Flagged" },
-                &Seen => { "\\Seen" }
-                &Deleted => { "\\Deleted" }
+                &Flag::Answered => { "\\Answered" },
+                &Flag::Draft => { "\\Draft" },
+                &Flag::Flagged => { "\\Flagged" },
+                &Flag::Seen => { "\\Seen" }
+                &Flag::Deleted => { "\\Deleted" }
             };
             res.push_str(flag_str);
         }
@@ -580,16 +590,16 @@ impl Message {
 
         // As per the Maildir standard, the flags are to be written in
         // alphabetical order
-        if self.flags.contains(&Draft) {
+        if self.flags.contains(&Flag::Draft) {
             res.push('D');
         }
-        if self.flags.contains(&Flagged) {
+        if self.flags.contains(&Flag::Flagged) {
             res.push('F');
         }
-        if self.flags.contains(&Answered) {
+        if self.flags.contains(&Flag::Answered) {
             res.push('R');
         }
-        if self.flags.contains(&Seen) {
+        if self.flags.contains(&Flag::Seen) {
             res.push('S');
         }
         res
