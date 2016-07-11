@@ -22,7 +22,7 @@ use command::RFC822Attribute::{
 };
 
 use error::{Error, ImapResult};
-use error::ErrorKind::MessageDecodeError;
+use error::ErrorKind::{MimeError, MessageDecodeError};
 
 use mime::Message as MIME_Message;
 
@@ -73,7 +73,7 @@ impl Message {
     pub fn new(arg_path: &Path) -> ImapResult<Message> {
         let mime_message = match MIME_Message::new(arg_path) {
             Ok(msg) => msg,
-            Err(e) => return Err(e)
+            Err(e) => return Err(Error::new(MimeError(e), "Error creating MIME Message"))
         };
 
         // Grab the string in the filename representing the flags

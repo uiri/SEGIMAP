@@ -4,6 +4,8 @@ pub mod fetch;
 
 use command::sequence_set::SequenceItem;
 
+use mime::BodySectionType;
+
 /// Only the Fetch command is complicated enough to require dedicated command
 /// parsing
 #[derive(PartialEq, Debug)]
@@ -32,22 +34,6 @@ pub enum RFC822Attribute {
     HeaderRFC822,
     SizeRFC822,
     TextRFC822
-}
-
-#[derive(PartialEq, Debug)]
-pub enum BodySectionType {
-    AllSection,
-    MsgtextSection(Msgtext),
-    PartSection(Vec<usize>, Option<Msgtext>)
-}
-
-#[derive(PartialEq, Debug)]
-pub enum Msgtext {
-    HeaderMsgtext,
-    HeaderFieldsMsgtext(Vec<String>),
-    HeaderFieldsNotMsgtext(Vec<String>),
-    TextMsgtext,
-    MimeMsgtext
 }
 
 /// This represents a Fetch command;

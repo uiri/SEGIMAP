@@ -5,13 +5,15 @@ use std::io::Read;
 use std::path::Path;
 use std::str;
 
-use command::BodySectionType;
-use command::BodySectionType::{
+pub use self::command::BodySectionType;
+use self::command::BodySectionType::{
     AllSection,
     MsgtextSection,
     PartSection
 };
-use command::Msgtext::{
+
+pub use self::command::Msgtext;
+use self::command::Msgtext::{
     HeaderMsgtext,
     HeaderFieldsMsgtext,
     HeaderFieldsNotMsgtext,
@@ -19,8 +21,12 @@ use command::Msgtext::{
     MimeMsgtext
 };
 
-use error::{Error, ImapResult};
-use error::ErrorKind::{InternalIoError, MessageDecodeError};
+pub use self::error::Error;
+use self::error::MimeResult;
+use self::error::ErrorKind::{InternalIoError, MessageDecodeError};
+
+mod error;
+mod command;
 
 static RECEIVED: &'static str = "RECEIVED";
 
@@ -50,7 +56,7 @@ struct MIMEPart {
 }
 
 impl Message {
-    pub fn new(arg_path: &Path) -> ImapResult<Message> {
+    pub fn new(arg_path: &Path) -> MimeResult<Message> {
         // Load the file contents.
         let mut contents : Vec<u8> = Vec::new();
         let raw_contents = match File::open(arg_path) {

@@ -2,9 +2,7 @@ use std::ascii::AsciiExt;
 
 use command::{
     Attribute,
-    BodySectionType,
     Command,
-    Msgtext,
     RFC822Attribute
 };
 use command::Attribute::{
@@ -18,19 +16,7 @@ use command::Attribute::{
     RFC822,
     UID
 };
-use command::BodySectionType::{
-    AllSection,
-    MsgtextSection,
-    PartSection
-};
 use command::CommandType::Fetch;
-use command::Msgtext::{
-    HeaderMsgtext,
-    HeaderFieldsMsgtext,
-    HeaderFieldsNotMsgtext,
-    TextMsgtext,
-    MimeMsgtext
-};
 use command::RFC822Attribute::{
     AllRFC822,
     HeaderRFC822,
@@ -42,6 +28,20 @@ use command::sequence_set::SequenceItem::{
     Number,
     Range,
     Wildcard
+};
+
+use mime::{BodySectionType, Msgtext};
+use mime::BodySectionType::{
+    AllSection,
+    MsgtextSection,
+    PartSection
+};
+use mime::Msgtext::{
+    HeaderMsgtext,
+    HeaderFieldsMsgtext,
+    HeaderFieldsNotMsgtext,
+    TextMsgtext,
+    MimeMsgtext
 };
 
 /* FETCH command rules */
