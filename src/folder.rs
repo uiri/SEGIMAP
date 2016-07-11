@@ -6,8 +6,8 @@ use std::path::PathBuf;
 
 use command::Attribute;
 use command::store::message as store_message;
-use mime::Message;
-use mime::Flag;
+use message::Message;
+use message::Flag;
 
 use command::store::StoreName;
 

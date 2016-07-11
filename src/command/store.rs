@@ -2,9 +2,9 @@ use std::ascii::AsciiExt;
 use std::collections::HashSet;
 
 use folder::Folder;
-use mime::Flag;
-use mime::Message;
-use mime::parse_flag;
+use message::Flag;
+use message::Message;
+use message::parse_flag;
 
 use self::StoreName::{Add, Replace, Sub};
 use super::sequence_set;

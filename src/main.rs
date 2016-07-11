@@ -33,6 +33,7 @@ use bufstream::BufStream;
 mod command;
 mod error;
 mod folder;
+mod message;
 mod mime;
 mod parser;
 mod server;

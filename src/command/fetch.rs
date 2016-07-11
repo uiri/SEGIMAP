@@ -6,7 +6,7 @@ use command::Attribute::BodySection;
 use folder::Folder;
 use parser;
 
-use mime::Flag::Seen;
+use message::Flag::Seen;
 use super::store::StoreName::Add;
 
 /// Take the rest of the arguments provided by the client and parse them into a
