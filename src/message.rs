@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 use std::path::Path;
+use std::path::PathBuf;
 use std::str;
 
 use command::Attribute;
@@ -58,7 +59,7 @@ pub struct Message {
     pub uid: usize,
 
     // filename
-    pub path: String,
+    pub path: PathBuf,
 
     mime_message: MIME_Message,
 
@@ -118,7 +119,7 @@ impl Message {
 
         let message = Message {
             uid: uid,
-            path: arg_path.display().to_string(),
+            path: arg_path.to_path_buf(),
             mime_message: mime_message,
             flags: flags,
             deleted: false

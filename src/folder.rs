@@ -64,13 +64,13 @@ macro_rules! handle_message(
 
 // Perform a rename operation on a message
 macro_rules! rename_message(
-    ($msg:ident, $msg_path:expr, $curpath:expr, $new_messages:ident) => ({
-        match fs::rename($msg_path, $curpath) {
+    ($msg:ident, $curpath:expr, $new_messages:ident) => ({
+        match fs::rename($msg.path.as_path(), &$curpath) {
             Ok(_) => {
                 // if the rename operation succeeded then clone the message,
                 // update its path and add the clone to our new list
                 let mut new_msg = $msg.clone();
-                new_msg.path = $curpath.display().to_string();
+                new_msg.path = $curpath;
                 $new_messages.push(new_msg);
             }
             _ => {
@@ -169,7 +169,7 @@ impl Folder {
             while index < self.messages.len() {
                 if self.messages[index].deleted {
                     // Get the compiler to STFU with empty match block
-                    match fs::remove_file(&Path::new(&self.messages[index].path)) {
+                    match fs::remove_file(self.messages[index].path.as_path()) {
                         _ => {}
                     }
                     // Sequence numbers are 1-indexed
@@ -268,16 +268,13 @@ impl Folder {
             let filename = msg.get_new_filename();
             let curpath = self.path.join("cur").join(filename);
 
-            // Grab the current filename
-            let msg_path = Path::new(&msg.path);
-
             // If the new filename is the same as the current filename, add the
             // current message to our new list and move on to the next message
-            if curpath.as_path() == msg_path {
+            if curpath == msg.path {
                 new_messages.push(msg.clone());
                 continue;
             }
-            rename_message!(msg, &msg_path, &curpath, new_messages);
+            rename_message!(msg, curpath, new_messages);
         }
 
         // Set the current list of messages to the new list of messages
@@ -310,8 +307,7 @@ fn move_new(messages: Vec<Message>, path: &Path,
         }
         let ref msg = messages[i];
         let curpath = path.join("cur").join(msg.uid.to_string());
-        let msg_path = Path::new(&msg.path[..]);
-        rename_message!(msg, &msg_path, &curpath, new_messages);
+        rename_message!(msg, curpath, new_messages);
     }
 
     // Return the new list of messages
