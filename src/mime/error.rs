@@ -10,9 +10,9 @@ pub enum ErrorKind {
 /// Represents a SEGIMAP error.
 #[derive(Debug)]
 pub struct Error {
-    pub kind: ErrorKind,
-    pub desc: &'static str,
-    pub detail: Option<String>
+    kind: ErrorKind,
+    desc: &'static str,
+    detail: Option<String>
 }
 
 /// Generic result type.
