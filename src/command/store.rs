@@ -3,7 +3,6 @@ use std::collections::HashSet;
 
 use folder::Folder;
 use message::Flag;
-use message::Message;
 use message::parse_flag;
 
 use self::StoreName::{Add, Replace, Sub};
@@ -98,23 +97,4 @@ fn parse_storename(storename: Option<&str>) -> Option<StoreName> {
         Some("-flags") => Some(Sub),
         _ => None
     }
-}
-
-pub fn message(msg: &mut Message, flag_name: &StoreName,
-                 new_flags: HashSet<Flag>) -> String {
-    match flag_name {
-        &Sub => {
-            for flag in new_flags.iter() {
-                msg.flags.remove(flag);
-            }
-        }
-        &Replace => { msg.flags = new_flags; }
-        &Add => {
-            for flag in new_flags.into_iter() {
-                msg.flags.insert(flag);
-            }
-        }
-    }
-    msg.deleted = msg.flags.contains(&Flag::Deleted);
-    msg.print_flags()
 }

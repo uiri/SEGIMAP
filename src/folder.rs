@@ -5,7 +5,6 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use command::Attribute;
-use command::store::message as store_message;
 use message::Message;
 use message::Flag;
 
@@ -53,7 +52,7 @@ macro_rules! handle_message(
                 if $unseen == !0usize && message.is_unseen() {
                     $unseen = $i;
                 }
-                $uid_map.insert(message.uid, $i);
+                $uid_map.insert(message.get_uid(), $i);
                 $i += 1;
                 $messages.push(message);
             },
@@ -65,13 +64,11 @@ macro_rules! handle_message(
 // Perform a rename operation on a message
 macro_rules! rename_message(
     ($msg:ident, $curpath:expr, $new_messages:ident) => ({
-        match fs::rename($msg.path.as_path(), &$curpath) {
+        match fs::rename($msg.get_path(), &$curpath) {
             Ok(_) => {
                 // if the rename operation succeeded then clone the message,
                 // update its path and add the clone to our new list
-                let mut new_msg = $msg.clone();
-                new_msg.path = $curpath;
-                $new_messages.push(new_msg);
+                $new_messages.push($msg.rename($curpath));
             }
             _ => {
                 // if the rename failed, just add the old message to our
@@ -167,11 +164,7 @@ impl Folder {
 
             // self.messages will get smaller as we go through it
             while index < self.messages.len() {
-                if self.messages[index].deleted {
-                    // Get the compiler to STFU with empty match block
-                    match fs::remove_file(self.messages[index].path.as_path()) {
-                        _ => {}
-                    }
+                if self.messages[index].remove_if_deleted() {
                     // Sequence numbers are 1-indexed
                     result.push(index + 1);
                 } else {
@@ -233,7 +226,7 @@ impl Folder {
             responses.push_str("* ");
             responses.push_str(&i.to_string()[..]);
             responses.push_str(" FETCH (FLAGS ");
-            responses.push_str(&*store_message(message, flag_name, flags.clone()));
+            responses.push_str(&message.store(flag_name, flags.clone())[..]);
 
             // UID STORE needs to respond with the UID for each FETCH response
             if seq_uid {
@@ -270,7 +263,7 @@ impl Folder {
 
             // If the new filename is the same as the current filename, add the
             // current message to our new list and move on to the next message
-            if curpath == msg.path {
+            if curpath == msg.get_path() {
                 new_messages.push(msg.clone());
                 continue;
             }
@@ -306,7 +299,7 @@ fn move_new(messages: Vec<Message>, path: &Path,
             continue;
         }
         let ref msg = messages[i];
-        let curpath = path.join("cur").join(msg.uid.to_string());
+        let curpath = path.join("cur").join(msg.get_uid().to_string());
         rename_message!(msg, curpath, new_messages);
     }
 

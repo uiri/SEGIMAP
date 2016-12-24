@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str;
@@ -21,6 +22,7 @@ use command::RFC822Attribute::{
     SizeRFC822,
     TextRFC822
 };
+use command::store::StoreName;
 
 use error::{Error, ImapResult};
 use error::ErrorKind::{MimeError, MessageDecodeError};
@@ -56,18 +58,19 @@ pub fn parse_flag(flag: &str) -> Option<Flag> {
 #[derive(Debug, Clone)]
 pub struct Message {
     // a unique id (timestamp) for the message
-    pub uid: usize,
+    uid: usize,
 
     // filename
-    pub path: PathBuf,
+    path: PathBuf,
 
     mime_message: MIME_Message,
 
     // contains the message's flags
-    pub flags: HashSet<Flag>,
+    flags: HashSet<Flag>,
 
     // marks the message for deletion
-    pub deleted: bool
+    deleted: bool,
+
 }
 
 impl Message {
@@ -131,6 +134,54 @@ impl Message {
     /// convenience method for determining if Seen is in this message's flags
     pub fn is_unseen(&self) -> bool {
         self.flags.contains(&Flag::Seen)
+    }
+
+    pub fn rename(&self, pb: PathBuf) -> Message {
+        Message {
+            uid: self.uid,
+            path: pb,
+            mime_message: self.mime_message.clone(),
+            flags: self.flags.clone(),
+            deleted: self.deleted
+        }
+    }
+
+    pub fn remove_if_deleted(&self) -> bool {
+        if self.deleted {
+            // Get the compiler to STFU with empty match block
+            match fs::remove_file(self.path.as_path()) {
+                _ => {}
+            }
+        }
+        self.deleted
+    }
+
+    pub fn get_path(&self) -> &Path {
+        &self.path.as_path()
+    }
+
+    pub fn get_uid(&self) -> usize {
+        return self.uid;
+    }
+
+    pub fn store(&mut self, flag_name: &StoreName,
+                 new_flags: HashSet<Flag>) -> String {
+        match flag_name {
+            &StoreName::Sub => {
+                for flag in new_flags.iter() {
+                    self.flags.remove(flag);
+                }
+            }
+            &StoreName::Replace => { self.flags = new_flags; }
+            &StoreName::Add => {
+                for flag in new_flags.into_iter() {
+                    self.flags.insert(flag);
+                }
+            }
+        }
+
+        self.deleted = self.flags.contains(&Flag::Deleted);
+        self.print_flags()
     }
 
     /// Goes through the list of attributes, constructing a FETCH response for
@@ -225,7 +276,7 @@ impl Message {
 
     // Creates a string of the current set of flags based on what is in
     // self.flags.
-    pub fn print_flags(&self) -> String {
+    fn print_flags(&self) -> String {
         let mut res = "(".to_string();
         let mut first = true;
         for flag in self.flags.iter() {
