@@ -14,11 +14,11 @@ use command::store::StoreName;
 #[derive(Clone)]
 pub struct Folder {
     // How many messages are in folder/new/
-    pub recent: usize,
+    recent: usize,
     // How many messages are in the folder total
-    pub exists: usize,
+    exists: usize,
     // How many messages are not marked with the Seen flag
-    pub unseen: usize,
+    unseen: usize,
     // Whether the folder has been opened as read-only or not
     readonly: bool,
     path: PathBuf,
@@ -135,9 +135,9 @@ impl Folder {
         )
     }
 
-    /// Generate the UNSEEN message for the SELECT/EXAMINE response if necessary
-    pub fn unseen(&self) -> String {
-        if self.unseen <= self.exists {
+    /// Generate the SELECT/EXAMINE response based on data in the folder
+    pub fn select_response(&self, tag: &str) -> String {
+        let unseen_res = if self.unseen <= self.exists {
             let unseen_str = self.unseen.to_string();
             let mut res = "* OK [UNSEEN ".to_string();
             res.push_str(&unseen_str[..]);
@@ -147,7 +147,23 @@ impl Folder {
             res
         } else {
             "".to_string()
-        }
+        };
+
+        let read_status = if self.readonly {
+            "[READ-ONLY]"
+        } else {
+            "[READ-WRITE]"
+        };
+
+        // * <n> EXISTS
+        // * <n> RECENT
+        // * OK UNSEEN
+        // * Flags - Should match values in enum Flag in message.rs
+        // * OK PERMANENTFLAG - Should match values in enum Flag in message.rs
+        // * OK UIDNEXT
+        // * OK UIDVALIDITY
+        format!("* {} EXISTS\r\n* {} RECENT\r\n{}* FLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)\r\n* OK [PERMANENTFLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)] Permanent flags\r\n{} OK {} SELECT command was successful\r\n", 
+                 self.exists, self.recent, unseen_res, tag, read_status)
     }
 
     /// Delete on disk all the messages marked for deletion
@@ -273,15 +289,6 @@ impl Folder {
         // Set the current list of messages to the new list of messages
         // The compiler *should* make this discard the old list...
         self.messages = new_messages;
-    }
-
-    /// Generate the read state portion of the SELECT response
-    pub fn read_status(&self) -> &'static str {
-        if self.readonly {
-            "[READ-ONLY]"
-        } else {
-            "[READ-WRITE]"
-        }
     }
 }
 

@@ -32,22 +32,8 @@ pub fn perform_select(maildir: &str, select_args: Vec<&str>, examine: bool,
         None => { return err_res; }
         Some(folder) => folder.clone()
     };
-    // * <n> EXISTS
-    let mut ok_res = format!("* {} EXISTS\r\n", folder.exists);
-    // * <n> RECENT
-    ok_res.push_str(&(format!("* {} RECENT\r\n", folder.recent))[..]);
-    // * OK UNSEEN
-    ok_res.push_str(&folder.unseen()[..]);
-    // * Flags
-    // Should match values in enum Flag in message.rs
-    ok_res.push_str("* FLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)\r\n");
-    // * OK PERMANENTFLAG
-    // Should match values in enum Flag in message.rs
-    ok_res.push_str("* OK [PERMANENTFLAGS (\\Answered \\Deleted \\Draft \\Flagged \\Seen)] Permanent flags\r\n");
-    // * OK UIDNEXT
-    // * OK UIDVALIDITY
-    ok_res.push_str(&(format!("{} OK {} SELECT command was successful\r\n", tag,
-                            folder.read_status()))[..]);
+
+    let ok_res = folder.select_response(tag);
     return (Some(folder), ok_res);
 }
 
