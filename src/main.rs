@@ -10,7 +10,6 @@
 extern crate bufstream;
 extern crate crypto;
 #[macro_use] extern crate log;
-//extern crate peg_syntax_ext;
 extern crate rand;
 extern crate regex;
 extern crate rustc;
@@ -19,9 +18,8 @@ extern crate time;
 extern crate toml;
 extern crate walkdir;
 
-use server::Config;
 use server::Server;
-use server::Lmtp;
+use server::lmtp_serve;
 use user::Session;
 use user::User;
 use user::Email;
@@ -41,15 +39,12 @@ mod user;
 mod util;
 
 fn main() {
-    // Load configuration.
-    let config = Config::new();
-
     // This function only needs to be run once, really.
     // create_default_users(config.users.clone());
 
     // Create the server. We wrap it so that it is atomically reference
     // counted. This allows us to safely share it across threads
-    let serv = Arc::new(Server::new(config));
+    let serv = Arc::new(Server::new());
 
     // Spawn a separate thread for listening for LMTP connections
     match serv.lmtp_listener() {
@@ -69,10 +64,7 @@ fn main() {
                         }
                         Ok(stream) => {
                             let session_serv = lmtp_serv.clone();
-                            spawn(move || {
-                                let mut lmtp = Lmtp::new(session_serv);
-                                lmtp.handle(BufStream::new(stream));
-                            });
+                            spawn(move || { lmtp_serve(session_serv, BufStream::new(stream)) });
                         }
                     }
                 }

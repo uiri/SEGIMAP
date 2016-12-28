@@ -1,12 +1,13 @@
 use std::collections::HashMap;
-
 use std::io::Result;
 use std::net::TcpListener;
+use std::net::TcpStream;
+use std::sync::Arc;
 
-pub use self::config::Config;
+use bufstream::BufStream;
+
+use self::config::Config;
 use user::{load_users, Email, User};
-
-pub use self::lmtp::Lmtp;
 
 mod config;
 mod lmtp;
@@ -14,12 +15,16 @@ mod lmtp;
 /// Holds configuration state and email->user map
 pub struct Server {
     conf: Config,
-    pub users: HashMap<Email, User>
+    users: HashMap<Email, User>
 }
 
 impl Server {
+    pub fn new() -> Server {
+        Server::new_with_conf(Config::new())
+    }
+
     /// Create server to hold the Config and User HashMap
-    pub fn new(conf: Config) -> Server {
+    fn new_with_conf(conf: Config) -> Server {
         // Load the user data from the specified user data file.
         let users = load_users(conf.users.clone()).unwrap();
 
@@ -39,8 +44,15 @@ impl Server {
         return TcpListener::bind((&self.conf.host[..], self.conf.lmtp_port));
     }
 
-    /// Return the server's host
-    pub fn host(&self) -> &String {
+    fn host(&self) -> &String {
         &self.conf.host
     }
+
+    pub fn get_user(&self, email: &Email) -> Option<&User> {
+        self.users.get(email)
+    }
+}
+
+pub fn lmtp_serve(serv: Arc<Server>, stream: BufStream<TcpStream>) {
+    lmtp::serve(serv, stream)
 }

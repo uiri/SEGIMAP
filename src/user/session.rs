@@ -159,7 +159,7 @@ impl Session {
                         match LoginData::new(email.to_string(),
                                              password.to_string()) {
                             Some(login_data) => {
-                                self.maildir = match self.serv.users.get
+                                self.maildir = match self.serv.get_user
                                                       (&login_data.email) {
                                     Some(user) => {
                                         if user.auth_data.verify_auth

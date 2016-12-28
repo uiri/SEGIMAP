@@ -10,7 +10,7 @@ use bufstream::BufStream;
 use rustc::util::num::ToPrimitive;
 use time;
 
-pub use server::Server;
+use server::Server;
 use user::Email;
 use user::User;
 
@@ -39,8 +39,7 @@ macro_rules! grab_email_token(
     }
 );
 
-pub struct Lmtp<'a> {
-    serv: Arc<Server>,
+struct Lmtp<'a> {
     rev_path: Option<Email>,
     to_path: Vec<&'a User>,
     data: String,
@@ -50,129 +49,7 @@ pub struct Lmtp<'a> {
 static OK: &'static str = "250 OK\r\n";
 
 impl<'a> Lmtp<'a> {
-    pub fn new(serv: Arc<Server>) -> Lmtp<'a> {
-        Lmtp {
-            serv: serv,
-            rev_path: None,
-            to_path: Vec::new(),
-            data: String::new(),
-            quit: false
-        }
-    }
-
-    pub fn handle(&'a mut self, mut stream: BufStream<TcpStream>) {
-        return_on_err!(stream.write(format!("220 {} LMTP server ready\r\n",
-                                            *self.serv.host()).as_bytes()));
-        return_on_err!(stream.flush());
-        loop {
-            let mut command = String::new();
-            match stream.read_line(&mut command) {
-                Ok(_) => {
-                    if command.len() == 0 {
-                        return;
-                    }
-                    let trimmed_command = (&command[..]).trim();
-                    let mut args = trimmed_command.split(' ');
-                    let invalid = "500 Invalid command\r\n".to_string();
-                    let no_such_user = "550 No such user".to_string();
-                    let data_res = b"354 Start mail input; end with <CRLF>.<CRLF>";
-                    let ok_res = OK.to_string();
-                    let res = match args.next() {
-                        Some(cmd) => {
-                            warn!("LMTP Cmd: {}", trimmed_command);
-                            match &cmd.to_ascii_lowercase()[..] {
-                                "lhlo" => {
-                                    match args.next() {
-                                        Some(domain) => {
-                                            format!("250 {}\r\n", domain)
-                                        }
-                                        _ => invalid
-                                    }
-                                }
-                                "rset" => {
-                                    self.rev_path = None;
-                                    self.to_path = Vec::new();
-                                    ok_res
-                                }
-                                "noop" => ok_res,
-                                "quit" => {
-                                    self.quit = true;
-                                    format!("221 {} Closing connection\r\n",
-                                            *self.serv.host())
-                                }
-                                "vrfy" => {
-                                    invalid
-                                }
-                                "mail" => {
-                                    match grab_email(args.next()) {
-                                        None => invalid,
-                                        s => {
-                                            self.rev_path = s;
-                                            ok_res
-                                        }
-                                    }
-                                }
-                                "rcpt" => {
-                                    match self.rev_path {
-                                        None => invalid,
-                                        _ => {
-                                            match grab_email(args.next()) {
-                                                None => invalid,
-                                                Some(email) => {
-                                                    match self.serv.users.get(&email) {
-                                                        None => no_such_user,
-                                                        Some(user) => {
-                                                            self.to_path.push(user);
-                                                            ok_res
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                "data" => {
-                                    return_on_err!(stream.write(data_res));
-                                    return_on_err!(stream.flush());
-                                    let mut loop_res = invalid;
-                                    loop {
-                                        let mut data_command = String::new();
-                                        match stream.read_line(&mut data_command) {
-                                            Ok(_) => {
-                                                if data_command.len() == 0 {
-                                                    break;
-                                                }
-                                                let data_cmd = (&data_command[..]).trim();
-                                                if data_cmd == "." {
-                                                    loop_res = self.deliver();
-                                                    self.data = String::new();
-                                                    break;
-                                                }
-                                                self.data.push_str(data_cmd);
-                                                self.data.push('\n');
-                                            }
-                                            _ => { break; }
-                                        }
-                                    }
-                                    loop_res
-                                }
-                                _ => invalid
-                            }
-                        }
-                        None => invalid
-                    };
-                    return_on_err!(stream.write(res.as_bytes()));
-                    return_on_err!(stream.flush());
-                    if self.quit {
-                        return;
-                    }
-                }
-                _ => { break; }
-            }
-        }
-    }
-
-    pub fn deliver(&self) -> String {
+    fn deliver(&self) -> String {
         if self.to_path.len() == 0 {
             return "503 Bad sequence - no recipients".to_string();
         }
@@ -219,7 +96,7 @@ impl<'a> Lmtp<'a> {
     }
 }
 
-pub fn grab_email(arg: Option<&str>) -> Option<Email> {
+fn grab_email(arg: Option<&str>) -> Option<Email> {
     let from_path_split = match arg {
         Some(full_from_path) => {
             let mut split_arg = full_from_path.split(':');
@@ -250,4 +127,122 @@ pub fn grab_email(arg: Option<&str>) -> Option<Email> {
         _ => { return None; }
     };
     Some(Email::new(local_part, domain_part))
+}
+
+pub fn serve(serv: Arc<Server>, mut stream: BufStream<TcpStream>) {
+    let mut l = Lmtp {
+        rev_path: None,
+        to_path: Vec::new(),
+        data: String::new(),
+        quit: false
+    };
+    return_on_err!(stream.write(format!("220 {} LMTP server ready\r\n",
+                                        *serv.host()).as_bytes()));
+    return_on_err!(stream.flush());
+    loop {
+        let mut command = String::new();
+        match stream.read_line(&mut command) {
+            Ok(_) => {
+                if command.len() == 0 {
+                    return;
+                }
+                let trimmed_command = (&command[..]).trim();
+                let mut args = trimmed_command.split(' ');
+                let invalid = "500 Invalid command\r\n".to_string();
+                let no_such_user = "550 No such user".to_string();
+                let data_res = b"354 Start mail input; end with <CRLF>.<CRLF>";
+                let ok_res = OK.to_string();
+                let res = match args.next() {
+                    Some(cmd) => {
+                        warn!("LMTP Cmd: {}", trimmed_command);
+                        match &cmd.to_ascii_lowercase()[..] {
+                            "lhlo" => {
+                                match args.next() {
+                                    Some(domain) => {
+                                        format!("250 {}\r\n", domain)
+                                    }
+                                    _ => invalid
+                                }
+                            }
+                            "rset" => {
+                                l.rev_path = None;
+                                l.to_path = Vec::new();
+                                ok_res
+                            }
+                            "noop" => ok_res,
+                            "quit" => {
+                                l.quit = true;
+                                format!("221 {} Closing connection\r\n",
+                                        *serv.host())
+                            }
+                            "vrfy" => {
+                                invalid
+                            }
+                            "mail" => {
+                                match grab_email(args.next()) {
+                                    None => invalid,
+                                    s => {
+                                        l.rev_path = s;
+                                        ok_res
+                                    }
+                                }
+                            }
+                            "rcpt" => {
+                                match l.rev_path {
+                                    None => invalid,
+                                    _ => {
+                                        match grab_email(args.next()) {
+                                            None => invalid,
+                                            Some(email) => {
+                                                match serv.users.get(&email) {
+                                                    None => no_such_user,
+                                                    Some(user) => {
+                                                        l.to_path.push(user);
+                                                        ok_res
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            "data" => {
+                                return_on_err!(stream.write(data_res));
+                                return_on_err!(stream.flush());
+                                let mut loop_res = invalid;
+                                loop {
+                                    let mut data_command = String::new();
+                                    match stream.read_line(&mut data_command) {
+                                        Ok(_) => {
+                                            if data_command.len() == 0 {
+                                                break;
+                                            }
+                                            let data_cmd = (&data_command[..]).trim();
+                                            if data_cmd == "." {
+                                                loop_res = l.deliver();
+                                                l.data = String::new();
+                                                break;
+                                            }
+                                            l.data.push_str(data_cmd);
+                                            l.data.push('\n');
+                                        }
+                                        _ => { break; }
+                                    }
+                                }
+                                loop_res
+                            }
+                            _ => invalid
+                        }
+                    }
+                    None => invalid
+                };
+                return_on_err!(stream.write(res.as_bytes()));
+                return_on_err!(stream.flush());
+                if l.quit {
+                    return;
+                }
+            }
+            _ => { break; }
+        }
+    }
 }
