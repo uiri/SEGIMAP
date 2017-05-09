@@ -3,10 +3,10 @@ use std::fs::File;
 use std::path::Path;
 use std::str;
 
-use toml::{decode_str, encode_str};
+use toml;
 
 /// Representation of configuration data for the server
-#[derive(RustcDecodable, RustcEncodable, Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     // Host on which to listen
     pub host: String,
@@ -24,11 +24,11 @@ impl Config {
         let mut conf_buf : Vec<u8> = Vec::new();
         match File::open(&path).unwrap().read_to_end(&mut conf_buf) {
             Ok(_) => {
-                match decode_str(str::from_utf8(&conf_buf[..]).unwrap()) {
-                    Some(v) => v,
-                    None => {
+                match toml::from_str(str::from_utf8(&conf_buf[..]).unwrap()) {
+                    Ok(v) => v,
+                    Err(e) => {
                         // Use default values if parsing failed.
-                        warn!("Failed to parse config.toml.\nUsing default values.");
+                        warn!("Failed to parse config.toml.\nUsing default values: {}", e);
                         default_config()
                     }
                 }
@@ -37,7 +37,7 @@ impl Config {
                 // Create a default config file if it doesn't exist
                 warn!("Failed to read config.toml; creating from defaults.");
                 let config = default_config();
-                let encoded = encode_str(&config);
+                let encoded = toml::to_string(&config).unwrap();
                 let mut file = File::create(&path).unwrap();
                 file.write(&encoded.into_bytes()[..]).ok();
                 config

@@ -244,7 +244,7 @@ impl Session {
                                 let mut no_res = tag.to_string();
                                 no_res.push_str(" NO Could not create folder.\r\n");
                                 let maildir_path = Path::new(&maildir[..])
-                                                    .join(mbox_name);
+                                                    .join(mbox_name.as_ref());
 
                                 // Create directory for new mail
                                 let newmaildir_path = maildir_path.join("new");
@@ -287,7 +287,7 @@ impl Session {
                                 let mut no_res = tag.to_string();
                                 no_res.push_str(" NO Invalid folder.\r\n");
                                 let maildir_path = Path::new(&maildir[..])
-                                                    .join(mbox_name);
+                                                    .join(mbox_name.as_ref());
                                 let newmaildir_path = maildir_path.join("new");
                                 let curmaildir_path = maildir_path.join("cur");
                                 opendirlisting!(&newmaildir_path, newlist,

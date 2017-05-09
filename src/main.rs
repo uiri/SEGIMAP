@@ -10,10 +10,14 @@
 extern crate bufstream;
 extern crate crypto;
 #[macro_use] extern crate log;
+extern crate num;
 extern crate rand;
 extern crate regex;
 extern crate rustc;
 extern crate rustc_serialize;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 extern crate time;
 extern crate toml;
 extern crate walkdir;

@@ -2,8 +2,7 @@ use std::ascii::AsciiExt;
 
 use command::{
     Attribute,
-    Command,
-    RFC822Attribute
+    Command
 };
 use command::Attribute::{
     Body,
@@ -49,7 +48,7 @@ use mime::Msgtext::{
 #[export]
 fetch -> Command
     = "FETCH"i SP set:sequence_set SP attrs:(
-    "(" a:fetch_att b:(SP fetch_att)* ")"
+    "(" a:fetch_att b:(SP f:fetch_att { f })* ")"
     {
         let mut attrs = vec![a];
         for attr in b.into_iter() {
@@ -79,7 +78,7 @@ section -> BodySectionType
 
 section_spec -> BodySectionType
     = a:section_msgtext { MsgtextSection(a) }
-    / (a:section_part b:("." section_text)? { PartSection(a, b) })
+    / (a:section_part b:("." s:section_text { s })? { PartSection(a, b) })
 
 section_msgtext -> Msgtext
     = "HEADER"i "." "FIELDS"i not:("." "NOT"i)? SP headers:header_list {
@@ -97,7 +96,7 @@ section_msgtext -> Msgtext
     /* top-level or MESSAGE/RFC822 part */
 
 header_list -> Vec<String>
-    = "(" a:header_fld_name b:(SP header_fld_name)* ")"
+    = "(" a:header_fld_name b:(SP h:header_fld_name { h })* ")"
     {
         let mut fields = vec![a];
         for field in b.into_iter() {
@@ -111,7 +110,7 @@ header_fld_name -> String
     { (&a[..]).to_ascii_uppercase().to_string() }
 
 section_part -> Vec<usize>
-    = a:nz_number b:("." nz_number)*
+    = a:nz_number b:("." n:nz_number { n })*
     {
         let mut parts = vec![a];
         for part in b.into_iter() {
@@ -126,7 +125,7 @@ section_text -> Msgtext
     /* text other than actual body part (headers, etc.) */
 
 astring -> String
-    = (ASTRING_CHAR+ { match_str.to_string() }) / string
+    = (s:$(ASTRING_CHAR+) { s.to_string() }) / string
 
 ASTRING_CHAR
     = ATOM_CHAR / resp_specials
@@ -156,11 +155,11 @@ string -> String
     = quoted / literal
 
 quoted -> String
-    = DQUOTE quoted_string:(QUOTED_CHAR* { match_str.to_string() }) DQUOTE
+    = DQUOTE quoted_string:(c:$(QUOTED_CHAR*) { c.to_string() }) DQUOTE
     { quoted_string }
 
 literal -> String
-    = "{" number "}" CRLF (CHAR8* { match_str.to_string() })
+    = "{" number "}" CRLF (c:$(CHAR8*) { c.to_string() })
     /*
      * the "number" is used to indicate the number of octets.
      */
@@ -178,7 +177,7 @@ TEXT_CHAR
 
 #[export]
 sequence_set -> Vec<SequenceItem>
-    = a:(seq_range / seq_number) b:("," sequence_set)*
+    = a:(seq_range / seq_number) b:("," s:sequence_set { s })*
     {
         let mut seq = vec![a];
         for set in b.into_iter() {
@@ -199,16 +198,16 @@ seq_number -> SequenceItem
 /* RFC 3501 BOILERPLATE */
 
 number -> usize
-    = u:(DIGIT+ { match_str.parse().unwrap() })
-    { u }
+    = d:$(DIGIT+)
+    { d.parse().unwrap() }
     /*
      * unsigned 32-bit integer
      * (0 <= n < 4,294,967,296)
      */
 
 nz_number -> usize
-    = u:(digit_nz DIGIT* { match_str.parse().unwrap() })
-    { u }
+    = d:$(digit_nz DIGIT*)
+    { d.parse().unwrap() }
     /*
      * non-zero unsigned 32-bit integer
      * (0 < n < 4,294,967,296)
@@ -257,12 +256,12 @@ eol
     = "\n"
     / "\r\n"
     / "\r"
-    / "\u2028"
-    / "\u2029"
+    / "\u{2028}"
+    / "\u{2029}"
 
 eolChar
-    = [\n\r\u2028\u2029]
+    = [\n\r\u{2028}\u{2029}]
     /* Modeled after ECMA-262, 5th ed., 7.2. */
 
 whitespace
-    = [ \t\u00A0\uFEFF\u1680\u180E\u2000-\u200A\u202F\u205F\u3000] // \v\f removed
+    = [ \t\u{00A0}\u{FEFF}\u{1680}\u{180E}\u{2000}-\u{200A}\u{202F}\u{205F}\u{3000}] // \v\f removed

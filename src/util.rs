@@ -27,7 +27,7 @@ pub fn perform_select(maildir: &str, select_args: Vec<&str>, examine: bool,
     let mbox_name = inbox_re().replace(select_args[0].trim_matches('"'), "."); // "));
     let mut maildir_path = PathBuf::new();
     maildir_path.push(maildir);
-    maildir_path.push(mbox_name);
+    maildir_path.push(mbox_name.as_ref());
     let folder =  match Folder::new(maildir_path, examine) {
         None => { return err_res; }
         Some(folder) => folder.clone()

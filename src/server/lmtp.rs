@@ -7,7 +7,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use bufstream::BufStream;
-use rustc::util::num::ToPrimitive;
+use num::ToPrimitive;
 use time;
 
 use server::Server;
