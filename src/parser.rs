@@ -8,33 +8,33 @@ peg_file! grammar("grammar.rustpeg");
 // Tests for the parsed FETCH commands follow
 #[cfg(test)]
 mod tests {
-    use super::{fetch, sequence_set};
-    use command::command::{
+    use super::grammar::{fetch, sequence_set};
+    use command::Attribute::{
         Body,
         BodyPeek,
         BodySection,
         BodyStructure,
-        Command,
         Envelope,
-        Fetch,
         Flags,
         InternalDate,
         RFC822,
         UID
     };
-    use command::command::Attribute::{
+    use command::Command;
+    use command::CommandType::Fetch;
+    use mime::BodySectionType::{
         AllSection,
         MsgtextSection,
         PartSection
     };
-    use command::command::MsgText::{
+    use mime::Msgtext::{
         HeaderMsgtext,
         HeaderFieldsMsgtext,
         HeaderFieldsNotMsgtext,
         MimeMsgtext,
         TextMsgtext
     };
-    use command::command::RFC822Attribute::{
+    use command::RFC822Attribute::{
         AllRFC822,
         HeaderRFC822,
         SizeRFC822,

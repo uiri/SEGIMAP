@@ -45,8 +45,7 @@ use mime::Msgtext::{
 
 /* FETCH command rules */
 
-#[export]
-fetch -> Command
+pub fetch -> Command
     = "FETCH"i SP set:sequence_set SP attrs:(
     "(" a:fetch_att b:(SP f:fetch_att { f })* ")"
     {
@@ -175,8 +174,7 @@ TEXT_CHAR
 
 /* SequenceItem and set rules */
 
-#[export]
-sequence_set -> Vec<SequenceItem>
+pub sequence_set -> Vec<SequenceItem>
     = a:(seq_range / seq_number) b:("," s:sequence_set { s })*
     {
         let mut seq = vec![a];
