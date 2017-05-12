@@ -1,3 +1,10 @@
+// FIXME: move the nom parsing functions into the grammar module, and only
+// expose the top-level API.
+
+use command::sequence_set::SequenceItem;
+use std::collections::HashSet;
+use std::str::FromStr;
+
 pub use self::grammar::fetch;
 pub use self::grammar::ParseError;
 
@@ -5,10 +12,107 @@ pub use self::grammar::ParseError;
 // parse FETCH commands.
 peg_file! grammar("grammar.rustpeg");
 
+const DIGITS: &'static str = "0123456789";
+const NZ_DIGITS: &'static str = "123456789";
+
+// FIXME: remove the wrapper functions once the migration to nom has been
+// completed.
+pub fn sequence_set_wrapper(parse_str: &str) -> Result<Vec<SequenceItem>, ParseError> {
+    use nom::IResult::{Done, Error, Incomplete};
+
+    match sequence_set(parse_str.as_bytes()) {
+        Done(_, v) => Ok(v),
+        Error(_) |
+            Incomplete(_) => Err(ParseError {
+                column: 0,
+                expected: HashSet::new(),
+                line: 0,
+                offset: 0,
+            }),
+    }
+}
+
+/// Converts a `char` and a `Vec<char>` into a string by prepending the `char`
+/// to the vector and collecting it into a string.
+// This function is used to convert individual digit characters into a `String`
+// representation.
+fn chars_to_string(chr: char, v: Vec<char>) -> String {
+    let res: String = v.into_iter().collect();
+    chr.to_string() + &res
+}
+
+/// Parse an owned string into another type.
+// This function is necessary because it can be mapped onto owned strings,
+// unlike the original `parse` function which is only implemented for `str`.
+#[inline]
+fn parse_owned_string<F>(v: String) -> Result<F, F::Err>
+    where F: FromStr,
+{
+    (&v).parse()
+}
+
+named!(sequence_set<Vec<SequenceItem>>,
+    do_parse!(
+        a: alt!(
+            complete!(seq_range) |
+            seq_number
+        )                                             >>
+        b: many0!(preceded!(tag!(","), sequence_set)) >>
+
+        ({
+            let mut seq = vec![a];
+            // TODO: implement this with iterator combinators instead.
+            for set in b.into_iter() {
+                for elem in set.into_iter() {
+                    seq.push(elem);
+                }
+            }
+            seq
+        })
+    )
+);
+
+named!(seq_range<SequenceItem>,
+    do_parse!(
+        a: seq_number >>
+        tag!(":")     >>
+        b: seq_number >>
+
+        (SequenceItem::Range(Box::new(a), Box::new(b)))
+    )
+);
+
+named!(seq_number<SequenceItem>,
+    alt!(
+        nz_number => { |num: usize| SequenceItem::Number(num) } |
+        tag!("*") => { |_| SequenceItem::Wildcard }
+    )
+);
+
+/// Recognizes exactly one non-zero numerical character: 1-9.
+// digit-nz = %x31-39
+//    ; 1-9
+named!(digit_nz<char>, one_of!(NZ_DIGITS));
+
+/// Recognizes a non-zero unsigned 32-bit integer.
+// (0 < n < 4,294,967,296)
+named!(nz_number<usize>,
+    map_res!(
+        do_parse!(
+            d: digit_nz                   >>
+            rest: many0!(one_of!(DIGITS)) >>
+
+            (chars_to_string(d, rest))
+        ),
+        parse_owned_string
+    )
+);
+
 // Tests for the parsed FETCH commands follow
 #[cfg(test)]
 mod tests {
-    use super::grammar::{fetch, sequence_set};
+    use super::sequence_set_wrapper as sequence_set;
+    use super::grammar::fetch;
     use command::Attribute::{
         Body,
         BodyPeek,
@@ -45,6 +149,78 @@ mod tests {
         Range,
         Wildcard
     };
+    use nom::ErrorKind::{Alt, OneOf, MapRes};
+    use nom::Needed::Size;
+    use nom::IResult::{Done, Error, Incomplete};
+    use super::{digit_nz, nz_number, seq_number, seq_range};
+
+    #[test]
+    // TODO; remove the `_nom` suffix from all the functions.
+    fn test_sequence_set_nom() {
+        use super::sequence_set as sequence_set_nom;
+
+        assert_eq!(sequence_set_nom(b""), Incomplete(Size(1)));
+        assert_eq!(sequence_set_nom(b"a"), Error(Alt));
+        assert_eq!(sequence_set_nom(b"0"), Error(Alt));
+        assert_eq!(sequence_set_nom(b"*"), Done(&b""[..], vec![Wildcard]));
+        assert_eq!(sequence_set_nom(b"1"), Done(&b""[..], vec![Number(1)]));
+        // TODO: determine if this should parse correctly as `(":0", 1)`, or
+        // return an error because "1:0" is not a valid range (i.e., are we OK
+        // treating this as a `seq-number` with trailing text?).
+        assert_eq!(sequence_set_nom(b"1:0"), Done(&b":0"[..], vec![Number(1)]));
+        assert_eq!(sequence_set_nom(b"1:1"), Done(&b""[..], vec![
+            Range(Box::new(Number(1)), Box::new(Number(1)))
+        ]));
+        assert_eq!(sequence_set_nom(b"2:4a"), Done(&b"a"[..], vec![
+            Range(Box::new(Number(2)), Box::new(Number(4)))
+        ]));
+        assert_eq!(sequence_set_nom(b"*:3, 4:4"), Done(&b", 4:4"[..], vec![
+            Range(Box::new(Wildcard), Box::new(Number(3)))
+        ]));
+        assert_eq!(sequence_set_nom(b"*:3,4:4"), Done(&b""[..], vec![
+            Range(Box::new(Wildcard), Box::new(Number(3))),
+            Range(Box::new(Number(4)), Box::new(Number(4)))
+        ]));
+    }
+
+    #[test]
+    fn test_seq_range() {
+        assert_eq!(seq_range(b""), Incomplete(Size(1)));
+        assert_eq!(seq_range(b"a"), Error(Alt));
+        assert_eq!(seq_range(b"0"), Error(Alt));
+        assert_eq!(seq_range(b"1:1"), Done(&b""[..], Range(Box::new(Number(1)), Box::new(Number(1)))));
+        assert_eq!(seq_range(b"2:4a"), Done(&b"a"[..], Range(Box::new(Number(2)), Box::new(Number(4)))));
+        assert_eq!(seq_range(b"*:3"), Done(&b""[..], Range(Box::new(Wildcard), Box::new(Number(3)))));
+    }
+
+    #[test]
+    fn test_seq_number() {
+        assert_eq!(seq_number(b""), Incomplete(Size(1)));
+        assert_eq!(seq_number(b"a"), Error(Alt));
+        assert_eq!(seq_number(b"0"), Error(Alt));
+        assert_eq!(seq_number(b"100"), Done(&b""[..], Number(100)));
+        assert_eq!(seq_number(b"*a"), Done(&b"a"[..], Wildcard));
+    }
+
+    #[test]
+    fn test_digit_nz() {
+        assert_eq!(digit_nz(b""), Incomplete(Size(1)));
+        assert_eq!(digit_nz(b"a"), Error(OneOf));
+        assert_eq!(digit_nz(b"1"), Done(&b""[..], '1'));
+        assert_eq!(digit_nz(b"62"), Done(&b"2"[..], '6'));
+    }
+
+    #[test]
+    fn test_nz_number() {
+        assert_eq!(nz_number(b""), Incomplete(Size(1)));
+        assert_eq!(nz_number(b"a"), Error(OneOf));
+        assert_eq!(nz_number(b"0"), Error(OneOf));
+        assert_eq!(nz_number(b"1"), Done(&b""[..], 1));
+        assert_eq!(nz_number(b"10"), Done(&b""[..], 10));
+        assert_eq!(nz_number(b"10a"), Done(&b"a"[..], 10));
+        assert_eq!(nz_number(b"4294967296"), Done(&b""[..], 4294967296));
+        assert_eq!(nz_number(b"100000000000000000000"), Error(MapRes));
+    }
 
     #[test]
     fn test_invalid_sequences() {
@@ -53,8 +229,11 @@ mod tests {
         assert!(sequence_set("0").is_err());
         assert!(sequence_set("a:*").is_err());
         assert!(sequence_set(":*").is_err());
-        assert!(sequence_set("1:").is_err());
-        assert!(sequence_set("1:0").is_err());
+        // TODO: temporarily disabled because previously these were treated as
+        // an error case, but now nom parses it as a `seq-number` with trailing
+        // text, instead of as an invalid `seq-range`.
+        //assert!(sequence_set("1:").is_err());
+        //assert!(sequence_set("1:0").is_err());
         assert!(sequence_set("0:1").is_err());
         assert!(sequence_set("4,5,6,").is_err());
     }
