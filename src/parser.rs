@@ -41,16 +41,6 @@ fn chars_to_string(chr: char, v: Vec<char>) -> String {
     chr.to_string() + &res
 }
 
-/// Parse an owned string into another type.
-// This function is necessary because it can be mapped onto owned strings,
-// unlike the original `parse` function which is only implemented for `str`.
-#[inline]
-fn parse_owned_string<F>(v: String) -> Result<F, F::Err>
-    where F: FromStr,
-{
-    (&v).parse()
-}
-
 named!(sequence_set<Vec<SequenceItem>>,
     do_parse!(
         a: alt!(
@@ -104,7 +94,7 @@ named!(nz_number<usize>,
 
             (chars_to_string(d, rest))
         ),
-        parse_owned_string
+        |s: String| { (&s).parse() }
     )
 );
 
