@@ -3,7 +3,8 @@
 #![feature(
     box_patterns,
     plugin,
-    rustc_private
+    rustc_private,
+    test
 )]
 #![plugin(peg_syntax_ext)]
 
@@ -20,6 +21,7 @@ extern crate rustc_serialize;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+extern crate test;
 extern crate time;
 extern crate toml;
 extern crate walkdir;

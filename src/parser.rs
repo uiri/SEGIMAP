@@ -1,9 +1,35 @@
 // FIXME: move the nom parsing functions into the grammar module, and only
 // expose the top-level API.
 
+use command::Attribute::{
+    self,
+    Body,
+    BodyPeek,
+    BodySection,
+    BodyStructure,
+    Envelope,
+    Flags,
+    InternalDate,
+    RFC822,
+    UID
+};
+use command::Command;
+use command::CommandType::Fetch;
+use command::RFC822Attribute::{AllRFC822, HeaderRFC822, SizeRFC822, TextRFC822};
 use command::sequence_set::SequenceItem;
+use nom::{crlf, Slice};
+use mime::BodySectionType::{self, AllSection, MsgtextSection, PartSection};
+use mime::Msgtext::{
+    self,
+    HeaderFieldsMsgtext,
+    HeaderFieldsNotMsgtext,
+    HeaderMsgtext,
+    MimeMsgtext,
+    TextMsgtext,
+};
+use std::ascii::AsciiExt;
 use std::collections::HashSet;
-use std::str::FromStr;
+use std::str;
 
 pub use self::grammar::fetch;
 pub use self::grammar::ParseError;
@@ -14,6 +40,71 @@ peg_file! grammar("grammar.rustpeg");
 
 const DIGITS: &'static str = "0123456789";
 const NZ_DIGITS: &'static str = "123456789";
+
+fn is_astring_char(chr: u8) -> bool {
+    // TODO: perhaps take `char` instead, avoiding this cast?
+    let chr = chr as char;
+    is_atom_char(chr) || is_resp_specials(chr)
+}
+
+// any CHAR except atom-specials
+fn is_atom_char(chr: char) -> bool {
+    !is_atom_specials(chr)
+}
+
+fn is_atom_specials(chr: char) -> bool {
+    chr == '(' || chr == ')' || chr == '{' || is_sp(chr) || is_ctl(chr) ||
+        is_list_wildcards(chr) || is_quoted_specials(chr) ||
+        is_resp_specials(chr)
+}
+
+fn is_sp(chr: char) -> bool {
+    chr == ' '
+}
+
+fn is_ctl(chr: char) -> bool {
+    (chr >= '\x00' && chr <= '\x1F') || chr == '\x7F'
+}
+
+fn is_list_wildcards(chr: char) -> bool {
+    chr == '%' || chr == '*'
+}
+
+fn is_quoted_specials(chr: char) -> bool {
+    is_dquote(chr) || chr == '\\'
+}
+
+fn is_dquote(chr: char) -> bool {
+    chr == '"'
+}
+
+fn is_resp_specials(chr: char) -> bool {
+    chr == ']'
+}
+
+// an ASCII digit (%x30-%x39)
+fn is_digit(chr: u8) -> bool {
+    // TODO: perhaps take `char` instead, avoiding this cast?
+    let chr = chr as char;
+    chr >= '0' && chr <= '9'
+}
+
+// any TEXT_CHAR except quoted_specials
+fn is_quoted_char(chr: u8) -> bool {
+    // TODO: perhaps take `char` instead, avoiding this cast?
+    let chr = chr as char;
+    !is_quoted_specials(chr) && is_text_char(chr)
+}
+
+// any CHAR except CR and LF
+fn is_text_char(chr: char) -> bool {
+    !is_eol_char(chr)
+}
+
+// a CR or LF CHAR
+fn is_eol_char(chr: char) -> bool {
+    chr == '\r' || chr == '\n'
+}
 
 // FIXME: remove the wrapper functions once the migration to nom has been
 // completed.
@@ -32,14 +123,226 @@ pub fn sequence_set_wrapper(parse_str: &str) -> Result<Vec<SequenceItem>, ParseE
     }
 }
 
-/// Converts a `char` and a `Vec<char>` into a string by prepending the `char`
-/// to the vector and collecting it into a string.
-// This function is used to convert individual digit characters into a `String`
-// representation.
-fn chars_to_string(chr: char, v: Vec<char>) -> String {
-    let res: String = v.into_iter().collect();
-    chr.to_string() + &res
-}
+// TODO: remove `_nom` suffix
+named!(fetch_nom<Command>,
+    do_parse!(
+        tag_no_case!("FETCH") >>
+        whitespace >>
+        set: sequence_set >>
+        whitespace >>
+        attrs: alt!(
+            delimited!(
+                tag!("("),
+                do_parse!(
+                    a: fetch_att                                >>
+                    b: many0!(preceded!(whitespace, fetch_att)) >>
+
+                    ({
+                        let mut attrs = vec![a];
+                        for attr in b.into_iter() {
+                            attrs.push(attr);
+                        }
+                        attrs
+                    })
+                ),
+                tag!(")")
+            ) |
+            map!(fetch_att, |attr| { vec![attr] }) |
+            map!(tag_no_case!("ALL"), |_| { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope] }) |
+            map!(tag_no_case!("FULL"), |_| { vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body] }) |
+            map!(tag_no_case!("FAST"), |_| { vec![Flags, InternalDate, RFC822(SizeRFC822)] })
+        ) >>
+
+        ({ Command::new(Fetch, set, attrs) })
+    )
+);
+
+named!(fetch_att<Attribute>,
+    alt!(
+        complete!(tag_no_case!("ENVELOPE")) => { |_| { Envelope } } |
+        complete!(tag_no_case!("FLAGS")) => { |_| { Flags } } |
+        complete!(tag_no_case!("INTERNALDATE")) => { |_| { InternalDate } } |
+        do_parse!(
+            tag_no_case!("RFC822")                            >>
+            sub_attr: opt!(alt!(
+                tag!(".HEADER") => { |_| { HeaderRFC822 } } |
+                tag!(".SIZE") => { |_| { SizeRFC822 } } |
+                tag!(".TEST") => { |_| { TextRFC822 } }
+            ))                                                >>
+
+            ({ RFC822(sub_attr.unwrap_or(AllRFC822)) })
+        ) |
+        complete!(tag_no_case!("UID")) => { |_| { UID } } |
+        preceded!(
+            tag_no_case!("BODY"),
+            alt!(
+                do_parse!(
+                    tag_no_case!(".PEEK")     >>
+                    section: section          >>
+                    octets: opt!(octet_range) >>
+
+                    ({ BodyPeek(section, octets) })
+                ) |
+                do_parse!(
+                    section: section          >>
+                    octets: opt!(octet_range) >>
+
+                    ({ BodySection(section, octets) })
+                ) |
+                do_parse!(
+                    sub_attr: opt!(tag!("STRUCTURE")) >>
+
+                    ({
+                        if sub_attr.is_some() {
+                            BodyStructure
+                        } else {
+                            Body
+                        }
+                    })
+                )
+            )
+        )
+    )
+);
+
+named!(octet_range<(usize, usize)>,
+    delimited!(
+        tag!("<"),
+        do_parse!(
+            first_octet: number   >>
+            tag!(".")             >>
+            last_octet: nz_number >>
+
+            ((first_octet, last_octet))
+        ),
+        tag!(">")
+    )
+);
+
+/* Section parsing */
+
+named!(section<BodySectionType>,
+    delimited!(
+        tag!("["),
+        map!(
+            opt!(section_spec),
+            |v: Option<BodySectionType>| { v.unwrap_or(AllSection) }
+        ),
+        tag!("]")
+    )
+);
+
+named!(section_spec<BodySectionType>,
+    alt!(
+        section_msgtext => { |v| { MsgtextSection(v) } } |
+        do_parse!(
+            a: section_part                             >>
+            b: opt!(preceded!(tag!("."), section_text)) >>
+
+            ({ PartSection(a, b) })
+        )
+    )
+);
+
+// Top-level or MESSAGE/RFC822 part
+named!(section_msgtext<Msgtext>,
+    alt!(
+        complete!(do_parse!(
+            tag_no_case!("HEADER.FIELDS")   >>
+            not: opt!(tag_no_case!(".NOT")) >>
+            whitespace                      >>
+            headers: header_list            >>
+
+            ({
+                if not.is_some() {
+                    HeaderFieldsNotMsgtext(headers)
+                } else {
+                    HeaderFieldsMsgtext(headers)
+                }
+            })
+        )) |
+        complete!(tag_no_case!("HEADER")) => { |_| { HeaderMsgtext } } |
+        tag_no_case!("TEXT") => { |_| { TextMsgtext } }
+    )
+);
+
+named!(header_list<Vec<String>>,
+    delimited!(
+        tag!("("),
+        separated_nonempty_list!(whitespace, header_fld_name),
+        tag!(")")
+    )
+);
+
+// TODO: confirm this only needs to work for ASCII
+named!(header_fld_name<String>,
+    map!(
+        map_res!(astring, str::from_utf8),
+        AsciiExt::to_ascii_uppercase
+    )
+);
+
+// Body part nesting
+// NOTE: currently returns `Incomplete` if the provided string does not contain
+// a non-matching byte. This is useful for streaming parsers which may be
+// awaiting further input.
+// TODO: decide if this should be streaming-compatible. If not, add a
+// `complete!` invocation.
+named!(section_part<Vec<usize>>,
+    separated_nonempty_list!(tag!("."), nz_number)
+);
+
+// Text other than actual body part (headers, etc.)
+named!(section_text<Msgtext>,
+    alt!(
+        section_msgtext |
+        tag_no_case!("MIME") => { |_| { MimeMsgtext } }
+    )
+);
+
+/* String parsing */
+
+named!(astring<&[u8], &[u8]>, alt!(take_while1!(is_astring_char) | string));
+
+named!(string<&[u8], &[u8]>, alt!(quoted | literal));
+
+named!(quoted<&[u8], &[u8]>,
+    delimited!(
+        tag!("\""),
+        recognize!(
+            many0!(
+                alt!(
+                    take_while1!(is_quoted_char) |
+                    preceded!(tag!("\\"), alt!(tag!("\"") | tag!("\\")))
+                )
+            )
+        ),
+        tag!("\"")
+    )
+);
+
+named!(literal<&[u8], &[u8]>,
+    do_parse!(
+        // The "number" is used to indicate the number of octets.
+        number: terminated!(delimited!(tag!("{"), number, tag!("}")), crlf) >>
+        v: recognize!(
+            count!(
+                do_parse!(
+                    // any OCTET except NUL ('%x00')
+                    not!(char!('\x00')) >>
+                    chr: take!(1) >>
+
+                    (chr)
+                ),
+                number
+            )
+        ) >>
+
+        (v)
+    )
+);
+
+/* Sequence item and set rules */
 
 named!(sequence_set<Vec<SequenceItem>>,
     do_parse!(
@@ -79,24 +382,33 @@ named!(seq_number<SequenceItem>,
     )
 );
 
+/* RFC 3501 Boilerplate */
+
+/// Recognizes an non-zero unsigned 32-bit integer.
+// (0 < n < 4,294,967,296)
+named!(number<usize>, flat_map!(take_while1!(is_digit), parse_to!(usize)));
+
+/// Recognizes a non-zero unsigned 32-bit integer.
+// (0 < n < 4,294,967,296)
+named!(nz_number<usize>,
+    flat_map!(
+        recognize!(
+            tuple!(
+                digit_nz,
+                many0!(one_of!(DIGITS))
+            )
+        ),
+        parse_to!(usize)
+    )
+);
+
 /// Recognizes exactly one non-zero numerical character: 1-9.
 // digit-nz = %x31-39
 //    ; 1-9
 named!(digit_nz<char>, one_of!(NZ_DIGITS));
 
-/// Recognizes a non-zero unsigned 32-bit integer.
-// (0 < n < 4,294,967,296)
-named!(nz_number<usize>,
-    map_res!(
-        do_parse!(
-            d: digit_nz                   >>
-            rest: many0!(one_of!(DIGITS)) >>
-
-            (chars_to_string(d, rest))
-        ),
-        |s: String| { (&s).parse() }
-    )
-);
+/// Recognizes exactly one ASCII whitespace.
+named!(whitespace<char>, char!(' '));
 
 // Tests for the parsed FETCH commands follow
 #[cfg(test)]
@@ -139,10 +451,295 @@ mod tests {
         Range,
         Wildcard
     };
-    use nom::ErrorKind::{Alt, OneOf, MapRes};
+    use nom::ErrorKind::{Alt, Char, Count, OneOf, TakeWhile1, MapOpt, Tag};
     use nom::Needed::Size;
     use nom::IResult::{Done, Error, Incomplete};
-    use super::{digit_nz, nz_number, seq_number, seq_range};
+    use super::{
+        astring,
+        digit_nz,
+        fetch_att,
+        fetch_nom,
+        header_fld_name,
+        header_list,
+        literal,
+        number,
+        nz_number,
+        octet_range,
+        quoted,
+        section,
+        section_msgtext,
+        section_part,
+        section_spec,
+        section_text,
+        seq_number,
+        seq_range,
+        string,
+        whitespace
+    };
+    use test::Bencher;
+
+    const FETCH_STR: &'static str = "FETCH 4,5:3,* (FLAGS RFC822 BODY.PEEK[43.65.HEADER.FIELDS.NOT (a \"abc\")]<4.2>)";
+
+    #[bench]
+    fn bench_fetch_nom(b: &mut Bencher) {
+        b.iter(|| {
+            assert_eq!(fetch_nom(FETCH_STR.as_bytes()), Done(&b""[..],
+                Command::new(
+                    Fetch,
+                    vec![Number(4), Range(Box::new(Number(5)), Box::new(Number(3))), Wildcard],
+                    vec![
+                        Flags,
+                        RFC822(AllRFC822),
+                        BodyPeek(
+                            PartSection(
+                                vec![43, 65],
+                                Some(HeaderFieldsNotMsgtext(vec![
+                                    "A".to_owned(),
+                                    "ABC".to_owned(),
+                                ]))
+                            ),
+                            Some((4, 2))
+                        )
+                    ]
+                )
+            ));
+        });
+    }
+
+    #[bench]
+    fn bench_fetch_peg(b: &mut Bencher) {
+        b.iter(|| {
+            assert_eq!(fetch(FETCH_STR), Ok(
+                Command::new(
+                    Fetch,
+                    vec![Number(4), Range(Box::new(Number(5)), Box::new(Number(3))), Wildcard],
+                    vec![
+                        Flags,
+                        RFC822(AllRFC822),
+                        BodyPeek(
+                            PartSection(
+                                vec![43, 65],
+                                Some(HeaderFieldsNotMsgtext(vec![
+                                    "A".to_owned(),
+                                    "ABC".to_owned(),
+                                ]))
+                            ),
+                            Some((4, 2))
+                        )
+                    ]
+                )
+            ));
+        });
+    }
+
+    #[test]
+    fn test_fetch_nom() {
+        assert_eq!(fetch_nom(b""), Incomplete(Size(5)));
+        assert_eq!(fetch_nom(b"FETCH *:3,6 (FLAGS RFC822)"), Done(&b""[..],
+            Command::new(Fetch, vec![Range(Box::new(Wildcard), Box::new(Number(3))), Number(6)], vec![Flags, RFC822(AllRFC822)])
+        ));
+        assert_eq!(fetch_nom(b"FETCH * FLAGS"), Done(&b""[..],
+            Command::new(Fetch, vec![Wildcard], vec![Flags])
+        ));
+        assert_eq!(fetch_nom(b"FETCH * ALL"), Done(&b""[..],
+            Command::new(Fetch, vec![Wildcard], vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope])
+        ));
+        assert_eq!(fetch_nom(b"FETCH * FULL"), Done(&b""[..],
+            Command::new(Fetch, vec![Wildcard], vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body])
+        ));
+        assert_eq!(fetch_nom(b"FETCH * FAST"), Done(&b""[..],
+            Command::new(Fetch, vec![Wildcard], vec![Flags, InternalDate, RFC822(SizeRFC822)])
+        ));
+        assert_eq!(
+            fetch_nom(b"FETCH 4,5:3,* (FLAGS RFC822 BODY.PEEK[43.65.HEADER.FIELDS.NOT (abc \"def\" {2}\r\nde)]<4.2>)"),
+            Done(&b""[..],
+                Command::new(
+                    Fetch,
+                    vec![Number(4), Range(Box::new(Number(5)), Box::new(Number(3))), Wildcard],
+                    vec![
+                        Flags,
+                        RFC822(AllRFC822),
+                        BodyPeek(
+                            PartSection(
+                                vec![43, 65],
+                                Some(HeaderFieldsNotMsgtext(vec![
+                                    "ABC".to_owned(),
+                                    "DEF".to_owned(),
+                                    "DE".to_owned()
+                                ]))
+                            ),
+                            Some((4, 2))
+                        )
+                    ]
+                )
+            )
+        );
+    }
+
+    #[test]
+    fn test_fetch_att() {
+        assert_eq!(fetch_att(b""), Incomplete(Size(6)));
+        assert_eq!(fetch_att(b"envelope"), Done(&b""[..], Envelope));
+        assert_eq!(fetch_att(b"FLAGS"), Done(&b""[..], Flags));
+        assert_eq!(fetch_att(b"RFC822 "), Done(&b" "[..], RFC822(AllRFC822)));
+        assert_eq!(fetch_att(b"RFC822.HEADER"), Done(&b""[..], RFC822(HeaderRFC822)));
+        assert_eq!(fetch_att(b"BODY "), Done(&b" "[..],
+            Body
+        ));
+        assert_eq!(fetch_att(b"BODYSTRUCTURE"), Done(&b""[..],
+            BodyStructure
+        ));
+        assert_eq!(fetch_att(b"BODY.PEEK[] "), Done(&b" "[..],
+            BodyPeek(AllSection, None)
+        ));
+        assert_eq!(fetch_att(b"BODY.PEEK[]<1.2>"), Done(&b""[..],
+            BodyPeek(AllSection, Some((1, 2)))
+        ));
+        assert_eq!(fetch_att(b"BODY[TEXT]<1.2>"), Done(&b""[..],
+            BodySection(MsgtextSection(TextMsgtext), Some((1, 2)))
+        ));
+    }
+
+    #[test]
+    fn test_octet_range() {
+        assert_eq!(octet_range(b""), Incomplete(Size(1)));
+        assert_eq!(octet_range(b"<0.0>"), Error(OneOf));
+        assert_eq!(octet_range(b"<100.200>"), Done(&b""[..], (100, 200)));
+    }
+
+    #[test]
+    fn test_section() {
+        assert_eq!(section(b""), Incomplete(Size(1)));
+        assert_eq!(section(b"[]"), Done(&b""[..], AllSection));
+        assert_eq!(section(b"[1.2.3.HEADER.FIELDS (abc def)]"),
+            Done(
+                &b""[..],
+                PartSection(
+                    vec![1, 2, 3],
+                    Some(HeaderFieldsMsgtext(vec!["ABC".to_string(), "DEF".to_string()]))
+                )
+            )
+        );
+    }
+
+    #[test]
+    fn test_section_spec() {
+        assert_eq!(section_spec(b""), Incomplete(Size(4)));
+        assert_eq!(section_spec(b"invalid"), Error(Alt));
+        assert_eq!(section_spec(b"HEADER"), Done(&b""[..], MsgtextSection(HeaderMsgtext)));
+        assert_eq!(section_spec(b"1.2.3.MIME"), Done(&b""[..], PartSection(vec![1, 2, 3], Some(MimeMsgtext))));
+        assert_eq!(section_spec(b"1.2.3.HEADER.FIELDS (abc def)"),
+            Done(
+                &b""[..],
+                PartSection(
+                    vec![1, 2, 3],
+                    Some(HeaderFieldsMsgtext(vec!["ABC".to_string(), "DEF".to_string()]))
+                )
+            )
+        );
+    }
+
+    #[test]
+    fn test_section_msgtext() {
+        assert_eq!(section_msgtext(b""), Incomplete(Size(4)));
+        assert_eq!(section_msgtext(b"invalid"), Error(Alt));
+        assert_eq!(section_msgtext(b"header"), Done(&b""[..], HeaderMsgtext));
+        assert_eq!(section_msgtext(b"HEADER"), Done(&b""[..], HeaderMsgtext));
+        assert_eq!(section_msgtext(b"text"), Done(&b""[..], TextMsgtext));
+        assert_eq!(section_msgtext(b"HEADER.FIELDS (abc def)"),
+            Done(
+                &b""[..],
+                HeaderFieldsMsgtext(vec!["ABC".to_string(), "DEF".to_string()])
+            )
+        );
+        assert_eq!(section_msgtext(b"HEADER.FIELDS.NOT (abc def)"),
+            Done(
+                &b""[..],
+                HeaderFieldsNotMsgtext(vec!["ABC".to_string(), "DEF".to_string()])
+            )
+        );
+    }
+
+    #[test]
+    fn test_header_list() {
+        assert_eq!(header_list(b""), Incomplete(Size(1)));
+        assert_eq!(header_list(b"(abc\ndef)"), Error(Tag));
+        assert_eq!(header_list(b"(abc)\ndef"), Done(&b"\ndef"[..], vec!["ABC".to_string()]));
+        assert_eq!(header_list(b"(abc def ghi jkl)"),
+            Done(&b""[..], vec!["ABC".to_string(), "DEF".to_string(), "GHI".to_string(), "JKL".to_string()])
+        );
+        assert_eq!(header_list(b"({3}\r\ndef)"),
+            Done(&b""[..], vec!["DEF".to_string()])
+        );
+    }
+
+    #[test]
+    fn test_header_fld_name() {
+        assert_eq!(header_fld_name(b""), Incomplete(Size(1)));
+        assert_eq!(header_fld_name(b"abc123\ndef456"), Done(&b"\ndef456"[..], "ABC123".to_string()));
+        assert_eq!(header_fld_name(b"{3}\r\ndef"), Done(&b""[..], "DEF".to_string()));
+    }
+
+    #[test]
+    fn test_section_part() {
+        assert_eq!(section_part(b""), Incomplete(Size(1)));
+        assert_eq!(section_part(b"0"), Error(OneOf));
+        assert_eq!(section_part(b"1"), Incomplete(Size(2)));
+        assert_eq!(section_part(b"1 "), Done(&b" "[..], vec![1]));
+        assert_eq!(section_part(b"1.2.3 "), Done(&b" "[..], vec![1, 2, 3]));
+    }
+
+    #[test]
+    fn test_section_text() {
+        assert_eq!(section_text(b""), Incomplete(Size(4)));
+        assert_eq!(section_text(b"MIME"), Done(&b""[..], MimeMsgtext));
+        assert_eq!(section_text(b"invalid"), Error(Alt));
+        assert_eq!(section_text(b"HEADER.FIELDS (abc def)"),
+            Done(
+                &b""[..],
+                HeaderFieldsMsgtext(vec!["ABC".to_string(), "DEF".to_string()])
+            )
+        );
+    }
+
+    #[test]
+    fn test_astring() {
+        assert_eq!(astring(b""), Incomplete(Size(1)));
+        assert_eq!(astring(b"("), Error(Alt));
+        assert_eq!(astring(b"]"), Done(&b""[..], &b"]"[..]));
+        assert_eq!(astring(b"a"), Done(&b""[..], &b"a"[..]));
+        assert_eq!(astring(b"\"test\"abc"), Done(&b"abc"[..], &b"test"[..]));
+        assert_eq!(astring(b"\"test\""), Done(&b""[..], &b"test"[..]));
+        assert_eq!(astring(b"{3}\r\nabc\x00"), Done(&b"\x00"[..], &b"abc"[..]));
+    }
+
+    #[test]
+    fn test_string() {
+        assert_eq!(string(b"\"test\""), Done(&b""[..], &b"test"[..]));
+        assert_eq!(string(b"{2}\r\nab\x00"), Done(&b"\x00"[..], &b"ab"[..]));
+    }
+
+    #[test]
+    fn test_quoted() {
+        assert_eq!(quoted(b""), Incomplete(Size(1)));
+        assert_eq!(quoted(b"\"\""), Done(&b""[..], &b""[..]));
+        assert_eq!(quoted(b"\"a\""), Done(&b""[..], &b"a"[..]));
+        assert_eq!(quoted(b"\"\\\""), Incomplete(Size(4)));
+        assert_eq!(quoted(b"\"\\\"\""), Done(&b""[..], &b"\\\""[..]));
+        assert_eq!(quoted(b"\"\\\\\""), Done(&b""[..], &b"\\\\"[..]));
+        assert_eq!(quoted(b"\"\r\""), Error(Tag));
+        assert_eq!(quoted(b"\"\t\""), Done(&b""[..], &b"\t"[..]));
+    }
+
+    #[test]
+    fn test_literal() {
+        assert_eq!(literal(b""), Incomplete(Size(1)));
+        assert_eq!(literal(b"{1}\r\nabc"), Done(&b"bc"[..], &b"a"[..]));
+        assert_eq!(literal(b"{0}\r\n"), Done(&b""[..], &b""[..]));
+        assert_eq!(literal(b"{1}\r\na"), Done(&b""[..], &b"a"[..]));
+        assert_eq!(literal(b"{2}\r\na"), Incomplete(Size(7)));
+        assert_eq!(literal(b"{2}\r\na\x00a"), Error(Count));
+    }
 
     #[test]
     // TODO; remove the `_nom` suffix from all the functions.
@@ -193,11 +790,15 @@ mod tests {
     }
 
     #[test]
-    fn test_digit_nz() {
-        assert_eq!(digit_nz(b""), Incomplete(Size(1)));
-        assert_eq!(digit_nz(b"a"), Error(OneOf));
-        assert_eq!(digit_nz(b"1"), Done(&b""[..], '1'));
-        assert_eq!(digit_nz(b"62"), Done(&b"2"[..], '6'));
+    fn test_number() {
+        assert_eq!(number(b""), Incomplete(Size(1)));
+        assert_eq!(number(b"a"), Error(TakeWhile1));
+        assert_eq!(number(b"0"), Done(&b""[..], 0));
+        assert_eq!(number(b"1"), Done(&b""[..], 1));
+        assert_eq!(number(b"10"), Done(&b""[..], 10));
+        assert_eq!(number(b"10a"), Done(&b"a"[..], 10));
+        assert_eq!(number(b"4294967296"), Done(&b""[..], 4294967296));
+        assert_eq!(number(b"100000000000000000000"), Error(MapOpt));
     }
 
     #[test]
@@ -209,7 +810,23 @@ mod tests {
         assert_eq!(nz_number(b"10"), Done(&b""[..], 10));
         assert_eq!(nz_number(b"10a"), Done(&b"a"[..], 10));
         assert_eq!(nz_number(b"4294967296"), Done(&b""[..], 4294967296));
-        assert_eq!(nz_number(b"100000000000000000000"), Error(MapRes));
+        assert_eq!(nz_number(b"100000000000000000000"), Error(MapOpt));
+    }
+
+    #[test]
+    fn test_digit_nz() {
+        assert_eq!(digit_nz(b""), Incomplete(Size(1)));
+        assert_eq!(digit_nz(b"a"), Error(OneOf));
+        assert_eq!(digit_nz(b"1"), Done(&b""[..], '1'));
+        assert_eq!(digit_nz(b"62"), Done(&b"2"[..], '6'));
+    }
+
+    #[test]
+    fn test_whitespace() {
+        assert_eq!(whitespace(b""), Incomplete(Size(1)));
+        assert_eq!(whitespace(b"a"), Error(Char));
+        assert_eq!(whitespace(b" "), Done(&b""[..], ' '));
+        assert_eq!(whitespace(b"\t"), Error(Char));
     }
 
     #[test]
