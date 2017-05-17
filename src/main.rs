@@ -2,11 +2,9 @@
 #![deny(non_camel_case_types)]
 #![feature(
     box_patterns,
-    plugin,
     rustc_private,
     test
 )]
-#![plugin(peg_syntax_ext)]
 
 extern crate bufstream;
 extern crate crypto;
