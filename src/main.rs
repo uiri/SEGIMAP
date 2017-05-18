@@ -107,12 +107,12 @@ fn main() {
 
 /// Function to create our default users.json for testing
 #[allow(dead_code)]
-fn create_default_users(filename: String) {
+fn create_default_users(filename: &str) {
     let mut users = Vec::new();
     users.push(User::new(Email::new("will".to_string(), "xqz.ca".to_string()),
                          "54321".to_string(), "./maildir".to_string()));
     users.push(User::new(Email::new("nikitapekin".to_string(),
                                     "gmail.com".to_string()),
                          "12345".to_string(), "./maildir".to_string()));
-    user::save_users(filename, users);
+    user::save_users(filename, &users);
 }

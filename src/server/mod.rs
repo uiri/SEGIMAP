@@ -26,7 +26,7 @@ impl Server {
     /// Create server to hold the Config and User HashMap
     fn new_with_conf(conf: Config) -> Server {
         // Load the user data from the specified user data file.
-        let users = load_users(conf.users.clone()).unwrap();
+        let users = load_users(&conf.users).unwrap();
 
         Server {
             conf: conf,
@@ -36,12 +36,12 @@ impl Server {
 
     /// Create a TCP listener on the server host and imap post
     pub fn imap_listener(&self) -> Result<TcpListener> {
-        return TcpListener::bind((&self.conf.host[..], self.conf.imap_port));
+        TcpListener::bind((&self.conf.host[..], self.conf.imap_port))
     }
 
     /// Create a TCP listener on the server host and lmtp port
-    pub fn lmtp_listener<'r>(&self) -> Result<TcpListener> {
-        return TcpListener::bind((&self.conf.host[..], self.conf.lmtp_port));
+    pub fn lmtp_listener(&self) -> Result<TcpListener> {
+        TcpListener::bind((&self.conf.host[..], self.conf.lmtp_port))
     }
 
     fn host(&self) -> &String {

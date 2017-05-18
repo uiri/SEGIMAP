@@ -42,7 +42,7 @@ named!(pub fetch<Command>,
 
                     ({
                         let mut attrs = vec![a];
-                        for attr in b.into_iter() {
+                        for attr in b {
                             attrs.push(attr);
                         }
                         attrs

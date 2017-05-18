@@ -40,9 +40,9 @@ impl User {
     }
 }
 
-/// Reads a JSON file and turns it into a HashMap of emails to users.
-/// May throw an IoError, hence the Result<> type.
-pub fn load_users(path_str: String) -> ImapResult<HashMap<Email, User>> {
+/// Reads a JSON file and turns it into a `HashMap` of emails to users.
+/// May throw an `IoError`, hence the `Result<>` type.
+pub fn load_users(path_str: &str) -> ImapResult<HashMap<Email, User>> {
     let path = Path::new(&path_str[..]);
     let mut file_buf : Vec<u8> = Vec::new();
     let file = match File::open(&path).unwrap().read_to_end(&mut file_buf) {
@@ -57,7 +57,7 @@ pub fn load_users(path_str: String) -> ImapResult<HashMap<Email, User>> {
     };
 
     let mut map = HashMap::<Email, User>::new();
-    for user in users.into_iter() {
+    for user in users {
         map.insert(user.email.clone(), user);
     }
     Ok(map)
@@ -67,7 +67,7 @@ pub fn load_users(path_str: String) -> ImapResult<HashMap<Email, User>> {
 /// Not currently used because IMAP has no provisions for user account
 /// management.
 #[allow(dead_code)]
-pub fn save_users(path_str: String, users: Vec<User>) {
+pub fn save_users(path_str: &str, users: &[User]) {
     let path = Path::new(&path_str[..]);
     let encoded = json::encode(&users).unwrap();
     let mut file = File::create(&path).unwrap();

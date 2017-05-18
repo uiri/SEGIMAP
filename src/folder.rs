@@ -31,7 +31,7 @@ pub struct Folder {
 macro_rules! make_vec_path(
     ($path:ident, $inp:ident, $str:expr, $next:expr) => ({
         match fs::read_dir(&($path.join($str))) {
-            Err(_) => { return None; }
+            Err(_) => { None },
             Ok(res) => {
                 let $inp = res;
                 $next
@@ -121,7 +121,7 @@ impl Folder {
                 }
 
                 // Move the messages from folder/new to folder/cur
-                messages = move_new(messages, path.as_path(), unseen-1);
+                messages = move_new(&messages, path.as_path(), unseen-1);
                 Some(Folder {
                     path: path,
                     recent: i-old,
@@ -184,13 +184,13 @@ impl Folder {
                     // Sequence numbers are 1-indexed
                     result.push(index + 1);
                 } else {
-                    index = index + 1;
+                    index += 1;
                 }
             }
             // Get the compiler to STFU with empty match block
             match fs::remove_file(&self.path.join(".lock")) { _ => {} }
         }
-        return result;
+        result
     }
 
     pub fn message_count(&self) -> usize {
@@ -199,7 +199,7 @@ impl Folder {
 
     /// Perform a fetch of the specified attributes on self.messsages[index]
     /// Return the FETCH response string to be sent back to the client
-    pub fn fetch(&self, index: usize, attributes: &Vec<Attribute>) -> String {
+    pub fn fetch(&self, index: usize, attributes: &[Attribute]) -> String {
         let mut res = "* ".to_string();
         res.push_str(&(index+1).to_string()[..]);
         res.push_str(" FETCH (");
@@ -210,7 +210,7 @@ impl Folder {
 
     /// Turn a UID into a sequence number
     pub fn get_index_from_uid(&self, uid: &usize) -> Option<&usize> {
-        return self.uid_to_seqnum.get(uid);
+        self.uid_to_seqnum.get(uid)
     }
 
     /// Perform a STORE on the specified set of sequence numbers
@@ -220,7 +220,7 @@ impl Folder {
                  silent: bool, flags: HashSet<Flag>, seq_uid: bool,
                  tag: &str) -> String {
         let mut responses = String::new();
-        for num in sequence_set.iter() {
+        for num in &sequence_set {
             let (uid, i) = if seq_uid {
                 match self.get_index_from_uid(num) {
                     // 0 is an invalid sequence number
@@ -238,7 +238,7 @@ impl Folder {
             }
 
             // Create the FETCH response for this STORE operation.
-            let ref mut message = self.messages.get_mut(i-1).unwrap();
+            let message = &mut self.messages.get_mut(i-1).unwrap();
             responses.push_str("* ");
             responses.push_str(&i.to_string()[..]);
             responses.push_str(" FETCH (FLAGS ");
@@ -272,7 +272,7 @@ impl Folder {
         // yell at us for inspecting the internal state of the message and
         // modifying that state at the same time
         let mut new_messages = Vec::new();
-        for msg in self.messages.iter() {
+        for msg in &self.messages {
             // Grab the new filename composed of this message's UID and its current flags.
             let filename = msg.get_new_filename();
             let curpath = self.path.join("cur").join(filename);
@@ -294,18 +294,17 @@ impl Folder {
 
 /// This moves a list of messages from folder/new/ to folder/cur/ and returns a
 /// new list of messages
-fn move_new(messages: Vec<Message>, path: &Path,
+fn move_new(messages: &[Message], path: &Path,
             start_index: usize) -> Vec<Message> {
     let mut new_messages = Vec::new();
 
     // Go over the messages by index
-    for i in 0usize..messages.len() {
+    for (i, msg) in messages.iter().enumerate() {
         // messages before start_index are already in folder/cur/
         if i < start_index {
-            new_messages.push(messages[i].clone());
+            new_messages.push(msg.clone());
             continue;
         }
-        let ref msg = messages[i];
         let curpath = path.join("cur").join(msg.get_uid().to_string());
         rename_message!(msg, curpath, new_messages);
     }

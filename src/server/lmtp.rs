@@ -16,9 +16,8 @@ use user::User;
 
 macro_rules! return_on_err(
     ($inp:expr) => {
-        match $inp {
-            Err(_) => { return; }
-            _ => {}
+        if $inp.is_err() {
+            return;
         }
     }
 );
@@ -50,11 +49,11 @@ static OK: &'static str = "250 OK\r\n";
 
 impl<'a> Lmtp<'a> {
     fn deliver(&self) -> String {
-        if self.to_path.len() == 0 {
+        if self.to_path.is_empty() {
             return "503 Bad sequence - no recipients".to_string();
         }
         let mut res = String::new();
-        for rcpt in self.to_path.iter() {
+        for rcpt in &self.to_path {
             let mut timestamp = match time::get_time().sec.to_i32() {
                 Some(i) => i,
                 None => {
@@ -74,17 +73,11 @@ impl<'a> Lmtp<'a> {
                         }
                     }
                     Ok(mut file) => {
-                        match file.write(self.data.as_bytes()) {
-                            Err(_) => {
-                                delivery_ioerror!(res);
-                            }
-                            _ => {}
+                        if file.write(self.data.as_bytes()).is_err() {
+                            delivery_ioerror!(res);
                         }
-                        match file.flush() {
-                            Err(_) => {
-                                delivery_ioerror!(res);
-                            }
-                            _ => {}
+                        if file.flush().is_err() {
+                            delivery_ioerror!(res);
                         }
                         res.push_str("250 OK\r\n");
                         break;
@@ -103,12 +96,9 @@ fn grab_email(arg: Option<&str>) -> Option<Email> {
             match split_arg.next() {
                 Some(from_str) => {
                     match &from_str.to_ascii_lowercase()[..] {
-                        "from" => {
+                        "from" | "to" => {
                             grab_email_token!(split_arg.next())
-                        }
-                        "to" => {
-                            grab_email_token!(split_arg.next())
-                        }
+                        },
                         _ => { return None; }
                     }
                 }
@@ -143,7 +133,7 @@ pub fn serve(serv: Arc<Server>, mut stream: BufStream<TcpStream>) {
         let mut command = String::new();
         match stream.read_line(&mut command) {
             Ok(_) => {
-                if command.len() == 0 {
+                if command.is_empty() {
                     return;
                 }
                 let trimmed_command = (&command[..]).trim();
@@ -214,7 +204,7 @@ pub fn serve(serv: Arc<Server>, mut stream: BufStream<TcpStream>) {
                                     let mut data_command = String::new();
                                     match stream.read_line(&mut data_command) {
                                         Ok(_) => {
-                                            if data_command.len() == 0 {
+                                            if data_command.is_empty() {
                                                 break;
                                             }
                                             let data_cmd = (&data_command[..]).trim();
