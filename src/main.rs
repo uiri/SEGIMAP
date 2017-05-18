@@ -1,7 +1,6 @@
 //! SEGIMAP is an IMAP server implementation.
 #![deny(non_camel_case_types)]
 #![feature(
-    rustc_private,
     test
 )]
 
@@ -13,7 +12,6 @@ extern crate nom;
 extern crate num;
 extern crate rand;
 extern crate regex;
-extern crate rustc;
 extern crate rustc_serialize;
 extern crate serde;
 #[macro_use]
