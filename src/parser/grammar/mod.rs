@@ -29,7 +29,7 @@ fn is_sp(chr: u8) -> bool {
 }
 
 fn is_ctl(chr: u8) -> bool {
-    (chr >= b'\x00' && chr <= b'\x1F') || chr == b'\x7F'
+    chr <= b'\x1F' || chr == b'\x7F'
 }
 
 fn is_list_wildcards(chr: u8) -> bool {
