@@ -23,7 +23,7 @@ pub fn fetch(args: Split<char>) -> ParserResult<Command> {
 
 /// Perform the fetch operation on each sequence number indicated and return
 /// the response to be sent back to the client.
-pub fn fetch_loop(parsed_cmd: Command, folder: &mut Folder,
+pub fn fetch_loop(parsed_cmd: &Command, folder: &mut Folder,
                   sequence_iter: Vec<usize>, tag: &str, uid: bool) -> String {
     for attr in parsed_cmd.attributes.iter() {
         match attr {

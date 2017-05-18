@@ -461,7 +461,7 @@ impl Session {
                                              (&parsed_cmd.sequence_set,
                                               folder.message_count());
                         if sequence_iter.len() == 0 { return bad_res }
-                        return fetch::fetch_loop(parsed_cmd, folder,
+                        return fetch::fetch_loop(&parsed_cmd, folder,
                                                       sequence_iter, tag,
                                                       false);
                     },
@@ -489,43 +489,49 @@ impl Session {
                                         parsed_cmd.attributes.push(UID);
 
                                         // SPECIAL CASE FOR RANGES WITH WILDCARDS
-                                        return match parsed_cmd.sequence_set[0] {
-                                            Range(box Number(n), box Wildcard) => {
-                                                if folder.message_count() == 0 { return bad_res }
-                                                let start = match folder.get_index_from_uid(&n) {
-                                                    Some(start) => *start,
-                                                    None => {
-                                                        if n == 1 {
-                                                            0usize
-                                                        } else {
-                                                            return bad_res;
+                                        match parsed_cmd.sequence_set[0] {
+                                            Range(ref a, ref b) => match **a {
+                                                Number(n) => match **b {
+                                                    Wildcard => {
+                                                        if folder.message_count() == 0 { return bad_res }
+                                                        let start = match folder.get_index_from_uid(&n) {
+                                                            Some(start) => *start,
+                                                            None => {
+                                                                if n == 1 {
+                                                                    0usize
+                                                                } else {
+                                                                    return bad_res;
+                                                                }
+                                                            }
+                                                        };
+                                                        let mut res = String::new();
+                                                        for index in start..folder.message_count() {
+                                                            res.push_str(&folder.fetch(index+1, &parsed_cmd.attributes)[..]);
                                                         }
-                                                    }
-                                                };
-                                                let mut res = String::new();
-                                                for index in start..folder.message_count() {
-                                                    res.push_str(&folder.fetch(index+1, &parsed_cmd.attributes)[..]);
-                                                }
-                                                res.push_str(tag);
-                                                res.push_str(" OK UID FETCH completed\r\n");
-                                                res
-                                            }
-                                            _ => {
-                                                /*
-                                                 * Verify that the requested sequence set is valid.
-                                                 *
-                                                 * Per RFC 3501 seq-number definition:
-                                                 * "The server should respond with a tagged BAD
-                                                 * response to a command that uses a message
-                                                 * sequence number greater than the number of
-                                                 * messages in the selected mailbox. This
-                                                 * includes "*" if the selected mailbox is empty."
-                                                 */
-                                                let sequence_iter = sequence_set::uid_iterator(&parsed_cmd.sequence_set);
-                                                if sequence_iter.len() == 0 { return bad_res; }
-                                                fetch::fetch_loop(parsed_cmd, folder, sequence_iter, tag, true)
-                                            }
+                                                        res.push_str(tag);
+                                                        res.push_str(" OK UID FETCH completed\r\n");
+                                                        return res
+                                                    },
+                                                    _ => {},
+                                                },
+                                                _ => {},
+                                            },
+                                            _ => {},
                                         };
+
+                                        /*
+                                         * Verify that the requested sequence set is valid.
+                                         *
+                                         * Per RFC 3501 seq-number definition:
+                                         * "The server should respond with a tagged BAD
+                                         * response to a command that uses a message
+                                         * sequence number greater than the number of
+                                         * messages in the selected mailbox. This
+                                         * includes "*" if the selected mailbox is empty."
+                                         */
+                                        let sequence_iter = sequence_set::uid_iterator(&parsed_cmd.sequence_set);
+                                        if sequence_iter.len() == 0 { return bad_res; }
+                                        return fetch::fetch_loop(&parsed_cmd, folder, sequence_iter, tag, true);
                                     }
                                     "store" => {
                                         // There should be a folder selected.

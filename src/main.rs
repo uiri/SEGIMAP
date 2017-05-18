@@ -1,7 +1,6 @@
 //! SEGIMAP is an IMAP server implementation.
 #![deny(non_camel_case_types)]
 #![feature(
-    box_patterns,
     rustc_private,
     test
 )]
