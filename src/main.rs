@@ -1,6 +1,8 @@
 //! SEGIMAP is an IMAP server implementation.
 #![deny(non_camel_case_types)]
 #![cfg_attr(feature = "unstable", feature(test))]
+#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
 
 extern crate bufstream;
 extern crate crypto;

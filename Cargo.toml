@@ -10,6 +10,7 @@ name = "segimap"
 path = "src/main.rs"
 
 [dependencies]
+clippy = { version = "0.0", optional = true }
 log = "*"
 nom = "*"
 num = "*"
@@ -26,3 +27,4 @@ walkdir = "*"
 
 [features]
 unstable = []
+nightly-testing = ["clippy", "unstable"]
