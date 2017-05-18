@@ -11,9 +11,8 @@ path = "src/main.rs"
 
 [dependencies]
 log = "*"
+nom = "*"
 num = "*"
-peg = "*"
-peg-syntax-ext = "*"
 rand = "*"
 regex = "*"
 rustc-serialize = "*"
