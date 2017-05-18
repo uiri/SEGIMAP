@@ -10,68 +10,62 @@ const DIGITS: &'static str = "0123456789";
 const NZ_DIGITS: &'static str = "123456789";
 
 fn is_astring_char(chr: u8) -> bool {
-    // TODO: perhaps take `char` instead, avoiding this cast?
-    let chr = chr as char;
     is_atom_char(chr) || is_resp_specials(chr)
 }
 
 // any CHAR except atom-specials
-fn is_atom_char(chr: char) -> bool {
+fn is_atom_char(chr: u8) -> bool {
     !is_atom_specials(chr)
 }
 
-fn is_atom_specials(chr: char) -> bool {
-    chr == '(' || chr == ')' || chr == '{' || is_sp(chr) || is_ctl(chr) ||
+fn is_atom_specials(chr: u8) -> bool {
+    chr == b'(' || chr == b')' || chr == b'{' || is_sp(chr) || is_ctl(chr) ||
         is_list_wildcards(chr) || is_quoted_specials(chr) ||
         is_resp_specials(chr)
 }
 
-fn is_sp(chr: char) -> bool {
-    chr == ' '
+fn is_sp(chr: u8) -> bool {
+    chr == b' '
 }
 
-fn is_ctl(chr: char) -> bool {
-    (chr >= '\x00' && chr <= '\x1F') || chr == '\x7F'
+fn is_ctl(chr: u8) -> bool {
+    (chr >= b'\x00' && chr <= b'\x1F') || chr == b'\x7F'
 }
 
-fn is_list_wildcards(chr: char) -> bool {
-    chr == '%' || chr == '*'
+fn is_list_wildcards(chr: u8) -> bool {
+    chr == b'%' || chr == b'*'
 }
 
-fn is_quoted_specials(chr: char) -> bool {
-    is_dquote(chr) || chr == '\\'
+fn is_quoted_specials(chr: u8) -> bool {
+    is_dquote(chr) || chr == b'\\'
 }
 
-fn is_dquote(chr: char) -> bool {
-    chr == '"'
+fn is_dquote(chr: u8) -> bool {
+    chr == b'"'
 }
 
-fn is_resp_specials(chr: char) -> bool {
-    chr == ']'
+fn is_resp_specials(chr: u8) -> bool {
+    chr == b']'
 }
 
 // an ASCII digit (%x30-%x39)
 fn is_digit(chr: u8) -> bool {
-    // TODO: perhaps take `char` instead, avoiding this cast?
-    let chr = chr as char;
-    chr >= '0' && chr <= '9'
+    chr >= b'0' && chr <= b'9'
 }
 
 // any TEXT_CHAR except quoted_specials
 fn is_quoted_char(chr: u8) -> bool {
-    // TODO: perhaps take `char` instead, avoiding this cast?
-    let chr = chr as char;
     !is_quoted_specials(chr) && is_text_char(chr)
 }
 
 // any CHAR except CR and LF
-fn is_text_char(chr: char) -> bool {
+fn is_text_char(chr: u8) -> bool {
     !is_eol_char(chr)
 }
 
 // a CR or LF CHAR
-fn is_eol_char(chr: char) -> bool {
-    chr == '\r' || chr == '\n'
+fn is_eol_char(chr: u8) -> bool {
+    chr == b'\r' || chr == b'\n'
 }
 
 /* String parsing */

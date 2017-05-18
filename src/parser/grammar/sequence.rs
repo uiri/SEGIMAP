@@ -12,13 +12,11 @@ named!(pub sequence_set<Vec<SequenceItem>>,
         b: many0!(preceded!(tag!(","), sequence_set)) >>
 
         ({
-            let mut seq = vec![a];
-            // TODO: implement this with iterator combinators instead.
-            for set in b.into_iter() {
-                for elem in set.into_iter() {
-                    seq.push(elem);
-                }
-            }
+            let mut seq: Vec<SequenceItem> = b.into_iter()
+                .flat_map(|set| set.into_iter())
+                .collect();
+            seq.insert(0, a);
+
             seq
         })
     )
@@ -66,15 +64,8 @@ mod tests {
         assert_eq!(sequence_set(b":*"), Error(Alt));
         assert_eq!(sequence_set(b"*"), Done(&b""[..], vec![Wildcard]));
         assert_eq!(sequence_set(b"1"), Done(&b""[..], vec![Number(1)]));
-        // TODO: is this handled correctly by the parser?
-        // Previously these were treated as an error case, but now nom parses it
-        // as a `seq-number` with trailing text, instead of as an invalid
-        // `seq-range`.
         assert_eq!(sequence_set(b"1:"), Done(&b":"[..], vec![Number(1)]));
         assert_eq!(sequence_set(b"4,5,6,"), Incomplete(Size(7)));
-        // TODO: determine if this should parse correctly as `(":0", 1)`, or
-        // return an error because "1:0" is not a valid range (i.e., are we OK
-        // treating this as a `seq-number` with trailing text?).
         assert_eq!(sequence_set(b"1:0"), Done(&b":0"[..], vec![Number(1)]));
         assert_eq!(sequence_set(b"0:1"), Error(Alt));
         assert_eq!(sequence_set(b"1:1"), Done(&b""[..], vec![

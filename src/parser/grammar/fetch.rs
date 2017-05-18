@@ -177,7 +177,6 @@ named!(header_list<Vec<String>>,
     )
 );
 
-// TODO: confirm this only needs to work for ASCII
 named!(header_fld_name<String>,
     map!(
         map_res!(astring, str::from_utf8),
@@ -186,11 +185,6 @@ named!(header_fld_name<String>,
 );
 
 // Body part nesting
-// NOTE: currently returns `Incomplete` if the provided string does not contain
-// a non-matching byte. This is useful for streaming parsers which may be
-// awaiting further input.
-// TODO: decide if this should be streaming-compatible. If not, add a
-// `complete!` invocation.
 named!(section_part<Vec<usize>>,
     separated_nonempty_list!(tag!("."), nz_number)
 );
