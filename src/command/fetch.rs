@@ -4,14 +4,14 @@ use std::str::Split;
 use command::Command;
 use command::Attribute::BodySection;
 use folder::Folder;
-use parser;
+use parser::{self, ParserResult};
 
 use message::Flag::Seen;
 use super::store::StoreName::Add;
 
 /// Take the rest of the arguments provided by the client and parse them into a
 /// Command object with command::fetch.
-pub fn fetch(args: Split<char>) -> Result<Command, ()> {
+pub fn fetch(args: Split<char>) -> ParserResult<Command> {
     let mut cmd = "FETCH".to_string();
     for arg in args {
         cmd.push(' ');

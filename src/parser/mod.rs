@@ -1,14 +1,17 @@
 use command::Command;
 
+mod error;
 mod grammar;
 
-pub fn fetch(input: &[u8]) -> Result<Command, ()> {
+pub use self::error::Error as ParserError;
+pub use self::error::Result as ParserResult;
+
+pub fn fetch(input: &[u8]) -> ParserResult<Command> {
     use nom::IResult::{Done, Error, Incomplete};
 
     match self::grammar::fetch(input) {
         Done(_, v) => Ok(v),
-        // TODO: handle the error and incomplete cases properly (possibly via a
-        // custom enum?)
-        Error(_) | Incomplete(_) => Err(()),
+        Incomplete(_) => Err(ParserError::Incomplete),
+        Error(err) => Err(err).map_err(ParserError::from),
     }
 }
