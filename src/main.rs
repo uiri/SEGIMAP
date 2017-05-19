@@ -16,8 +16,6 @@ extern crate serde;
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
-#[cfg(feature = "unstable")]
-extern crate test;
 extern crate time;
 extern crate toml;
 extern crate walkdir;
