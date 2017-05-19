@@ -100,8 +100,7 @@ impl Message {
                 // The uid is separated from the flag part of the filename by a
                 // colon. The flag part consists of a 2 followed by a comma and
                 // then some letters. Those letters represent the message flags
-                let unparsed_flags = flags.splitn(1, ',').skip(1).next()
-                                      .unwrap();
+                let unparsed_flags = flags.splitn(1, ',').nth(1).unwrap();
                 let mut set_flags: HashSet<Flag> = HashSet::new();
                 for flag in unparsed_flags.chars() {
                     let parsed_flag = match flag {
@@ -111,9 +110,8 @@ impl Message {
                         'S' => Some(Flag::Seen),
                         _ => None
                     };
-                    match parsed_flag {
-                        Some(enum_flag) => {set_flags.insert(enum_flag);}
-                        None => {}
+                    if let Some(enum_flag) = parsed_flag {
+                        set_flags.insert(enum_flag);
                     }
                 }
                 set_flags
@@ -157,24 +155,24 @@ impl Message {
     }
 
     pub fn get_path(&self) -> &Path {
-        &self.path.as_path()
+        self.path.as_path()
     }
 
     pub fn get_uid(&self) -> usize {
-        return self.uid;
+        self.uid
     }
 
     pub fn store(&mut self, flag_name: &StoreName,
                  new_flags: HashSet<Flag>) -> String {
-        match flag_name {
-            &StoreName::Sub => {
-                for flag in new_flags.iter() {
+        match *flag_name {
+            StoreName::Sub => {
+                for flag in &new_flags {
                     self.flags.remove(flag);
                 }
             }
-            &StoreName::Replace => { self.flags = new_flags; }
-            &StoreName::Add => {
-                for flag in new_flags.into_iter() {
+            StoreName::Replace => { self.flags = new_flags; }
+            StoreName::Add => {
+                for flag in new_flags {
                     self.flags.insert(flag);
                 }
             }
@@ -186,7 +184,7 @@ impl Message {
 
     /// Goes through the list of attributes, constructing a FETCH response for
     /// this message containing the values of the requested attributes
-    pub fn fetch(&self, attributes: &Vec<Attribute>) -> String {
+    pub fn fetch(&self, attributes: &[Attribute]) -> String {
         let mut res = String::new();
         let mut first = true;
         for attr in attributes.iter() {
@@ -198,43 +196,42 @@ impl Message {
             }
 
             // Provide the attribute name followed by the attribute value
-            match attr {
-                &Envelope => {
+            match *attr {
+                Envelope => {
                     res.push_str("ENVELOPE ");
                     res.push_str(&self.mime_message.get_envelope()[..]);
                 },
-                &Flags => {
+                Flags => {
                     res.push_str("FLAGS ");
                     res.push_str(&self.print_flags()[..]);
                 },
-                &InternalDate => {
+                InternalDate => {
                     res.push_str("INTERNALDATE \"");
                     res.push_str(&self.date_received()[..]);
                     res.push('"');
                 }
-                &RFC822(ref attr) => {
+                RFC822(ref attr) => {
                     res.push_str("RFC822");
-                    match attr {
-                        &AllRFC822 => {},
-                        &HeaderRFC822 => {
+                    match *attr {
+                        AllRFC822 | TextRFC822 => {},
+                        HeaderRFC822 => {
                             res.push_str(".HEADER {");
                             res.push_str(&self.mime_message.get_header_boundary()[..]);
                             res.push_str("}\r\n");
                             res.push_str(self.mime_message.get_header());
                         },
-                        &SizeRFC822 => {
+                        SizeRFC822 => {
                             res.push_str(".SIZE ");
                             res.push_str(&self.mime_message.get_size()[..]) },
-                        &TextRFC822 => {}
                     };
                 },
-                &Body => {},
-                &BodySection(ref section, ref octets) => {
-                    res.push_str(&self.mime_message.get_body(section, octets)[..]) },
-                &BodyPeek(ref section, ref octets) => {
-                    res.push_str(&self.mime_message.get_body(section, octets)[..]) },
-                &BodyStructure => {
-                    /*let content_type: Vec<&str> = (&self.headers["CONTENT-TYPE".to_string()][..]).splitn(1, ';').take(1).collect();
+                Body | BodyStructure => {},
+                BodySection(ref section, ref octets) |
+                    BodyPeek(ref section, ref octets) => {
+                        res.push_str(&self.mime_message.get_body(section, octets)[..]) },
+                /*
+                BodyStructure => {
+                    let content_type: Vec<&str> = (&self.headers["CONTENT-TYPE".to_string()][..]).splitn(1, ';').take(1).collect();
                     let content_type: Vec<&str> = content_type[0].splitn(1, '/').collect();
 
                     // Retrieve the subtype of the content type.
@@ -263,9 +260,10 @@ impl Message {
 
                         },
                         _ => { },
-                    }*/
+                    }
                 },
-                &UID => {
+                */
+                UID => {
                     res.push_str("UID ");
                     res.push_str(&self.uid.to_string()[..])
                 }
@@ -279,19 +277,19 @@ impl Message {
     fn print_flags(&self) -> String {
         let mut res = "(".to_string();
         let mut first = true;
-        for flag in self.flags.iter() {
+        for flag in &self.flags {
             // The flags should be space separated.
             if first {
                 first = false;
             } else {
                 res.push(' ');
             }
-            let flag_str = match flag {
-                &Flag::Answered => { "\\Answered" },
-                &Flag::Draft => { "\\Draft" },
-                &Flag::Flagged => { "\\Flagged" },
-                &Flag::Seen => { "\\Seen" }
-                &Flag::Deleted => { "\\Deleted" }
+            let flag_str = match *flag {
+                Flag::Answered => { "\\Answered" },
+                Flag::Draft => { "\\Draft" },
+                Flag::Flagged => { "\\Flagged" },
+                Flag::Seen => { "\\Seen" }
+                Flag::Deleted => { "\\Deleted" }
             };
             res.push_str(flag_str);
         }
@@ -306,7 +304,7 @@ impl Message {
         let mut res = self.uid.to_string();
 
         // it is just the UID if no flags are set.
-        if self.flags.len() == 0 {
+        if self.flags.is_empty() {
             return res;
         }
 

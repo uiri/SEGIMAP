@@ -15,10 +15,10 @@ pub enum StoreName {
     Sub // remove new flags from current flags
 }
 
-/// Parse and perform the store operation specified by store_args. Returns the
+/// Parse and perform the store operation specified by `store_args`. Returns the
 /// response to the client or None if a BAD response should be sent back to
 /// the client
-pub fn store(folder: &mut Folder, store_args: Vec<&str>, seq_uid: bool,
+pub fn store(folder: &mut Folder, store_args: &[&str], seq_uid: bool,
                  tag: &str) -> Option<String> {
     if store_args.len() < 3 { return None; }
 
@@ -33,9 +33,8 @@ pub fn store(folder: &mut Folder, store_args: Vec<&str>, seq_uid: bool,
     let silent_part = data_name_parts.next();
 
     // There shouldn't be any more parts to the data name argument
-    match data_name_parts.next() {
-        Some(_) => return None,
-        _ => {}
+    if data_name_parts.next().is_some() {
+        return None;
     }
 
     // Grab the flags themselves.
@@ -73,7 +72,7 @@ pub fn store(folder: &mut Folder, store_args: Vec<&str>, seq_uid: bool,
 
     // Perform the STORE operation on each message specified by the
     // sequence set.
-    return match sequence_set_opt {
+    match sequence_set_opt {
         None => None,
         Some(sequence_set) => {
             let sequence_iter = if seq_uid {
@@ -85,7 +84,7 @@ pub fn store(folder: &mut Folder, store_args: Vec<&str>, seq_uid: bool,
                                    seq_uid, tag);
             Some(res)
         }
-    };
+    }
 }
 
 /// Takes the argument specifying what to do with the provided flags in a store

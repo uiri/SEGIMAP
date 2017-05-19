@@ -1,10 +1,8 @@
 //! SEGIMAP is an IMAP server implementation.
 #![deny(non_camel_case_types)]
-#![feature(
-    box_patterns,
-    rustc_private,
-    test
-)]
+#![cfg_attr(feature = "unstable", feature(test))]
+#![cfg_attr(feature = "clippy", feature(plugin))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
 
 extern crate bufstream;
 extern crate crypto;
@@ -14,7 +12,6 @@ extern crate nom;
 extern crate num;
 extern crate rand;
 extern crate regex;
-extern crate rustc;
 extern crate rustc_serialize;
 extern crate serde;
 #[macro_use]
@@ -110,12 +107,12 @@ fn main() {
 
 /// Function to create our default users.json for testing
 #[allow(dead_code)]
-fn create_default_users(filename: String) {
+fn create_default_users(filename: &str) {
     let mut users = Vec::new();
     users.push(User::new(Email::new("will".to_string(), "xqz.ca".to_string()),
                          "54321".to_string(), "./maildir".to_string()));
     users.push(User::new(Email::new("nikitapekin".to_string(),
                                     "gmail.com".to_string()),
                          "12345".to_string(), "./maildir".to_string()));
-    user::save_users(filename, users);
+    user::save_users(filename, &users);
 }

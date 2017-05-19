@@ -88,12 +88,8 @@ impl Message {
         // This "unfolds" the header as indicated in RFC 2822 2.2.3
         let mut iterator = raw_header.lines().rev();
         let mut headers = HashMap::new();
-        loop {
-            let line = match iterator.next() {
-                Some(line) => line,
-                None => break
-            };
-            if line.starts_with(" ") || line.starts_with("\t") {
+        while let Some(line) = iterator.next() {
+            if line.starts_with(' ') || line.starts_with('\t') {
                 loop {
                     let next = iterator.next().unwrap();
                     let mut trimmed_next = next.trim_left_matches(' ')
@@ -103,7 +99,7 @@ impl Message {
                     trimmed_next.push(' ');
                     trimmed_next.push_str(line.trim_left_matches(' ')
                                            .trim_left_matches('\t'));
-                    if !next.starts_with(" ") && !next.starts_with("\t") {
+                    if !next.starts_with(' ') && !next.starts_with('\t') {
                         let split: Vec<&str> = (&trimmed_next[..])
                                                 .splitn(1, ':').collect();
                         headers.insert(split[0].to_ascii_uppercase(),
@@ -120,15 +116,14 @@ impl Message {
 
         // Remove the "Received" key from the HashMap.
         let received_key = &RECEIVED.to_string();
-        match headers.get(received_key) {
-            Some(_) => { headers.remove(received_key); }
-            _ => {}
+        if headers.get(received_key).is_some() {
+            headers.remove(received_key);
         }
 
         // Determine whether the message is MULTIPART or not.
         let mut body = Vec::new();
         match headers.get(&"CONTENT-TYPE".to_string()) {
-            Some(ref content_type) => {
+            Some(content_type) => {
                 if (&content_type[..]).contains("MULTIPART") {
                     // We need the boundary to determine where this part ends
                     let mime_boundary = {
@@ -226,15 +221,18 @@ impl Message {
     pub fn get_body<'a>(&self, section: &'a BodySectionType,
                     _octets: &Option<(usize, usize)>) -> String {
         let empty_string = "".to_string();
-        let peek_attr = match section {
-            &AllSection => {
+        let peek_attr = match *section {
+            AllSection => {
                 format!("] {{{}}}\r\n{} ", (&self.raw_contents[..]).len(),
                         self.raw_contents)
             }
-            &MsgtextSection(ref msgtext) => {
-                let msgtext_attr = match msgtext {
-                    &HeaderMsgtext => { empty_string },
-                    &HeaderFieldsMsgtext(ref fields) => {
+            MsgtextSection(ref msgtext) => {
+                match *msgtext {
+                    HeaderMsgtext |
+                        HeaderFieldsNotMsgtext(_) |
+                        TextMsgtext |
+                        MimeMsgtext => { empty_string },
+                    HeaderFieldsMsgtext(ref fields) => {
                         let mut field_keys = String::new();
                         let mut field_values = String::new();
                         let mut first = true;
@@ -259,13 +257,9 @@ impl Message {
                         format!("HEADER.FIELDS ({})] {{{}}}{}", field_keys,
                                 &field_values[..].len(), field_values)
                     },
-                    &HeaderFieldsNotMsgtext(_) => { empty_string },
-                    &TextMsgtext => { empty_string },
-                    &MimeMsgtext => { empty_string }
-                };
-                msgtext_attr
+                }
             }
-            &PartSection(_, _) => { "?]".to_string() }
+            PartSection(_, _) => { "?]".to_string() }
         };
         format!("BODY[{} ", peek_attr)
     }

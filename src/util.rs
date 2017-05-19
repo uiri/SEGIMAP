@@ -15,12 +15,12 @@ use folder::Folder;
 fn make_absolute(dir: &Path) -> String {
     let mut abs_path = current_dir().unwrap();
     abs_path.push(dir);
-    return abs_path.as_path().display().to_string();
+    abs_path.as_path().display().to_string()
 }
 
 pub fn inbox_re() -> Regex { Regex::new("INBOX").unwrap() }
 
-pub fn perform_select(maildir: &str, select_args: Vec<&str>, examine: bool,
+pub fn perform_select(maildir: &str, select_args: &[&str], examine: bool,
                       tag: &str) -> (Option<Folder>, String) {
     let err_res = (None, "".to_string());
     if select_args.len() < 1 { return err_res; }
@@ -34,7 +34,7 @@ pub fn perform_select(maildir: &str, select_args: Vec<&str>, examine: bool,
     };
 
     let ok_res = folder.select_response(tag);
-    return (Some(folder), ok_res);
+    (Some(folder), ok_res)
 }
 
 /// For the given dir, make sure it is a valid mail folder and, if it is,
@@ -82,29 +82,24 @@ fn list_dir(dir: &Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
         Ok(dir_listing) => {
             let mut children = false;
             for subdir_entry in dir_listing {
-                match subdir_entry {
-                    Ok(subdir) => {
-                        if *dir == *maildir_path {
+                if let Ok(subdir) = subdir_entry {
+                    if *dir == *maildir_path {
+                        break;
+                    }
+                    let subdir_path = subdir.path();
+                    let subdir_str = subdir_path.as_path().file_name().unwrap().to_str().unwrap();
+                    if subdir_str != "cur" &&
+                        subdir_str != "new" &&
+                        subdir_str != "tmp" {
+                            if fs::read_dir(&subdir.path().join("cur")).is_err() {
+                                continue;
+                            }
+                            if fs::read_dir(&subdir.path().join("new")).is_err() {
+                                continue;
+                            }
+                            children = true;
                             break;
                         }
-                        let subdir_path = subdir.path();
-                        let subdir_str = subdir_path.as_path().file_name().unwrap().to_str().unwrap();
-                        if subdir_str != "cur" &&
-                            subdir_str != "new" &&
-                            subdir_str != "tmp" {
-                                match fs::read_dir(&subdir.path().join("cur")) {
-                                    Err(_) => { continue; }
-                                    _ => {}
-                                }
-                                match fs::read_dir(&subdir.path().join("new")) {
-                                    Err(_) => { continue; }
-                                    _ => {}
-                                }
-                                children = true;
-                                break;
-                            }
-                    },
-                    _ => {}
                 }
             }
             if children {
@@ -117,7 +112,7 @@ fn list_dir(dir: &Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
 
     let re_path = make_absolute(maildir_path);
     let re_opt = Regex::new(&(format!("^{}", re_path))[..]);
-    return match re_opt {
+    match re_opt {
         Err(_) =>  None,
         Ok(re) => {
             if !fs::metadata(dir).unwrap().is_dir() || !regex.is_match(&dir_string[..]) {
@@ -131,31 +126,22 @@ fn list_dir(dir: &Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
                                ""))[..]);
             Some(list_str)
         }
-    };
+    }
 }
 
 /// Go through the logged in user's maildir and list every folder matching
 /// the given regular expression. Returns a list of LIST responses.
-pub fn list(maildir: &str, regex: Regex) -> Vec<String> {
+pub fn list(maildir: &str, regex: &Regex) -> Vec<String> {
     let maildir_path = Path::new(maildir);
     let mut responses = Vec::new();
-    match list_dir(maildir_path.clone(), &regex, &maildir_path) {
-        Some(list_response) => {
-            responses.push(list_response);
-        }
-        _ => {}
+    if let Some(list_response) = list_dir(maildir_path, regex, maildir_path) {
+        responses.push(list_response);
     }
     for dir_res in WalkDir::new(&maildir_path) {
-        match dir_res {
-            Ok(dir) => {
-                match list_dir(dir.path(), &regex, &maildir_path) {
-                    Some(list_response) => {
-                        responses.push(list_response);
-                    }
-                    _ => {}
-                }
+        if let Ok(dir) = dir_res {
+            if let Some(list_response) = list_dir(dir.path(), regex, maildir_path) {
+                responses.push(list_response);
             }
-            _ => {}
         }
     }
     responses
