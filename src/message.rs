@@ -78,7 +78,10 @@ impl Message {
 
         // Grab the string in the filename representing the flags
         let mut path = arg_path.file_name().unwrap().to_str().unwrap().splitn(1, ':');
-        let filename = path.next().unwrap();
+        let filename = match path.next() {
+            Some(fname) => fname,
+            None => { return Err(Error::MessageBadFilename); }
+        };
         let path_flags = path.next();
 
         // Retrieve the UID from the provided filename.
