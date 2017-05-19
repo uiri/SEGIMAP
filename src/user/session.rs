@@ -21,7 +21,6 @@ use command::sequence_set::SequenceItem::{
     Wildcard
 };
 use error::Error;
-use error::ErrorKind::ImapStateError;
 use super::login::LoginData;
 use util;
 
@@ -554,7 +553,7 @@ impl Session {
     fn expunge(&self) -> Result<Vec<usize>, Error> {
         match self.folder {
             None => {
-                Err(Error::new(ImapStateError, "Not in selected state"))
+                Err(Error::InvalidImapState)
             }
             Some(ref folder) => {
                 Ok(folder.expunge())
