@@ -12,6 +12,10 @@ use walkdir::WalkDir;
 
 use folder::Folder;
 
+lazy_static! {
+    pub static ref INBOX_RE : Regex = Regex::new("INBOX").unwrap();
+}
+
 fn make_absolute(dir: &Path) -> String {
     match current_dir() {
         Err(_) => dir.display().to_string(),
@@ -23,13 +27,11 @@ fn make_absolute(dir: &Path) -> String {
     }
 }
 
-pub fn inbox_re() -> Regex { Regex::new("INBOX").unwrap() }
-
 pub fn perform_select(maildir: &str, select_args: &[&str], examine: bool,
                       tag: &str) -> (Option<Folder>, String) {
     let err_res = (None, "".to_string());
     if select_args.len() < 1 { return err_res; }
-    let mbox_name = inbox_re().replace(select_args[0].trim_matches('"'), "."); // "));
+    let mbox_name = INBOX_RE.replace(select_args[0].trim_matches('"'), ".");
     let mut maildir_path = PathBuf::new();
     maildir_path.push(maildir);
     maildir_path.push(mbox_name.as_ref());
@@ -134,7 +136,7 @@ fn list_dir(dir: &Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
             let mut list_str = "* LIST (".to_string();
             list_str.push_str(&flags[..]);
             list_str.push_str(") \"/\" ");
-            list_str.push_str(&(inbox_re().replace
+            list_str.push_str(&(INBOX_RE.replace
                               (&re.replace(&abs_dir[..], "INBOX")[..],
                                ""))[..]);
             Some(list_str)

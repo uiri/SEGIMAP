@@ -234,7 +234,7 @@ impl Session {
                 "create" => {
                     let create_args: Vec<&str> = args.collect();
                     if create_args.len() < 1 { return bad_res; }
-                    let mbox_name = util::inbox_re().replace
+                    let mbox_name = util::INBOX_RE.replace
                                      (create_args[0].trim_matches('"'), "");
                     match self.maildir {
                         None => return bad_res,
@@ -273,7 +273,7 @@ impl Session {
                 "delete" => {
                     let delete_args: Vec<&str> = args.collect();
                     if delete_args.len() < 1 { return bad_res; }
-                    let mbox_name = util::inbox_re().replace
+                    let mbox_name = util::INBOX_RE.replace
                                      (delete_args[0].trim_matches('"'), "");
                     match self.maildir {
                         None => return bad_res,
