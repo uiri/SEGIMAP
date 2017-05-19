@@ -88,26 +88,29 @@ impl Message {
         let flags = match path_flags {
             // if there are no flags, create an empty set
             None => HashSet::new(),
-            Some(flags) => {
+            Some(flags) =>
                 // The uid is separated from the flag part of the filename by a
                 // colon. The flag part consists of a 2 followed by a comma and
                 // then some letters. Those letters represent the message flags
-                let unparsed_flags = flags.splitn(1, ',').nth(1).unwrap();
-                let mut set_flags: HashSet<Flag> = HashSet::new();
-                for flag in unparsed_flags.chars() {
-                    let parsed_flag = match flag {
-                        'D' => Some(Flag::Draft),
-                        'F' => Some(Flag::Flagged),
-                        'R' => Some(Flag::Answered),
-                        'S' => Some(Flag::Seen),
-                        _ => None
-                    };
-                    if let Some(enum_flag) = parsed_flag {
-                        set_flags.insert(enum_flag);
+                match flags.splitn(1, ',').nth(1) {
+                    None => HashSet::new(),
+                    Some(unparsed_flags) => {
+                        let mut set_flags: HashSet<Flag> = HashSet::new();
+                        for flag in unparsed_flags.chars() {
+                            let parsed_flag = match flag {
+                                'D' => Some(Flag::Draft),
+                                'F' => Some(Flag::Flagged),
+                                'R' => Some(Flag::Answered),
+                                'S' => Some(Flag::Seen),
+                                _ => None
+                            };
+                            if let Some(enum_flag) = parsed_flag {
+                                set_flags.insert(enum_flag);
+                            }
+                        }
+                        set_flags
                     }
                 }
-                set_flags
-            }
         };
 
         let message = Message {

@@ -13,9 +13,14 @@ use walkdir::WalkDir;
 use folder::Folder;
 
 fn make_absolute(dir: &Path) -> String {
-    let mut abs_path = current_dir().unwrap();
-    abs_path.push(dir);
-    abs_path.as_path().display().to_string()
+    match current_dir() {
+        Err(_) => dir.display().to_string(),
+        Ok(absp) => {
+            let mut abs_path = absp.clone();
+            abs_path.push(dir);
+            abs_path.as_path().display().to_string()
+        }
+    }
 }
 
 pub fn inbox_re() -> Regex { Regex::new("INBOX").unwrap() }
@@ -115,7 +120,15 @@ fn list_dir(dir: &Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
     match re_opt {
         Err(_) =>  None,
         Ok(re) => {
-            if !fs::metadata(dir).unwrap().is_dir() || !regex.is_match(&dir_string[..]) {
+            match fs::metadata(dir) {
+                Err(_) => return None,
+                Ok(md) =>
+                    if !md.is_dir() {
+                        return None;
+                    }
+            };
+
+            if !regex.is_match(&dir_string[..]) {
                 return None;
             }
             let mut list_str = "* LIST (".to_string();

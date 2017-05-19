@@ -238,18 +238,19 @@ impl Folder {
             }
 
             // Create the FETCH response for this STORE operation.
-            let message = &mut self.messages.get_mut(i-1).unwrap();
-            responses.push_str("* ");
-            responses.push_str(&i.to_string()[..]);
-            responses.push_str(" FETCH (FLAGS ");
-            responses.push_str(&message.store(flag_name, flags.clone())[..]);
+            if let Some(mut message) = self.messages.get_mut(i-1) {
+                responses.push_str("* ");
+                responses.push_str(&i.to_string()[..]);
+                responses.push_str(" FETCH (FLAGS ");
+                responses.push_str(&message.store(flag_name, flags.clone())[..]);
 
-            // UID STORE needs to respond with the UID for each FETCH response
-            if seq_uid {
-                let uid_res = format!(" UID {}", uid);
-                responses.push_str(&uid_res[..]);
+                // UID STORE needs to respond with the UID for each FETCH response
+                if seq_uid {
+                    let uid_res = format!(" UID {}", uid);
+                    responses.push_str(&uid_res[..]);
+                }
+                responses.push_str(" )\r\n");
             }
-            responses.push_str(" )\r\n");
         }
 
         // Return an empty string if the client wanted the STORE to be SILENT

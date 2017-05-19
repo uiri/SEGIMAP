@@ -66,7 +66,10 @@ impl Message {
 
         // Find boundary between header and body.
         // Use it to create &str of the raw header and raw body
-        let header_boundary = raw_contents.find("\n\n").unwrap() + 1;
+        let header_boundary = match raw_contents.find("\n\n") {
+            None => { return Err(Error::ParseMultipartBoundary); }
+            Some(n) => n + 1
+        };
         let raw_header = &raw_contents[ .. header_boundary];
         let raw_body = &raw_contents[header_boundary .. ];
 
@@ -78,8 +81,7 @@ impl Message {
         let mut headers = HashMap::new();
         while let Some(line) = iterator.next() {
             if line.starts_with(' ') || line.starts_with('\t') {
-                loop {
-                    let next = iterator.next().unwrap();
+                while let Some(next) = iterator.next() {
                     let mut trimmed_next = next.trim_left_matches(' ')
                                             .trim_left_matches('\t').to_string();
 
@@ -144,8 +146,10 @@ impl Message {
 
                     // Throw the parts of the message into a list of MIMEParts
                     for part in raw_body.iter() {
-                        let header_boundary = part.find("\n\n")
-                                               .unwrap();
+                        let header_boundary = match part.find("\n\n") {
+                            None => return Err(Error::ParseMultipartBoundary),
+                            Some(n) => n
+                        };
                         let header = &part[ .. header_boundary];
                         let mut content_type = String::new();
                         for line in header.lines() {

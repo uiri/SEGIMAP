@@ -122,9 +122,13 @@ impl Session {
         // The client will need the tag in the response in order to match up
         // the response to the command it issued because the client does not
         // have to wait on our response in order to issue new commands.
-        let tag = args.next().unwrap();
+        let inv_str = " BAD Invalid command\r\n";
+        let tag = match args.next() {
+            None => return inv_str.to_string(),
+            Some(t) => t
+        };
         let mut bad_res = tag.to_string();
-        bad_res.push_str(" BAD Invalid command\r\n");
+        bad_res.push_str(inv_str);
 
         // The argument after the tag specified the command issued.
         // Additional arguments are arguments for that specific command.

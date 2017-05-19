@@ -41,7 +41,14 @@ mod util;
 fn main() {
     // Create the server. We wrap it so that it is atomically reference
     // counted. This allows us to safely share it across threads
-    let serv = Arc::new(Server::new().unwrap());
+
+    let serv = match Server::new() {
+        Err(e) => {
+            error!("Error starting server: {}", e);
+            return;
+        },
+        Ok(s) => Arc::new(s)
+    };
 
     // Spawn a separate thread for listening for LMTP connections
     match serv.lmtp_listener() {
