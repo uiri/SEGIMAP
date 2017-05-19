@@ -11,7 +11,8 @@ use self::config::Config;
 use user::{load_users, Email, User};
 
 mod config;
-mod lmtp;
+#[macro_use]
+pub mod lmtp;
 
 /// Holds configuration state and email->user map
 pub struct Server {

@@ -77,7 +77,7 @@ impl Message {
         let mime_message = MIME_Message::new(arg_path)?;
 
         // Grab the string in the filename representing the flags
-        let mut path = arg_path.file_name().unwrap().to_str().unwrap().splitn(1, ':');
+        let mut path = path_filename_to_str!(arg_path).splitn(1, ':');
         let filename = match path.next() {
             Some(fname) => fname,
             None => { return Err(Error::MessageBadFilename); }

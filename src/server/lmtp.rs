@@ -14,6 +14,9 @@ use server::Server;
 use user::Email;
 use user::User;
 
+// Just bail if there is some error.
+// Used when performing operations on a TCP Stream generally
+#[macro_export]
 macro_rules! return_on_err(
     ($inp:expr) => {
         if $inp.is_err() {

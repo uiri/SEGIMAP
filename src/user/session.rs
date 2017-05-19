@@ -24,16 +24,6 @@ use error::Error;
 use super::login::LoginData;
 use util;
 
-// Just bail if there is some error.
-// Used when performing operations on a TCP Stream generally
-macro_rules! return_on_err(
-    ($inp:expr) => {
-        if $inp.is_err() {
-            return;
-        }
-    }
-);
-
 // Used to grab every file for removal while performing DELETE on a folder.
 macro_rules! opendirlisting(
     ($inp:expr, $listing:ident, $err:ident, $next:expr) => {
@@ -351,10 +341,9 @@ impl Session {
                             let re_opt = Regex::new
                                           (&format!
                                            ("{}/?{}/?{}$",
-                                            maildir_path.file_name().unwrap().to_str()
-                                            .unwrap(), reference,
-                                            mailbox_name.replace
-                                            ("INBOX", ""))[..]);
+                                            path_filename_to_str!(maildir_path),
+                                            reference,
+                                            mailbox_name.replace("INBOX", ""))[..]);
                             match re_opt {
                                 Err(_) => { return bad_res;}
                                 Ok(re) => {

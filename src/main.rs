@@ -34,12 +34,15 @@ use bufstream::BufStream;
 mod command;
 mod error;
 mod folder;
-mod message;
 mod mime;
 mod parser;
+#[macro_use]
 mod server;
-mod user;
+#[macro_use]
 mod util;
+
+mod user;
+mod message;
 
 fn main() {
     // Create the server. We wrap it so that it is atomically reference

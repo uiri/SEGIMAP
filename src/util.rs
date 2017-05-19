@@ -16,6 +16,20 @@ lazy_static! {
     pub static ref INBOX_RE : Regex = Regex::new("INBOX").unwrap();
 }
 
+#[macro_export]
+macro_rules! path_filename_to_str(
+    ($p:ident) => (
+        match $p.file_name() {
+            Some(filename) =>
+                match filename.to_str() {
+                    Some(fns) => fns,
+                    None => "",
+                },
+            None => ""
+        }
+    );
+);
+
 fn make_absolute(dir: &Path) -> String {
     match current_dir() {
         Err(_) => dir.display().to_string(),
@@ -48,7 +62,7 @@ pub fn perform_select(maildir: &str, select_args: &[&str], examine: bool,
 /// generate the LIST response for it.
 fn list_dir(dir: &Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
     let dir_string = dir.display().to_string();
-    let dir_name = dir.file_name().unwrap().to_str().unwrap();
+    let dir_name = path_filename_to_str!(dir);
 
     // These folder names are used to hold mail. Every other folder is
     // valid.
@@ -94,7 +108,7 @@ fn list_dir(dir: &Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
                         break;
                     }
                     let subdir_path = subdir.path();
-                    let subdir_str = subdir_path.as_path().file_name().unwrap().to_str().unwrap();
+                    let subdir_str = path_filename_to_str!(subdir_path);
                     if subdir_str != "cur" &&
                         subdir_str != "new" &&
                         subdir_str != "tmp" {
