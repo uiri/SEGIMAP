@@ -16,6 +16,7 @@ extern crate rustc_serialize;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+#[cfg(feature = "unstable")]
 extern crate test;
 extern crate time;
 extern crate toml;
