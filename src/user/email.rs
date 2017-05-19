@@ -1,6 +1,6 @@
 /// Representation of an email
 /// This helps ensure the email at least has an '@' in it...
-#[derive(Clone, RustcDecodable, RustcEncodable, Eq, Hash, PartialEq, Debug)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct Email {
     pub local_part: String,
     pub domain_part: String

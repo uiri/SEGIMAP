@@ -22,8 +22,7 @@ use self::command::Msgtext::{
 };
 
 pub use self::error::Error;
-use self::error::MimeResult;
-use self::error::ErrorKind::{InternalIoError, MessageDecodeError};
+use self::error::Result as MimeResult;
 
 mod error;
 mod command;
@@ -58,20 +57,9 @@ struct MIMEPart {
 impl Message {
     pub fn new(arg_path: &Path) -> MimeResult<Message> {
         // Load the file contents.
-        let mut contents : Vec<u8> = Vec::new();
-        let raw_contents = match File::open(arg_path) {
-            Ok(mut file) => {
-                match file.read_to_end(&mut contents) {
-                    Ok(_) => {
-                        str::from_utf8(&contents[..]).unwrap()
-                    }
-                    Err(e) => return Err(Error::new(InternalIoError(e),
-                                                    "Failed to read mail file."))
-                }
-            },
-            Err(e) => return Err(Error::new(InternalIoError(e),
-                                            "Failed to open mail file."))
-        };
+        let mut file = File::open(arg_path)?;
+        let mut raw_contents = String::new();
+        file.read_to_string(&mut raw_contents)?;
 
         // This slice will avoid copying later
         let size = raw_contents.len();
@@ -131,16 +119,12 @@ impl Message {
                                                 .split("BOUNDARY=\"")
                                                 .collect();
                         if value.len() < 2 {
-                            return Err(Error::new(
-                                MessageDecodeError,
-                                "Failed to determine MULTIPART boundary."))
+                            return Err(Error::ParseMultipartBoundary)
                         }
                         let value: Vec<&str> = value[1].splitn(1, '"')
                                                 .collect();
                         if value.len() < 1 {
-                            return Err(Error::new(
-                                MessageDecodeError,
-                                "Failed to determine MULTIPART boundary."))
+                            return Err(Error::ParseMultipartBoundary)
                         }
                         format!("--{}--\n", value[0])
                     };
@@ -149,10 +133,7 @@ impl Message {
                     let first_content_type_index =
                         match raw_body.find("Content-Type") {
                             Some(val) => val,
-                            None =>
-                                return Err(Error::new(
-                                    MessageDecodeError,
-                                    "Missing Content-Type for body part"))
+                            None => return Err(Error::MissingContentType),
                     };
                     let mime_boundary_slice = &mime_boundary[..];
                     let raw_body = &raw_body[first_content_type_index .. ];

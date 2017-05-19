@@ -25,7 +25,6 @@ use command::RFC822Attribute::{
 use command::store::StoreName;
 
 use error::{Error, ImapResult};
-use error::ErrorKind::{MimeError, MessageDecodeError};
 
 use mime::Message as MIME_Message;
 
@@ -75,10 +74,7 @@ pub struct Message {
 
 impl Message {
     pub fn new(arg_path: &Path) -> ImapResult<Message> {
-        let mime_message = match MIME_Message::new(arg_path) {
-            Ok(msg) => msg,
-            Err(e) => return Err(Error::new(MimeError(e), "Error creating MIME Message"))
-        };
+        let mime_message = MIME_Message::new(arg_path)?;
 
         // Grab the string in the filename representing the flags
         let mut path = arg_path.file_name().unwrap().to_str().unwrap().splitn(1, ':');
@@ -86,11 +82,7 @@ impl Message {
         let path_flags = path.next();
 
         // Retrieve the UID from the provided filename.
-        let uid = match filename.parse() {
-            Ok(uid) => uid,
-            Err(_) => return Err(Error::new(MessageDecodeError,
-                                          "Failed to retrieve UID from filename."))
-        };
+        let uid = filename.parse().map_err(|_| Error::MessageUidDecode)?;
 
         // Parse the flags from the filename.
         let flags = match path_flags {

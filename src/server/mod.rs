@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 use bufstream::BufStream;
 
+use error::ImapResult;
 use self::config::Config;
 use user::{load_users, Email, User};
 
@@ -19,19 +20,19 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn new() -> Server {
-        Server::new_with_conf(Config::new())
+    pub fn new() -> ImapResult<Server> {
+        Server::new_with_conf(Config::new()?)
     }
 
     /// Create server to hold the Config and User HashMap
-    fn new_with_conf(conf: Config) -> Server {
+    fn new_with_conf(conf: Config) -> ImapResult<Server> {
         // Load the user data from the specified user data file.
-        let users = load_users(&conf.users).unwrap();
+        let users = load_users(&conf.users)?;
 
-        Server {
+        Ok(Server {
             conf: conf,
             users: users
-        }
+        })
     }
 
     /// Create a TCP listener on the server host and imap post

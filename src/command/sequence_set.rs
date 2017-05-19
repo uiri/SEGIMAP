@@ -195,7 +195,10 @@ fn test_sequence_num() {
 
 #[test]
 fn test_sequence_past_end() {
-    assert_eq!(iterator(&[Number(4324)], 100), Vec::new());
+    // Needed to help rust infer the type for the empty vec.
+    let empty_vec: Vec<usize> = Vec::new();
+
+    assert_eq!(iterator(&[Number(4324)], 100), empty_vec);
     assert_eq!(iterator(&[Number(23), Number(44)], 30), vec![23]);
     assert_eq!(iterator(&[Number(6), Number(6), Number(2)], 4), vec![2]);
 }
