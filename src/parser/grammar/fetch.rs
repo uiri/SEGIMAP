@@ -248,35 +248,6 @@ mod tests {
         section_spec,
         section_text,
     };
-    use test::Bencher;
-
-    #[bench]
-    fn bench_fetch(b: &mut Bencher) {
-        const FETCH_STR: &'static str = "FETCH 4,5:3,* (FLAGS RFC822 BODY.PEEK[43.65.HEADER.FIELDS.NOT (a \"abc\")]<4.2>)";
-
-        b.iter(|| {
-            assert_eq!(fetch(FETCH_STR.as_bytes()), Done(&b""[..],
-                Command::new(
-                    Fetch,
-                    vec![Number(4), Range(Box::new(Number(5)), Box::new(Number(3))), Wildcard],
-                    vec![
-                        Flags,
-                        RFC822(AllRFC822),
-                        BodyPeek(
-                            PartSection(
-                                vec![43, 65],
-                                Some(HeaderFieldsNotMsgtext(vec![
-                                    "A".to_owned(),
-                                    "ABC".to_owned(),
-                                ]))
-                            ),
-                            Some((4, 2))
-                        )
-                    ]
-                )
-            ));
-        });
-    }
 
     #[test]
     fn test_fetch() {
@@ -454,5 +425,49 @@ mod tests {
                 HeaderFieldsMsgtext(vec!["ABC".to_string(), "DEF".to_string()])
             )
         );
+    }
+}
+
+#[cfg(all(feature = "unstable", test))]
+mod bench {
+    extern crate test;
+
+    use command::Attribute::{BodyPeek, Flags, RFC822};
+    use command::Command;
+    use command::CommandType::Fetch;
+    use command::RFC822Attribute::AllRFC822;
+    use command::sequence_set::SequenceItem::{Number, Range, Wildcard};
+    use mime::BodySectionType::PartSection;
+    use mime::Msgtext::HeaderFieldsNotMsgtext;
+    use nom::IResult::Done;
+    use self::test::Bencher;
+    use super::fetch;
+
+    #[bench]
+    fn bench_fetch(b: &mut Bencher) {
+        const FETCH_STR: &'static str = "FETCH 4,5:3,* (FLAGS RFC822 BODY.PEEK[43.65.HEADER.FIELDS.NOT (a \"abc\")]<4.2>)";
+
+        b.iter(|| {
+            assert_eq!(fetch(FETCH_STR.as_bytes()), Done(&b""[..],
+                Command::new(
+                    Fetch,
+                    vec![Number(4), Range(Box::new(Number(5)), Box::new(Number(3))), Wildcard],
+                    vec![
+                        Flags,
+                        RFC822(AllRFC822),
+                        BodyPeek(
+                            PartSection(
+                                vec![43, 65],
+                                Some(HeaderFieldsNotMsgtext(vec![
+                                    "A".to_owned(),
+                                    "ABC".to_owned(),
+                                ]))
+                            ),
+                            Some((4, 2))
+                        )
+                    ]
+                )
+            ));
+        });
     }
 }
