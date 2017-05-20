@@ -4,6 +4,7 @@ use std::io::{BufRead, Write};
 use std::net::TcpStream;
 use std::os::unix::fs::PermissionsExt;
 use std::path::Path;
+use std::path::MAIN_SEPARATOR;
 use std::sync::Arc;
 use bufstream::BufStream;
 use regex::Regex;
@@ -336,9 +337,10 @@ impl Session {
                             let maildir_path = Path::new(&maildir[..]);
                             let re_opt = Regex::new
                                           (&format!
-                                           ("{}/?{}/?{}$",
+                                           ("{}{}?{}{}?{}$",
                                             path_filename_to_str!(maildir_path),
-                                            reference,
+                                            MAIN_SEPARATOR, reference,
+                                            MAIN_SEPARATOR,
                                             mailbox_name.replace("INBOX", ""))[..]);
                             match re_opt {
                                 Err(_) => { return bad_res;}

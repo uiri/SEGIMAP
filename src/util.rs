@@ -122,28 +122,27 @@ fn list_dir(dir: &Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
     }
 
     let re_path = make_absolute(maildir_path);
-    let re_opt = Regex::new(&(format!("^{}", re_path))[..]);
-    match re_opt {
-        Err(_) =>  None,
-        Ok(re) => {
-            match fs::metadata(dir) {
-                Err(_) => return None,
-                Ok(md) =>
-                    if !md.is_dir() {
-                        return None;
-                    }
-            };
-
-            if !regex.is_match(&dir_string[..]) {
+    match fs::metadata(dir) {
+        Err(_) => return None,
+        Ok(md) =>
+            if !md.is_dir() {
                 return None;
             }
-            let mut list_str = "* LIST (".to_string();
-            list_str.push_str(&flags[..]);
-            list_str.push_str(") \"/\" ");
-            list_str.push_str(&(re.replace(&abs_dir[..], "INBOX").replace("INBOX", ""))[..]);
-            Some(list_str)
-        }
+    };
+
+    if !regex.is_match(&dir_string[..]) {
+        return None;
     }
+    let mut list_str = "* LIST (".to_string();
+    list_str.push_str(&flags[..]);
+    list_str.push_str(") \"/\" ");
+    let list_dir_string = if abs_dir.starts_with(&re_path[..]) {
+        abs_dir.replacen(&re_path[..], "", 1)
+    } else {
+        abs_dir
+    };
+    list_str.push_str(&(list_dir_string.replace("INBOX", ""))[..]);
+    Some(list_str)
 }
 
 /// Go through the logged in user's maildir and list every folder matching
