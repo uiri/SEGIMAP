@@ -1,13 +1,15 @@
 SEGIMAP
 =======
 
-This is an IMAP server implementation written in Rust as a class project.
+This is an IMAP server implementation written in Rust. It originally started out as a class project in Fall 2014.
 There is also an LMTP server attached so that SMTP servers may deliver mail without modifying the maildir themselves.
+
+[![Travis CI status](https://travis-ci.org/uiri/SEGIMAP.svg?branch=master)](https://travis-ci.org/uiri/SEGIMAP)
 
 Some notes about Rust
 ---------------------
 
-The most confusing thing for those reading the code who are unfamiliar with rust will likely be &str and String. &str is an actual string while String is actually a StringBuffer. String.as_slice() is used to get a &str out of a String and &str.to_string() is used to get a String out of a &str. Sometimes we need something which is neither of these to be a string so we use .as_slice() and .to_string() as appropriate. Sometimes we need a String but the thing we have can only be converted to &str so we have to chain the calls like so: .as_slice().to_string(). It sometimes also occurs the other way around.
+The most confusing thing for those reading the code who are unfamiliar with rust will likely be &str and String. &str is an actual string while String is actually a StringBuffer. `&x[..]` is used to get a &str out of a String called `x` and `y.to_string()` is used to get a String out of a &str called `y`. Sometimes we need something which is neither of these to be a string so we use `.to_str()` or `.to_string()` as appropriate. Sometimes we need a String but the thing we have can only be converted to &str so we have to chain the calls like so: `.to_str().to_string()`. It sometimes also occurs the other way around in which case we wind up with something like `&z.to_string()[..]`.
 
 & denotes a pointer (ie: pass-by-reference semantics). When you see &mut it means that the pointer is mutable. Rust only allows one mutable pointer at a time and enforces this at compile time. However, multiple immutable pointers may be created. * is used to dereference a pointer. In most cases, method calls will automatically dereference when needed.
 
