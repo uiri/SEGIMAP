@@ -224,15 +224,13 @@ impl Session {
                 "create" => {
                     let create_args: Vec<&str> = args.collect();
                     if create_args.len() < 1 { return bad_res; }
-                    let mbox_name = util::INBOX_RE.replace
-                                     (create_args[0].trim_matches('"'), "");
+                    let mbox_name = create_args[0].trim_matches('"').replace("INBOX", "");
                     match self.maildir {
                         None => return bad_res,
                         Some(ref maildir) => {
                             let mut no_res = tag.to_string();
                             no_res.push_str(" NO Could not create folder.\r\n");
-                            let maildir_path = Path::new(&maildir[..])
-                                                .join(mbox_name.as_ref());
+                            let maildir_path = Path::new(&maildir[..]).join(mbox_name);
 
                             // Create directory for new mail
                             let newmaildir_path = maildir_path.join("new");
@@ -263,15 +261,13 @@ impl Session {
                 "delete" => {
                     let delete_args: Vec<&str> = args.collect();
                     if delete_args.len() < 1 { return bad_res; }
-                    let mbox_name = util::INBOX_RE.replace
-                                     (delete_args[0].trim_matches('"'), "");
+                    let mbox_name = delete_args[0].trim_matches('"').replace("INBOX", "");
                     match self.maildir {
                         None => return bad_res,
                         Some(ref maildir) => {
                             let mut no_res = tag.to_string();
                             no_res.push_str(" NO Invalid folder.\r\n");
-                            let maildir_path = Path::new(&maildir[..])
-                                                .join(mbox_name.as_ref());
+                            let maildir_path = Path::new(&maildir[..]).join(mbox_name);
                             let newmaildir_path = maildir_path.join("new");
                             let curmaildir_path = maildir_path.join("cur");
                             opendirlisting!(&newmaildir_path, newlist,

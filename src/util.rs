@@ -12,10 +12,6 @@ use walkdir::WalkDir;
 
 use folder::Folder;
 
-lazy_static! {
-    pub static ref INBOX_RE : Regex = Regex::new("INBOX").unwrap();
-}
-
 #[macro_export]
 macro_rules! path_filename_to_str(
     ($p:ident) => (
@@ -45,10 +41,10 @@ pub fn perform_select(maildir: &str, select_args: &[&str], examine: bool,
                       tag: &str) -> (Option<Folder>, String) {
     let err_res = (None, "".to_string());
     if select_args.len() < 1 { return err_res; }
-    let mbox_name = INBOX_RE.replace(select_args[0].trim_matches('"'), ".");
+    let mbox_name = select_args[0].trim_matches('"').replace("INBOX", ".");
     let mut maildir_path = PathBuf::new();
     maildir_path.push(maildir);
-    maildir_path.push(mbox_name.as_ref());
+    maildir_path.push(mbox_name);
     let folder =  match Folder::new(maildir_path, examine) {
         None => { return err_res; }
         Some(folder) => folder.clone()
@@ -150,9 +146,7 @@ fn list_dir(dir: &Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
             let mut list_str = "* LIST (".to_string();
             list_str.push_str(&flags[..]);
             list_str.push_str(") \"/\" ");
-            list_str.push_str(&(INBOX_RE.replace
-                              (&re.replace(&abs_dir[..], "INBOX")[..],
-                               ""))[..]);
+            list_str.push_str(&(re.replace(&abs_dir[..], "INBOX").replace("INBOX", ""))[..]);
             Some(list_str)
         }
     }
