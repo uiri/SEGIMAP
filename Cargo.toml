@@ -11,6 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 clippy = { version = "0.0", optional = true }
+bufstream = "*"
 log = "*"
 nom = "*"
 num = "*"
@@ -22,7 +23,6 @@ serde_derive = "*"
 serde_json = "*"
 time = "*"
 toml = "*"
-bufstream = "*"
 walkdir = "*"
 
 [features]

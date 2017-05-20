@@ -6,7 +6,8 @@
 
 extern crate bufstream;
 extern crate crypto;
-#[macro_use] extern crate log;
+#[macro_use]
+extern crate log;
 #[macro_use]
 extern crate nom;
 extern crate num;
@@ -31,17 +32,27 @@ use bufstream::BufStream;
 mod command;
 mod error;
 mod folder;
-mod message;
 mod mime;
 mod parser;
+#[macro_use]
 mod server;
-mod user;
+#[macro_use]
 mod util;
+
+mod user;
+mod message;
 
 fn main() {
     // Create the server. We wrap it so that it is atomically reference
     // counted. This allows us to safely share it across threads
-    let serv = Arc::new(Server::new().unwrap());
+
+    let serv = match Server::new() {
+        Err(e) => {
+            error!("Error starting server: {}", e);
+            return;
+        },
+        Ok(s) => Arc::new(s)
+    };
 
     // Spawn a separate thread for listening for LMTP connections
     match serv.lmtp_listener() {

@@ -20,6 +20,8 @@ pub enum Error {
     Json(JsonError),
     /// An error which occurs when attempting to read the UID for a message.
     MessageUidDecode,
+    /// An error which occurs when a Maildir message has a bad filename
+    MessageBadFilename,
     /// An internal `mime` error.
     Mime(mime::Error),
     /// An internal `toml` error which occurs when serializing or deserializing
@@ -32,7 +34,7 @@ impl fmt::Display for Error {
         use self::Error::*;
 
         match *self {
-            InvalidImapState | MessageUidDecode => write!(f, "{}", StdError::description(self)),
+            InvalidImapState | MessageUidDecode | MessageBadFilename => write!(f, "{}", StdError::description(self)),
             Io(ref e) => e.fmt(f),
             Json(ref e) => e.fmt(f),
             Mime(ref e) => e.fmt(f),
@@ -48,6 +50,7 @@ impl StdError for Error {
         match *self {
             InvalidImapState => "Not in selected state.",
             MessageUidDecode => "An error occured while decoding the UID for a message.",
+            MessageBadFilename => "An error occured while parsing message information from its filename",
             Io(ref e) => e.description(),
             Json(ref e) => e.description(),
             Mime(ref e) => e.description(),
@@ -59,7 +62,7 @@ impl StdError for Error {
         use self::Error::*;
 
         match *self {
-            InvalidImapState | MessageUidDecode => None,
+            InvalidImapState | MessageUidDecode | MessageBadFilename => None,
             Io(ref e) => e.cause(),
             Json(ref e) => e.cause(),
             Mime(ref e) => e.cause(),

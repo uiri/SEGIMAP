@@ -77,8 +77,11 @@ impl Message {
         let mime_message = MIME_Message::new(arg_path)?;
 
         // Grab the string in the filename representing the flags
-        let mut path = arg_path.file_name().unwrap().to_str().unwrap().splitn(1, ':');
-        let filename = path.next().unwrap();
+        let mut path = path_filename_to_str!(arg_path).splitn(1, ':');
+        let filename = match path.next() {
+            Some(fname) => fname,
+            None => { return Err(Error::MessageBadFilename); }
+        };
         let path_flags = path.next();
 
         // Retrieve the UID from the provided filename.
@@ -88,26 +91,29 @@ impl Message {
         let flags = match path_flags {
             // if there are no flags, create an empty set
             None => HashSet::new(),
-            Some(flags) => {
+            Some(flags) =>
                 // The uid is separated from the flag part of the filename by a
                 // colon. The flag part consists of a 2 followed by a comma and
                 // then some letters. Those letters represent the message flags
-                let unparsed_flags = flags.splitn(1, ',').nth(1).unwrap();
-                let mut set_flags: HashSet<Flag> = HashSet::new();
-                for flag in unparsed_flags.chars() {
-                    let parsed_flag = match flag {
-                        'D' => Some(Flag::Draft),
-                        'F' => Some(Flag::Flagged),
-                        'R' => Some(Flag::Answered),
-                        'S' => Some(Flag::Seen),
-                        _ => None
-                    };
-                    if let Some(enum_flag) = parsed_flag {
-                        set_flags.insert(enum_flag);
+                match flags.splitn(1, ',').nth(1) {
+                    None => HashSet::new(),
+                    Some(unparsed_flags) => {
+                        let mut set_flags: HashSet<Flag> = HashSet::new();
+                        for flag in unparsed_flags.chars() {
+                            let parsed_flag = match flag {
+                                'D' => Some(Flag::Draft),
+                                'F' => Some(Flag::Flagged),
+                                'R' => Some(Flag::Answered),
+                                'S' => Some(Flag::Seen),
+                                _ => None
+                            };
+                            if let Some(enum_flag) = parsed_flag {
+                                set_flags.insert(enum_flag);
+                            }
+                        }
+                        set_flags
                     }
                 }
-                set_flags
-            }
         };
 
         let message = Message {

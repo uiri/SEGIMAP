@@ -24,16 +24,6 @@ use error::Error;
 use super::login::LoginData;
 use util;
 
-// Just bail if there is some error.
-// Used when performing operations on a TCP Stream generally
-macro_rules! return_on_err(
-    ($inp:expr) => {
-        if $inp.is_err() {
-            return;
-        }
-    }
-);
-
 // Used to grab every file for removal while performing DELETE on a folder.
 macro_rules! opendirlisting(
     ($inp:expr, $listing:ident, $err:ident, $next:expr) => {
@@ -122,9 +112,13 @@ impl Session {
         // The client will need the tag in the response in order to match up
         // the response to the command it issued because the client does not
         // have to wait on our response in order to issue new commands.
-        let tag = args.next().unwrap();
+        let inv_str = " BAD Invalid command\r\n";
+        let tag = match args.next() {
+            None => return inv_str.to_string(),
+            Some(t) => t
+        };
         let mut bad_res = tag.to_string();
-        bad_res.push_str(" BAD Invalid command\r\n");
+        bad_res.push_str(inv_str);
 
         // The argument after the tag specified the command issued.
         // Additional arguments are arguments for that specific command.
@@ -230,15 +224,13 @@ impl Session {
                 "create" => {
                     let create_args: Vec<&str> = args.collect();
                     if create_args.len() < 1 { return bad_res; }
-                    let mbox_name = util::inbox_re().replace
-                                     (create_args[0].trim_matches('"'), "");
+                    let mbox_name = create_args[0].trim_matches('"').replace("INBOX", "");
                     match self.maildir {
                         None => return bad_res,
                         Some(ref maildir) => {
                             let mut no_res = tag.to_string();
                             no_res.push_str(" NO Could not create folder.\r\n");
-                            let maildir_path = Path::new(&maildir[..])
-                                                .join(mbox_name.as_ref());
+                            let maildir_path = Path::new(&maildir[..]).join(mbox_name);
 
                             // Create directory for new mail
                             let newmaildir_path = maildir_path.join("new");
@@ -269,15 +261,13 @@ impl Session {
                 "delete" => {
                     let delete_args: Vec<&str> = args.collect();
                     if delete_args.len() < 1 { return bad_res; }
-                    let mbox_name = util::inbox_re().replace
-                                     (delete_args[0].trim_matches('"'), "");
+                    let mbox_name = delete_args[0].trim_matches('"').replace("INBOX", "");
                     match self.maildir {
                         None => return bad_res,
                         Some(ref maildir) => {
                             let mut no_res = tag.to_string();
                             no_res.push_str(" NO Invalid folder.\r\n");
-                            let maildir_path = Path::new(&maildir[..])
-                                                .join(mbox_name.as_ref());
+                            let maildir_path = Path::new(&maildir[..]).join(mbox_name);
                             let newmaildir_path = maildir_path.join("new");
                             let curmaildir_path = maildir_path.join("cur");
                             opendirlisting!(&newmaildir_path, newlist,
@@ -347,10 +337,9 @@ impl Session {
                             let re_opt = Regex::new
                                           (&format!
                                            ("{}/?{}/?{}$",
-                                            maildir_path.file_name().unwrap().to_str()
-                                            .unwrap(), reference,
-                                            mailbox_name.replace
-                                            ("INBOX", ""))[..]);
+                                            path_filename_to_str!(maildir_path),
+                                            reference,
+                                            mailbox_name.replace("INBOX", ""))[..]);
                             match re_opt {
                                 Err(_) => { return bad_res;}
                                 Ok(re) => {

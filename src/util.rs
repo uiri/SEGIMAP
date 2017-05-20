@@ -12,22 +12,33 @@ use walkdir::WalkDir;
 
 use folder::Folder;
 
-fn make_absolute(dir: &Path) -> String {
-    let mut abs_path = current_dir().unwrap();
-    abs_path.push(dir);
-    abs_path.as_path().display().to_string()
-}
+#[macro_export]
+macro_rules! path_filename_to_str(
+    ($p:ident) => ({
+        use std::ffi::OsStr;
+        $p.file_name().unwrap_or_else(|| OsStr::new("")).to_str().unwrap_or_else(|| "")
+    });
+);
 
-pub fn inbox_re() -> Regex { Regex::new("INBOX").unwrap() }
+fn make_absolute(dir: &Path) -> String {
+    match current_dir() {
+        Err(_) => dir.display().to_string(),
+        Ok(absp) => {
+            let mut abs_path = absp.clone();
+            abs_path.push(dir);
+            abs_path.display().to_string()
+        }
+    }
+}
 
 pub fn perform_select(maildir: &str, select_args: &[&str], examine: bool,
                       tag: &str) -> (Option<Folder>, String) {
     let err_res = (None, "".to_string());
     if select_args.len() < 1 { return err_res; }
-    let mbox_name = inbox_re().replace(select_args[0].trim_matches('"'), "."); // "));
+    let mbox_name = select_args[0].trim_matches('"').replace("INBOX", ".");
     let mut maildir_path = PathBuf::new();
     maildir_path.push(maildir);
-    maildir_path.push(mbox_name.as_ref());
+    maildir_path.push(mbox_name);
     let folder =  match Folder::new(maildir_path, examine) {
         None => { return err_res; }
         Some(folder) => folder.clone()
@@ -41,7 +52,7 @@ pub fn perform_select(maildir: &str, select_args: &[&str], examine: bool,
 /// generate the LIST response for it.
 fn list_dir(dir: &Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
     let dir_string = dir.display().to_string();
-    let dir_name = dir.file_name().unwrap().to_str().unwrap();
+    let dir_name = path_filename_to_str!(dir);
 
     // These folder names are used to hold mail. Every other folder is
     // valid.
@@ -87,7 +98,7 @@ fn list_dir(dir: &Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
                         break;
                     }
                     let subdir_path = subdir.path();
-                    let subdir_str = subdir_path.as_path().file_name().unwrap().to_str().unwrap();
+                    let subdir_str = path_filename_to_str!(subdir_path);
                     if subdir_str != "cur" &&
                         subdir_str != "new" &&
                         subdir_str != "tmp" {
@@ -115,15 +126,21 @@ fn list_dir(dir: &Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
     match re_opt {
         Err(_) =>  None,
         Ok(re) => {
-            if !fs::metadata(dir).unwrap().is_dir() || !regex.is_match(&dir_string[..]) {
+            match fs::metadata(dir) {
+                Err(_) => return None,
+                Ok(md) =>
+                    if !md.is_dir() {
+                        return None;
+                    }
+            };
+
+            if !regex.is_match(&dir_string[..]) {
                 return None;
             }
             let mut list_str = "* LIST (".to_string();
             list_str.push_str(&flags[..]);
             list_str.push_str(") \"/\" ");
-            list_str.push_str(&(inbox_re().replace
-                              (&re.replace(&abs_dir[..], "INBOX")[..],
-                               ""))[..]);
+            list_str.push_str(&(re.replace(&abs_dir[..], "INBOX").replace("INBOX", ""))[..]);
             Some(list_str)
         }
     }
