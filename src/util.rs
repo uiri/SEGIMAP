@@ -14,16 +14,10 @@ use folder::Folder;
 
 #[macro_export]
 macro_rules! path_filename_to_str(
-    ($p:ident) => (
-        match $p.file_name() {
-            Some(filename) =>
-                match filename.to_str() {
-                    Some(fns) => fns,
-                    None => "",
-                },
-            None => ""
-        }
-    );
+    ($p:ident) => ({
+        use std::ffi::OsStr;
+        $p.file_name().unwrap_or_else(|| OsStr::new("")).to_str().unwrap_or_else(|| "")
+    });
 );
 
 fn make_absolute(dir: &Path) -> String {
@@ -32,7 +26,7 @@ fn make_absolute(dir: &Path) -> String {
         Ok(absp) => {
             let mut abs_path = absp.clone();
             abs_path.push(dir);
-            abs_path.as_path().display().to_string()
+            abs_path.display().to_string()
         }
     }
 }
