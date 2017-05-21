@@ -1,9 +1,16 @@
 use error::ImapResult;
-use std::io::{Read, Write};
+use openssl::error::ErrorStack;
+use openssl::pkcs12::{ParsedPkcs12, Pkcs12};
+use std::io::{Read, Error as IoError, Write};
 use std::fs::File;
 use std::path::Path;
 use std::str;
 use toml;
+
+pub enum PkcsError {
+    Io(IoError),
+    Ssl(ErrorStack)
+}
 
 /// Representation of configuration data for the server
 #[derive(Debug, Serialize, Deserialize)]
@@ -19,7 +26,11 @@ pub struct Config {
     // SSL Port on which to listen for IMAP
     pub imap_ssl_port: u16,
     // file in which user data is stored
-    pub users: String
+    pub users: String,
+    // Filename of PKCS #12 archive
+    pub pkcs_file: String,
+    // Password for PKCS #12 archive
+    pub pkcs_pass: String,
 }
 
 impl Config {
@@ -58,6 +69,23 @@ impl Config {
 
         Ok(config)
     }
+
+    pub fn get_ssl_keys(&self) -> Result<ParsedPkcs12, PkcsError> {
+        let mut buf = vec![];
+        match File::open(&self.pkcs_file) {
+            Err(e) => Err(PkcsError::Io(e)),
+            Ok(mut file) => match file.read_to_end(&mut buf) {
+                Err(e) => Err(PkcsError::Io(e)),
+                Ok(_) => match Pkcs12::from_der(&buf) {
+                    Err(e) => Err(PkcsError::Ssl(e)),
+                    Ok(p) => match p.parse(&self.pkcs_pass) {
+                        Err(e) => Err(PkcsError::Ssl(e)),
+                        Ok(i) => Ok(i)
+                    }
+                }
+            }
+        }
+    }
 }
 
 impl Default for Config {
@@ -68,7 +96,9 @@ impl Default for Config {
             imap_port: 10000,
             lmtp_ssl_port: 0,
             imap_ssl_port: 10001,
-            users: "./users.json".to_string()
+            users: "./users.json".to_string(),
+            pkcs_file: String::new(),
+            pkcs_pass: String::new(),
         }
     }
 }
