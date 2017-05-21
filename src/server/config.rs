@@ -10,10 +10,14 @@ use toml;
 pub struct Config {
     // Host on which to listen
     pub host: String,
-    // Port on which to listen for LMTP
+    // Plaintext Port on which to listen for LMTP
     pub lmtp_port: u16,
-    // Port on which to listen for IMAP
+    // Plaintext Port on which to listen for IMAP
     pub imap_port: u16,
+    // SSL Port on which to listen for LMTP
+    pub lmtp_ssl_port: u16,
+    // SSL Port on which to listen for IMAP
+    pub imap_ssl_port: u16,
     // file in which user data is stored
     pub users: String
 }
@@ -62,6 +66,8 @@ impl Default for Config {
             host: "127.0.0.1".to_string(),
             lmtp_port: 3000,
             imap_port: 10000,
+            lmtp_ssl_port: 0,
+            imap_ssl_port: 10001,
             users: "./users.json".to_string()
         }
     }

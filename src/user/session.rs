@@ -11,6 +11,7 @@ use regex::Regex;
 
 use folder::Folder;
 use server::Server;
+use server::Stream;
 
 use command::Attribute::UID;
 use command::fetch;
@@ -43,7 +44,7 @@ static GREET: &'static [u8] = b"* OK Server ready.\r\n";
 /// Representation of a session
 pub struct Session {
     /// The TCP connection
-    stream: BufStream<TcpStream>,
+    stream: BufStream<Stream>,
     /// Shared wrapper for config and user data
     serv: Arc<Server>,
     /// Whether to logout and close the connection after interpreting the
@@ -58,10 +59,10 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(stream: BufStream<TcpStream>,
+    pub fn new(stream: TcpStream,
                serv: Arc<Server>) -> Session {
         Session {
-            stream: stream,
+            stream: BufStream::new(serv.imap_ssl(stream)),
             serv: serv,
             logout: false,
             maildir: None,

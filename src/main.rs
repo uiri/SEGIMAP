@@ -11,6 +11,7 @@ extern crate log;
 #[macro_use]
 extern crate nom;
 extern crate num;
+extern crate openssl;
 extern crate rand;
 extern crate regex;
 extern crate serde;
@@ -27,7 +28,6 @@ use user::Session;
 
 use std::sync::Arc;
 use std::thread::spawn;
-use bufstream::BufStream;
 
 mod command;
 mod error;
@@ -72,7 +72,7 @@ fn main() {
                         }
                         Ok(stream) => {
                             let session_serv = lmtp_serv.clone();
-                            spawn(move || { lmtp_serve(session_serv, BufStream::new(stream)) });
+                            spawn(move || { lmtp_serve(session_serv, stream) });
                         }
                     }
                 }
@@ -97,9 +97,7 @@ fn main() {
                     Ok(stream) => {
                         let session_serv = serv.clone();
                         spawn(move || {
-                            let mut session = Session::new(
-                                               BufStream::new(stream),
-                                               session_serv);
+                            let mut session = Session::new(stream, session_serv);
                             session.handle();
                         });
                     }

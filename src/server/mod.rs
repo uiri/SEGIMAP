@@ -1,10 +1,12 @@
 use std::collections::HashMap;
-use std::io::Result;
+use std::io::{Read, Result, Write};
 use std::net::TcpListener;
 use std::net::TcpStream;
 use std::sync::Arc;
 
 use bufstream::BufStream;
+use openssl::ssl::SslStream;
+use openssl::ssl::SslAcceptor;
 
 use error::ImapResult;
 use self::config::Config;
@@ -14,10 +16,41 @@ mod config;
 #[macro_use]
 pub mod lmtp;
 
+pub enum Stream {
+    Ssl(SslStream<TcpStream>),
+    Tcp(TcpStream)
+}
+
+impl Write for Stream {
+    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        match *self {
+            Stream::Ssl(ref mut s) => s.write(buf),
+            Stream::Tcp(ref mut s) => s.write(buf)
+        }
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        match *self {
+            Stream::Ssl(ref mut s) => s.flush(),
+            Stream::Tcp(ref mut s) => s.flush()
+        }
+    }
+}
+
+impl Read for Stream {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        match *self {
+            Stream::Ssl(ref mut s) => s.read(buf),
+            Stream::Tcp(ref mut s) => s.read(buf)
+        }
+    }
+}
+
 /// Holds configuration state and email->user map
 pub struct Server {
     conf: Config,
-    users: HashMap<Email, User>
+    users: HashMap<Email, User>,
+    ssl_acceptor: Option<SslAcceptor>,
 }
 
 impl Server {
@@ -29,16 +62,34 @@ impl Server {
     fn new_with_conf(conf: Config) -> ImapResult<Server> {
         // Load the user data from the specified user data file.
         let users = load_users(&conf.users)?;
+        let ssl_acceptor = None;
 
         Ok(Server {
             conf: conf,
-            users: users
+            users: users,
+            ssl_acceptor: ssl_acceptor,
         })
     }
 
     /// Create a TCP listener on the server host and imap post
     pub fn imap_listener(&self) -> Result<TcpListener> {
         TcpListener::bind((&self.conf.host[..], self.conf.imap_port))
+    }
+
+    pub fn imap_ssl(&self, stream: TcpStream) -> Stream {
+        let local_addr = stream.local_addr();
+        match local_addr {
+            Ok(addr) =>
+                if addr.port() != self.conf.imap_ssl_port {
+                    return Stream::Tcp(stream);
+                },
+            _ => return Stream::Tcp(stream)
+        }
+        if let Some(ref ssl_acceptor) = self.ssl_acceptor {
+            Stream::Ssl(ssl_acceptor.accept(stream).unwrap())
+        } else {
+            Stream::Tcp(stream)
+        }
     }
 
     /// Create a TCP listener on the server host and lmtp port
@@ -55,6 +106,6 @@ impl Server {
     }
 }
 
-pub fn lmtp_serve(serv: Arc<Server>, stream: BufStream<TcpStream>) {
-    lmtp::serve(serv, stream)
+pub fn lmtp_serve(serv: Arc<Server>, stream: TcpStream) {
+    lmtp::serve(serv, BufStream::new(stream))
 }
