@@ -104,6 +104,22 @@ impl Server {
         }
     }
 
+    pub fn can_starttls(&self) -> bool {
+        if let Some(_) = self.ssl_acceptor {
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn starttls(&self, stream: TcpStream) -> Option<SslStream<TcpStream>> {
+        if let Some(ref ssl_acceptor) = self.ssl_acceptor {
+            Some(ssl_acceptor.accept(stream).unwrap())
+        } else {
+            None
+        }
+    }
+
     /// Create a TCP listener on the server host and lmtp port
     pub fn lmtp_listener(&self) -> Result<TcpListener> {
         TcpListener::bind((&self.conf.host[..], self.conf.lmtp_port))

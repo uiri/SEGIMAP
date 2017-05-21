@@ -44,8 +44,6 @@ static GREET: &'static [u8] = b"* OK Server ready.\r\n";
 
 /// Representation of a session
 pub struct Session {
-    /// The TCP connection
-    stream: BufStream<Stream>,
     /// Shared wrapper for config and user data
     serv: Arc<Server>,
     /// Whether to logout and close the connection after interpreting the
@@ -60,10 +58,8 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn new(stream: TcpStream,
-               serv: Arc<Server>) -> Session {
+    pub fn new(serv: Arc<Server>) -> Session {
         Session {
-            stream: BufStream::new(serv.imap_ssl(stream)),
             serv: serv,
             logout: false,
             maildir: None,
@@ -73,13 +69,14 @@ impl Session {
 
     /// Handles client commands as they come in on the stream and writes
     /// responeses back to the stream.
-    pub fn handle(&mut self) {
+    pub fn handle(&mut self, orig_stream: TcpStream) {
+        let mut stream = BufStream::new(self.serv.imap_ssl(orig_stream));
         // Provide the client with an IMAP greeting.
-        return_on_err!(self.stream.write(GREET));
-        return_on_err!(self.stream.flush());
+        return_on_err!(stream.write(GREET));
+        return_on_err!(stream.flush());
         loop {
             let mut command = String::new();
-            match self.stream.read_line(&mut command) {
+            match stream.read_line(&mut command) {
                 Ok(_) => {
                     // If the command is empty, exit.
                     // Exitting will close the stream for us.
@@ -93,6 +90,7 @@ impl Session {
                     // The client will need the tag in the response in order to match up
                     // the response to the command it issued because the client does not
                     // have to wait on our response in order to issue new commands.
+                    let mut starttls = false;
                     let res = match args.next() {
                         None => inv_str.to_string(),
                         Some(tag) => {
@@ -105,6 +103,21 @@ impl Session {
                                 Some(c) => {
                                     warn!("Cmd: {}", command.trim());
                                     match &c.to_ascii_lowercase()[..] {
+                                        // STARTTLS is handled here because it modifies the stream
+                                        "starttls" => {
+                                            match stream.get_ref() {
+                                                &Stream::Tcp(_) =>
+                                                    if self.serv.can_starttls() {
+                                                        starttls = true;
+                                                        let mut ok_res = tag.to_string();
+                                                        ok_res.push_str(" OK Begin TLS negotiation now\r\n");
+                                                        ok_res
+                                                    } else {
+                                                        bad_res
+                                                    },
+                                                _ => bad_res
+                                            }
+                                        },
                                         cmd => self.interpret(cmd, &mut args, tag, bad_res)
                                     }
                                 }
@@ -115,8 +128,20 @@ impl Session {
                     // Log the response
                     warn!("Response:\n{}", res);
 
-                    return_on_err!(self.stream.write(res.as_bytes()));
-                    return_on_err!(self.stream.flush());
+                    return_on_err!(stream.write(res.as_bytes()));
+                    return_on_err!(stream.flush());
+
+                    if starttls {
+                        if let Ok(Stream::Tcp(tcp_stream)) = stream.into_inner() {
+                            if let Some(ssl_stream) = self.serv.starttls(tcp_stream) {
+                                stream = BufStream::new(Stream::Ssl(ssl_stream));
+                            } else {
+                                return;
+                            }
+                        } else {
+                            return;
+                        }
+                    }
 
                     // Exit if the client is logging out, per RFC 3501
                     if self.logout {

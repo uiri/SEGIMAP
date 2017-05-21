@@ -97,8 +97,8 @@ fn main() {
                     Ok(stream) => {
                         let session_serv = serv.clone();
                         spawn(move || {
-                            let mut session = Session::new(stream, session_serv);
-                            session.handle();
+                            let mut session = Session::new(session_serv);
+                            session.handle(stream);
                         });
                     }
                 }
