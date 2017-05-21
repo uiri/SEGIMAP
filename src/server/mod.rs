@@ -83,9 +83,33 @@ impl Server {
         })
     }
 
-    /// Create a TCP listener on the server host and imap post
-    pub fn imap_listener(&self) -> Result<TcpListener> {
-        TcpListener::bind((&self.conf.host[..], self.conf.imap_port))
+    /// Create a TCP listener on the server host and input port
+    fn generic_listener(&self, port: u16) -> Option<Result<TcpListener>> {
+        if port != 0 {
+            Some(TcpListener::bind((&self.conf.host[..], port)))
+        } else {
+            None
+        }
+    }
+
+    /// Create a TCP listener on the server host and imap port
+    pub fn imap_listener(&self) -> Option<Result<TcpListener>> {
+        self.generic_listener(self.conf.imap_port)
+    }
+
+    /// Create a TCP listener on the server host and imap ssl port
+    pub fn imap_ssl_listener(&self) -> Option<Result<TcpListener>> {
+        self.generic_listener(self.conf.imap_ssl_port)
+    }
+
+    /// Create a TCP listener on the server host and lmtp port
+    pub fn lmtp_listener(&self) -> Option<Result<TcpListener>> {
+        self.generic_listener(self.conf.lmtp_port)
+    }
+
+    /// Create a TCP listener on the server host and lmtp ssl port
+    pub fn lmtp_ssl_listener(&self) -> Option<Result<TcpListener>> {
+        self.generic_listener(self.conf.lmtp_ssl_port)
     }
 
     pub fn imap_ssl(&self, stream: TcpStream) -> Stream {
@@ -118,11 +142,6 @@ impl Server {
         } else {
             None
         }
-    }
-
-    /// Create a TCP listener on the server host and lmtp port
-    pub fn lmtp_listener(&self) -> Result<TcpListener> {
-        TcpListener::bind((&self.conf.host[..], self.conf.lmtp_port))
     }
 
     fn host(&self) -> &String {
