@@ -1,21 +1,50 @@
 use error::ImapResult;
-use std::io::{Read, Write};
+use openssl::error::ErrorStack;
+use openssl::pkcs12::Pkcs12;
+use openssl::ssl::{SslAcceptor, SslAcceptorBuilder, SslMethod};
+use std::io::{Read, Error as IoError, Write};
 use std::fs::File;
 use std::path::Path;
 use std::str;
 use toml;
+
+pub enum PkcsError {
+    Io(IoError),
+    Ssl(ErrorStack),
+    PortsDisabled
+}
+
+impl From<IoError> for PkcsError {
+    fn from(e: IoError) -> Self {
+        PkcsError::Io(e)
+    }
+}
+
+impl From<ErrorStack> for PkcsError {
+    fn from(e: ErrorStack) -> Self {
+        PkcsError::Ssl(e)
+    }
+}
 
 /// Representation of configuration data for the server
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     // Host on which to listen
     pub host: String,
-    // Port on which to listen for LMTP
-    pub lmtp_port: u16,
-    // Port on which to listen for IMAP
-    pub imap_port: u16,
+    // Plaintext port on which to listen for LMTP
+    pub lmtp_port: Option<u16>,
+    // Plaintext port on which to listen for IMAP
+    pub imap_port: Option<u16>,
+    // SSL port on which to listen for LMTP
+    pub lmtp_ssl_port: Option<u16>,
+    // SSL port on which to listen for IMAP
+    pub imap_ssl_port: Option<u16>,
     // file in which user data is stored
-    pub users: String
+    pub users: String,
+    // Filename of PKCS #12 archive
+    pub pkcs_file: String,
+    // Password for PKCS #12 archive
+    pub pkcs_pass: String,
 }
 
 impl Config {
@@ -54,15 +83,33 @@ impl Config {
 
         Ok(config)
     }
+
+    pub fn get_ssl_acceptor(&self) -> Result<SslAcceptor, PkcsError> {
+        if self.imap_ssl_port == None && self.lmtp_ssl_port == None {
+            return Err(PkcsError::PortsDisabled);
+        }
+        let mut buf = vec![];
+        let mut file = File::open(&self.pkcs_file)?;
+        file.read_to_end(&mut buf)?;
+        let p = Pkcs12::from_der(&buf)?;
+        let identity = p.parse(&self.pkcs_pass)?;
+        let builder = SslAcceptorBuilder::mozilla_intermediate(
+            SslMethod::tls(), &identity.pkey, &identity.cert, &identity.chain)?;
+        Ok(builder.build())
+    }
 }
 
 impl Default for Config {
     fn default() -> Self {
         Config {
             host: "127.0.0.1".to_string(),
-            lmtp_port: 3000,
-            imap_port: 10000,
-            users: "./users.json".to_string()
+            lmtp_port: Some(3000),
+            imap_port: Some(10000),
+            lmtp_ssl_port: None,
+            imap_ssl_port: Some(10001),
+            users: "./users.json".to_string(),
+            pkcs_file: String::new(),
+            pkcs_pass: String::new(),
         }
     }
 }

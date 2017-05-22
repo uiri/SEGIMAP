@@ -1,5 +1,4 @@
 use std::collections::HashSet;
-use std::str::Split;
 
 use command::Command;
 use command::Attribute::BodySection;
@@ -11,7 +10,7 @@ use super::store::StoreName::Add;
 
 /// Take the rest of the arguments provided by the client and parse them into a
 /// `Command` object with `parser::fetch`.
-pub fn fetch(args: Split<char>) -> ParserResult<Command> {
+pub fn fetch(args: Vec<&str>) -> ParserResult<Command> {
     let mut cmd = "FETCH".to_string();
     for arg in args {
         cmd.push(' ');
