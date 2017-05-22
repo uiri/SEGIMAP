@@ -8,6 +8,7 @@ extern crate bufstream;
 extern crate crypto;
 #[macro_use]
 extern crate log;
+extern crate mime;
 #[macro_use]
 extern crate nom;
 extern crate num;
@@ -33,7 +34,6 @@ use std::thread::spawn;
 mod command;
 mod error;
 mod folder;
-mod mime;
 mod parser;
 #[macro_use]
 mod server;

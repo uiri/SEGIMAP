@@ -1,0 +1,9 @@
+[package]
+name = "segimap_mime"
+version = "0.0.1"
+authors = []
+
+[dependencies]
+
+[lib]
+name = "mime"
