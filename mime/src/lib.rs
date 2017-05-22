@@ -91,14 +91,14 @@ impl Message {
                                            .trim_left_matches('\t'));
                     if !next.starts_with(' ') && !next.starts_with('\t') {
                         let split: Vec<&str> = (&trimmed_next[..])
-                                                .splitn(1, ':').collect();
+                                                .splitn(2, ':').collect();
                         headers.insert(split[0].to_ascii_uppercase(),
                                        split[1][1 .. ].to_string());
                         break;
                     }
                 }
             } else {
-                let split: Vec<&str> = line.splitn(1, ':').collect();
+                let split: Vec<&str> = line.splitn(2, ':').collect();
                 headers.insert(split[0].to_ascii_uppercase(),
                                split[1][1 .. ].to_string());
             }
@@ -123,7 +123,7 @@ impl Message {
                         if value.len() < 2 {
                             return Err(Error::ParseMultipartBoundary)
                         }
-                        let value: Vec<&str> = value[1].splitn(1, '"')
+                        let value: Vec<&str> = value[1].splitn(2, '"')
                                                 .collect();
                         if value.len() < 1 {
                             return Err(Error::ParseMultipartBoundary)
@@ -153,11 +153,11 @@ impl Message {
                         let header = &part[ .. header_boundary];
                         let mut content_type = String::new();
                         for line in header.lines() {
-                            let split_line: Vec<&str> = line.splitn(1, ':')
+                            let split_line: Vec<&str> = line.splitn(2, ':')
                                                          .collect();
                             if split_line[0] == "Content-Type" {
                                 let content_type_values: Vec<&str> =
-                                    split_line[1].splitn(1, ';').collect();
+                                    split_line[1].splitn(2, ';').collect();
                                 content_type = content_type_values[0][1 .. ].to_string();
                                 break;
                             }

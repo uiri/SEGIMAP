@@ -77,7 +77,7 @@ impl Message {
         let mime_message = MIME_Message::new(arg_path)?;
 
         // Grab the string in the filename representing the flags
-        let mut path = path_filename_to_str!(arg_path).splitn(1, ':');
+        let mut path = path_filename_to_str!(arg_path).splitn(2, ':');
         let filename = match path.next() {
             Some(fname) => fname,
             None => { return Err(Error::MessageBadFilename); }
@@ -95,7 +95,7 @@ impl Message {
                 // The uid is separated from the flag part of the filename by a
                 // colon. The flag part consists of a 2 followed by a comma and
                 // then some letters. Those letters represent the message flags
-                match flags.splitn(1, ',').nth(1) {
+                match flags.splitn(2, ',').nth(1) {
                     None => HashSet::new(),
                     Some(unparsed_flags) => {
                         let mut set_flags: HashSet<Flag> = HashSet::new();
@@ -229,8 +229,8 @@ impl Message {
                         res.push_str(&self.mime_message.get_body(section, octets)[..]) },
                 /*
                 BodyStructure => {
-                    let content_type: Vec<&str> = (&self.headers["CONTENT-TYPE".to_string()][..]).splitn(1, ';').take(1).collect();
-                    let content_type: Vec<&str> = content_type[0].splitn(1, '/').collect();
+                    let content_type: Vec<&str> = (&self.headers["CONTENT-TYPE".to_string()][..]).splitn(2, ';').take(1).collect();
+                    let content_type: Vec<&str> = content_type[0].splitn(2, '/').collect();
 
                     // Retrieve the subtype of the content type.
                     let mut subtype = String::new();
