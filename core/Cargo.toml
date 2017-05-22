@@ -1,5 +1,4 @@
 [package]
-
 name = "segimap"
 version = "0.0.1"
 authors = []
@@ -19,6 +18,7 @@ openssl = "*"
 rand = "*"
 regex = "*"
 rust-crypto = "*"
+segimap_mime = { path = "../mime/" }
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
