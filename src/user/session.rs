@@ -74,8 +74,10 @@ impl Session {
         // Provide the client with an IMAP greeting.
         return_on_err!(stream.write(GREET));
         return_on_err!(stream.flush());
+
+        let mut command = String::new();
         loop {
-            let mut command = String::new();
+            command.truncate(0);
             match stream.read_line(&mut command) {
                 Ok(_) => {
                     // If the command is empty, exit.
@@ -132,12 +134,8 @@ impl Session {
                     return_on_err!(stream.flush());
 
                     if starttls {
-                        if let Ok(Stream::Tcp(tcp_stream)) = stream.into_inner() {
-                            if let Some(ssl_stream) = self.serv.starttls(tcp_stream) {
-                                stream = BufStream::new(Stream::Ssl(ssl_stream));
-                            } else {
-                                return;
-                            }
+                        if let Some(ssl_stream) = self.serv.starttls(stream.into_inner()) {
+                            stream = BufStream::new(Stream::Ssl(ssl_stream));
                         } else {
                             return;
                         }
@@ -163,7 +161,7 @@ impl Session {
         match cmd {
             "noop" => {
                 let mut res = tag.to_string();
-                res.push_str(" OK NOOP\r\n");
+                res += " OK NOOP\r\n";
                 res
             }
 
