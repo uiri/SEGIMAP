@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::io::{Read, Result, Write};
-use std::net::TcpListener;
-use std::net::TcpStream;
+use std::net::{Shutdown, TcpListener, TcpStream};
 use std::sync::Arc;
 
 use bufstream::BufStream;
@@ -113,19 +112,17 @@ impl Server {
     }
 
     pub fn imap_ssl(&self, stream: TcpStream) -> Stream {
-        let local_addr = stream.local_addr();
-        match local_addr {
-            Ok(addr) =>
-                if addr.port() != self.conf.imap_ssl_port {
-                    return Stream::Tcp(stream);
-                },
-            _ => return Stream::Tcp(stream)
+        if let Ok(addr) = stream.local_addr() {
+            if addr.port() == self.conf.imap_ssl_port {
+                if let Some(ref ssl_acceptor) = self.ssl_acceptor {
+                    return Stream::Ssl(ssl_acceptor.accept(stream).unwrap());
+                } else {
+                    error!("Listening on SSL port without SSL certificate configured.");
+                    let _ = stream.shutdown(Shutdown::Both);
+                }
+            }
         }
-        if let Some(ref ssl_acceptor) = self.ssl_acceptor {
-            Stream::Ssl(ssl_acceptor.accept(stream).unwrap())
-        } else {
-            Stream::Tcp(stream)
-        }
+        Stream::Tcp(stream)
     }
 
     pub fn can_starttls(&self) -> bool {
