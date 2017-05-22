@@ -1,6 +1,7 @@
 use error::ImapResult;
 use openssl::error::ErrorStack;
-use openssl::pkcs12::{ParsedPkcs12, Pkcs12};
+use openssl::pkcs12::Pkcs12;
+use openssl::ssl::{SslAcceptor, SslAcceptorBuilder, SslMethod};
 use std::io::{Read, Error as IoError, Write};
 use std::fs::File;
 use std::path::Path;
@@ -9,7 +10,20 @@ use toml;
 
 pub enum PkcsError {
     Io(IoError),
-    Ssl(ErrorStack)
+    Ssl(ErrorStack),
+    PortsDisabled
+}
+
+impl From<IoError> for PkcsError {
+    fn from(e: IoError) -> Self {
+        PkcsError::Io(e)
+    }
+}
+
+impl From<ErrorStack> for PkcsError {
+    fn from(e: ErrorStack) -> Self {
+        PkcsError::Ssl(e)
+    }
 }
 
 /// Representation of configuration data for the server
@@ -17,13 +31,13 @@ pub enum PkcsError {
 pub struct Config {
     // Host on which to listen
     pub host: String,
-    // Plaintext Port on which to listen for LMTP
+    // Plaintext port on which to listen for LMTP
     pub lmtp_port: u16,
-    // Plaintext Port on which to listen for IMAP
+    // Plaintext port on which to listen for IMAP
     pub imap_port: u16,
-    // SSL Port on which to listen for LMTP
+    // SSL port on which to listen for LMTP
     pub lmtp_ssl_port: u16,
-    // SSL Port on which to listen for IMAP
+    // SSL port on which to listen for IMAP
     pub imap_ssl_port: u16,
     // file in which user data is stored
     pub users: String,
@@ -70,21 +84,18 @@ impl Config {
         Ok(config)
     }
 
-    pub fn get_ssl_keys(&self) -> Result<ParsedPkcs12, PkcsError> {
-        let mut buf = vec![];
-        match File::open(&self.pkcs_file) {
-            Err(e) => Err(PkcsError::Io(e)),
-            Ok(mut file) => match file.read_to_end(&mut buf) {
-                Err(e) => Err(PkcsError::Io(e)),
-                Ok(_) => match Pkcs12::from_der(&buf) {
-                    Err(e) => Err(PkcsError::Ssl(e)),
-                    Ok(p) => match p.parse(&self.pkcs_pass) {
-                        Err(e) => Err(PkcsError::Ssl(e)),
-                        Ok(i) => Ok(i)
-                    }
-                }
-            }
+    pub fn get_ssl_acceptor(&self) -> Result<SslAcceptor, PkcsError> {
+        if self.imap_ssl_port == 0 && self.lmtp_ssl_port == 0 {
+            return Err(PkcsError::PortsDisabled);
         }
+        let mut buf = vec![];
+        let mut file = File::open(&self.pkcs_file)?;
+        file.read_to_end(&mut buf)?;
+        let p = Pkcs12::from_der(&buf)?;
+        let identity = p.parse(&self.pkcs_pass)?;
+        let builder = SslAcceptorBuilder::mozilla_intermediate(
+            SslMethod::tls(), &identity.pkey, &identity.cert, &identity.chain)?;
+        Ok(builder.build())
     }
 }
 

@@ -1,10 +1,11 @@
 use std::collections::HashMap;
 use std::io::{Read, Result, Write};
 use std::net::{Shutdown, TcpListener, TcpStream};
+use std::result::Result as StdResult;
 use std::sync::Arc;
 
-use bufstream::BufStream;
-use openssl::ssl::{SslAcceptor, SslAcceptorBuilder, SslMethod, SslStream};
+use bufstream::{BufStream, IntoInnerError};
+use openssl::ssl::{SslAcceptor, SslStream};
 
 use error::ImapResult;
 use self::config::Config;
@@ -60,17 +61,8 @@ impl Server {
     fn new_with_conf(conf: Config) -> ImapResult<Server> {
         // Load the user data from the specified user data file.
         let users = load_users(&conf.users)?;
-        let ssl_acceptor = if let Ok(identity) = conf.get_ssl_keys() {
-            if conf.imap_ssl_port != 0 || conf.lmtp_ssl_port != 0 {
-                match SslAcceptorBuilder::mozilla_intermediate(
-                        SslMethod::tls(), &identity.pkey, 
-                        &identity.cert, &identity.chain) {
-                    Ok(a) => Some(a.build()),
-                    _ => None
-                }
-            } else {
-                None
-            }
+        let ssl_acceptor = if let Ok(a) = conf.get_ssl_acceptor() {
+            Some(a)
         } else {
             None
         };
@@ -133,12 +125,13 @@ impl Server {
         }
     }
 
-    pub fn starttls(&self, stream: TcpStream) -> Option<SslStream<TcpStream>> {
-        if let Some(ref ssl_acceptor) = self.ssl_acceptor {
-            Some(ssl_acceptor.accept(stream).unwrap())
-        } else {
-            None
+    pub fn starttls(&self, inner_stream: StdResult<Stream, IntoInnerError<BufStream<Stream>>>) -> Option<SslStream<TcpStream>> {
+        if let Ok(Stream::Tcp(stream)) = inner_stream {
+            if let Some(ref ssl_acceptor) = self.ssl_acceptor {
+                return Some(ssl_acceptor.accept(stream).unwrap());
+            }
         }
+        None
     }
 
     fn host(&self) -> &String {
