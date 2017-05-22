@@ -18,13 +18,11 @@ before_script:
 - pip install 'travis-cargo<0.2' --user
 - export PATH=$HOME/.local/bin/:$PATH
 script:
-- travis-cargo build
-- travis-cargo test
-- travis-cargo bench
-- travis-cargo --only stable doc
+- (cd core && ../.travis-cargo.sh)
+- (cd mime && ../.travis-cargo.sh)
 after_success:
-- travis-cargo --only stable doc-upload
-- travis-cargo coveralls --no-sudo --verify
+- (cd core && ../.travis-cargo-after.sh);
+- (cd mime && ../.travis-cargo-after.sh);
 env:
   global:
   - RUST_BACKTRACE=1
