@@ -11,7 +11,7 @@ use message::Flag;
 use command::store::StoreName;
 
 /// Representation of a Folder
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Folder {
     // How many messages are in folder/new/
     recent: usize,
