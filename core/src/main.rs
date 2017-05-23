@@ -26,7 +26,7 @@ extern crate walkdir;
 
 use server::{lmtp_serve, imap_serve, Server};
 
-use std::net::TcpListener;
+use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 use std::thread::spawn;
 
@@ -40,30 +40,26 @@ mod util;
 mod server;
 mod message;
 
-fn listen_lmtp(v: TcpListener, serv: Arc<Server>) {
+fn listen_generic(v: TcpListener, serv: Arc<Server>, prot: &str, serve_func: (fn(Arc<Server>, TcpStream))) {
     for stream in v.incoming() {
         match stream {
             Err(e) => {
-                error!("Error accepting incoming LMTP connection: {}", e);
+                error!("Error accepting incoming {} connection: {}", prot, e);
             }
             Ok(stream) => {
                 let session_serv = serv.clone();
-                spawn(move || { lmtp_serve(session_serv, stream) });
+                spawn(move || { serve_func(session_serv, stream) });
             }
         }
     }
 }
 
+fn listen_lmtp(v: TcpListener, serv: Arc<Server>) {
+    listen_generic(v, serv, "LMTP", lmtp_serve);
+}
+
 fn listen_imap(v: TcpListener, serv: Arc<Server>) {
-    for stream in v.incoming() {
-        match stream {
-            Err(e) => { error!("Error accepting incoming IMAP connection: {}", e) }
-            Ok(stream) => {
-                let session_serv = serv.clone();
-                spawn(move || { imap_serve(session_serv, stream) });
-            }
-        }
-    }
+    listen_generic(v, serv, "IMAP", imap_serve);
 }
 
 fn main() {
