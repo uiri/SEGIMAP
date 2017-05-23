@@ -9,11 +9,13 @@ use openssl::ssl::{SslAcceptor, SslStream};
 
 use error::ImapResult;
 use self::config::Config;
+use self::session::Session;
 use self::user::{load_users, Email, LoginData, User};
 
 mod config;
 #[macro_use]
 pub mod lmtp;
+mod session;
 mod user;
 
 pub enum Stream {
@@ -150,4 +152,9 @@ impl Server {
 
 pub fn lmtp_serve(serv: Arc<Server>, stream: TcpStream) {
     lmtp::serve(serv, BufStream::new(stream))
+}
+
+pub fn imap_serve(serv: Arc<Server>, stream: TcpStream) {
+    let mut session = Session::new(serv);
+    session.handle(stream);
 }

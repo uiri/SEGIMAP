@@ -24,9 +24,7 @@ extern crate time;
 extern crate toml;
 extern crate walkdir;
 
-use server::Server;
-use server::lmtp_serve;
-use session::Session;
+use server::{lmtp_serve, imap_serve, Server};
 
 use std::net::TcpListener;
 use std::sync::Arc;
@@ -37,12 +35,10 @@ mod error;
 mod folder;
 mod parser;
 #[macro_use]
-mod server;
-#[macro_use]
 mod util;
-
+#[macro_use]
+mod server;
 mod message;
-mod session;
 
 fn listen_lmtp(v: TcpListener, serv: Arc<Server>) {
     for stream in v.incoming() {
@@ -64,10 +60,7 @@ fn listen_imap(v: TcpListener, serv: Arc<Server>) {
             Err(e) => { error!("Error accepting incoming IMAP connection: {}", e) }
             Ok(stream) => {
                 let session_serv = serv.clone();
-                spawn(move || {
-                    let mut session = Session::new(session_serv);
-                    session.handle(stream);
-                });
+                spawn(move || { imap_serve(session_serv, stream) });
             }
         }
     }
