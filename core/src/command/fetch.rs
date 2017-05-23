@@ -36,13 +36,12 @@ pub fn fetch_loop(parsed_cmd: &Command, folder: &mut Folder,
 
     let mut res = String::new();
     for i in sequence_iter {
-        let index = if uid {
-            match folder.get_index_from_uid(i) {
-                Some(index) => *index,
-                None => {continue;}
-            }
-        } else {
+        let index = if !uid {
             *i-1
+        } else if let Some(index) = folder.get_index_from_uid(i) {
+            *index
+        } else {
+            continue;
         };
         res.push_str(&folder.fetch(index, &parsed_cmd.attributes)[..]);
     }

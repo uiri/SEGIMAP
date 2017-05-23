@@ -16,22 +16,15 @@ pub enum SequenceItem {
 }
 
 fn parse_item(item: &str) -> Option<SequenceItem> {
-    let intseq_opt = item.parse();
-    match intseq_opt {
-        Ok(intseq) => {
-            // item is a valid number so return that
-            Some(Number(intseq))
-        }
-        Err(_) => {
-            // item is not a valid number
-            // If it is the wildcard value return that
-            // Otherwise, return no sequence item
-            if item == "*" {
-                Some(Wildcard)
-            } else {
-                None
-            }
-        }
+    if let Ok(intseq) = item.parse() {
+        Some(Number(intseq))
+    } else if item == "*" {
+        // item is not a valid number
+        // If it is the wildcard value return that
+        // Otherwise, return no sequence item
+        Some(Wildcard)
+    } else {
+        None
     }
 }
 
