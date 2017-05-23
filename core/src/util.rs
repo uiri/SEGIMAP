@@ -39,7 +39,7 @@ pub fn perform_select(maildir: &str, select_args: &[&str], examine: bool,
     let mut maildir_path = PathBuf::new();
     maildir_path.push(maildir);
     maildir_path.push(mbox_name);
-    let folder =  match Folder::new(maildir_path, examine) {
+    let folder = match Folder::new(maildir_path, examine) {
         None => { return err_res; }
         Some(folder) => folder.clone()
     };

@@ -11,6 +11,7 @@ path = "src/main.rs"
 [dependencies]
 clippy = { version = "0.0", optional = true }
 bufstream = "*"
+env_logger = "*"
 log = "*"
 nom = "*"
 num = "*"

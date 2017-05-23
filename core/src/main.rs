@@ -6,6 +6,7 @@
 
 extern crate bufstream;
 extern crate crypto;
+extern crate env_logger;
 #[macro_use]
 extern crate log;
 extern crate mime;
@@ -73,6 +74,9 @@ fn listen_imap(v: TcpListener, serv: Arc<Server>) {
 }
 
 fn main() {
+    let _ = env_logger::init().unwrap();
+    info!("Application started");
+
     // Create the server. We wrap it so that it is atomically reference
     // counted. This allows us to safely share it across threads
 

@@ -228,7 +228,7 @@ impl Session {
             "select" => {
                 let maildir = match self.maildir {
                     None => { return bad_res; }
-                    Some(ref maildir) => maildir.clone()
+                    Some(ref maildir) => maildir
                 };
                 let (folder, res) = util::perform_select(&maildir[..],
                                                          &args.collect::<Vec<&str>>(),
@@ -242,7 +242,7 @@ impl Session {
             "examine" => {
                 let maildir = match self.maildir {
                     None => { return bad_res; }
-                    Some(ref maildir) => maildir.clone()
+                    Some(ref maildir) => maildir
                 };
                 let (folder, res) = util::perform_select(&maildir[..],
                                                          &args.collect::<Vec<&str>>(),
