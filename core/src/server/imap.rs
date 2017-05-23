@@ -42,7 +42,7 @@ macro_rules! opendirlisting(
 static GREET: &'static [u8] = b"* OK Server ready.\r\n";
 
 /// Representation of a session
-pub struct Session {
+pub struct ImapSession {
     /// Shared wrapper for config and user data
     serv: Arc<Server>,
     /// Whether to logout and close the connection after interpreting the
@@ -56,9 +56,9 @@ pub struct Session {
     folder: Option<Folder>
 }
 
-impl Session {
-    pub fn new(serv: Arc<Server>) -> Session {
-        Session {
+impl ImapSession {
+    pub fn new(serv: Arc<Server>) -> ImapSession {
+        ImapSession {
             serv: serv,
             logout: false,
             maildir: None,
