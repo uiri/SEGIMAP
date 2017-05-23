@@ -26,7 +26,7 @@ extern crate walkdir;
 
 use server::Server;
 use server::lmtp_serve;
-use user::Session;
+use session::Session;
 
 use std::net::TcpListener;
 use std::sync::Arc;
@@ -41,8 +41,8 @@ mod server;
 #[macro_use]
 mod util;
 
-mod user;
 mod message;
+mod session;
 
 fn listen_lmtp(v: TcpListener, serv: Arc<Server>) {
     for stream in v.incoming() {

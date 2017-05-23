@@ -11,8 +11,7 @@ use num::ToPrimitive;
 use time;
 
 use server::Server;
-use user::Email;
-use user::User;
+use server::user::{Email, User};
 
 // Just bail if there is some error.
 // Used when performing operations on a TCP Stream generally

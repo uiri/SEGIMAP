@@ -8,12 +8,11 @@ use std::path::Path;
 use std::str;
 
 pub use self::email::Email;
-pub use self::session::Session;
+pub use self::login::LoginData;
 
 mod auth;
 mod email;
 mod login;
-mod session;
 
 /// Representation of a User.
 #[derive(Debug, Deserialize, Serialize)]
