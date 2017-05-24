@@ -1,4 +1,4 @@
-use command::Command;
+use command::FetchCommand;
 
 mod error;
 mod grammar;
@@ -6,7 +6,7 @@ mod grammar;
 pub use self::error::Error as ParserError;
 pub use self::error::Result as ParserResult;
 
-pub fn fetch(input: &[u8]) -> ParserResult<Command> {
+pub fn fetch(input: &[u8]) -> ParserResult<FetchCommand> {
     use nom::IResult::{Done, Error, Incomplete};
 
     match self::grammar::fetch(input) {

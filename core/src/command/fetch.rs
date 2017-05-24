@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use command::Command;
+use command::FetchCommand;
 use command::Attribute::BodySection;
 use folder::Folder;
 use parser::{self, ParserResult};
@@ -9,8 +9,8 @@ use message::Flag::Seen;
 use super::store::StoreName::Add;
 
 /// Take the rest of the arguments provided by the client and parse them into a
-/// `Command` object with `parser::fetch`.
-pub fn fetch(args: Vec<&str>) -> ParserResult<Command> {
+/// `FetchCommand` object with `parser::fetch`.
+pub fn fetch(args: Vec<&str>) -> ParserResult<FetchCommand> {
     let mut cmd = "FETCH".to_string();
     for arg in args {
         cmd.push(' ');
@@ -22,7 +22,7 @@ pub fn fetch(args: Vec<&str>) -> ParserResult<Command> {
 
 /// Perform the fetch operation on each sequence number indicated and return
 /// the response to be sent back to the client.
-pub fn fetch_loop(parsed_cmd: &Command, folder: &mut Folder,
+pub fn fetch_loop(parsed_cmd: &FetchCommand, folder: &mut Folder,
                   sequence_iter: &[usize], tag: &str, uid: bool) -> String {
     for attr in &parsed_cmd.attributes {
         if let BodySection(_, _) = *attr {
@@ -36,13 +36,12 @@ pub fn fetch_loop(parsed_cmd: &Command, folder: &mut Folder,
 
     let mut res = String::new();
     for i in sequence_iter {
-        let index = if uid {
-            match folder.get_index_from_uid(i) {
-                Some(index) => *index,
-                None => {continue;}
-            }
-        } else {
+        let index = if !uid {
             *i-1
+        } else if let Some(index) = folder.get_index_from_uid(i) {
+            *index
+        } else {
+            continue;
         };
         res.push_str(&folder.fetch(index, &parsed_cmd.attributes)[..]);
     }

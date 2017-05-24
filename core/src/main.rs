@@ -24,11 +24,9 @@ extern crate time;
 extern crate toml;
 extern crate walkdir;
 
-use server::Server;
-use server::lmtp_serve;
-use user::Session;
+use server::{lmtp_serve, imap_serve, Server};
 
-use std::net::TcpListener;
+use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
 use std::thread::spawn;
 
@@ -37,40 +35,31 @@ mod error;
 mod folder;
 mod parser;
 #[macro_use]
-mod server;
-#[macro_use]
 mod util;
-
-mod user;
+#[macro_use]
+mod server;
 mod message;
 
-fn listen_lmtp(v: TcpListener, serv: Arc<Server>) {
+fn listen_generic(v: TcpListener, serv: Arc<Server>, prot: &str, serve_func: (fn(Arc<Server>, TcpStream))) {
     for stream in v.incoming() {
         match stream {
             Err(e) => {
-                error!("Error accepting incoming LMTP connection: {}", e);
+                error!("Error accepting incoming {} connection: {}", prot, e);
             }
             Ok(stream) => {
                 let session_serv = serv.clone();
-                spawn(move || { lmtp_serve(session_serv, stream) });
+                spawn(move || { serve_func(session_serv, stream) });
             }
         }
     }
 }
 
+fn listen_lmtp(v: TcpListener, serv: Arc<Server>) {
+    listen_generic(v, serv, "LMTP", lmtp_serve);
+}
+
 fn listen_imap(v: TcpListener, serv: Arc<Server>) {
-    for stream in v.incoming() {
-        match stream {
-            Err(e) => { error!("Error accepting incoming IMAP connection: {}", e) }
-            Ok(stream) => {
-                let session_serv = serv.clone();
-                spawn(move || {
-                    let mut session = Session::new(session_serv);
-                    session.handle(stream);
-                });
-            }
-        }
-    }
+    listen_generic(v, serv, "IMAP", imap_serve);
 }
 
 fn main() {

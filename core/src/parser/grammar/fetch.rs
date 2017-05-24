@@ -10,8 +10,7 @@ use command::Attribute::{
     RFC822,
     UID
 };
-use command::Command;
-use command::CommandType::Fetch;
+use command::FetchCommand;
 use command::RFC822Attribute::{AllRFC822, HeaderRFC822, SizeRFC822, TextRFC822};
 use mime::BodySectionType::{self, AllSection, MsgtextSection, PartSection};
 use mime::Msgtext::{
@@ -27,7 +26,7 @@ use parser::grammar::sequence::sequence_set;
 use std::ascii::AsciiExt;
 use std::str;
 
-named!(pub fetch<Command>,
+named!(pub fetch<FetchCommand>,
     do_parse!(
         tag_no_case!("FETCH") >>
         whitespace >>
@@ -56,7 +55,7 @@ named!(pub fetch<Command>,
             map!(tag_no_case!("FAST"), |_| { vec![Flags, InternalDate, RFC822(SizeRFC822)] })
         ) >>
 
-        ({ Command::new(Fetch, set, attrs) })
+        ({ FetchCommand::new(set, attrs) })
     )
 );
 
@@ -209,8 +208,7 @@ mod tests {
         InternalDate,
         RFC822,
     };
-    use command::Command;
-    use command::CommandType::Fetch;
+    use command::FetchCommand;
     use mime::BodySectionType::{
         AllSection,
         MsgtextSection,
@@ -253,25 +251,24 @@ mod tests {
     fn test_fetch() {
         assert_eq!(fetch(b""), Incomplete(Size(5)));
         assert_eq!(fetch(b"FETCH *:3,6 (FLAGS RFC822)"), Done(&b""[..],
-            Command::new(Fetch, vec![Range(Box::new(Wildcard), Box::new(Number(3))), Number(6)], vec![Flags, RFC822(AllRFC822)])
+            FetchCommand::new(vec![Range(Box::new(Wildcard), Box::new(Number(3))), Number(6)], vec![Flags, RFC822(AllRFC822)])
         ));
         assert_eq!(fetch(b"FETCH * FLAGS"), Done(&b""[..],
-            Command::new(Fetch, vec![Wildcard], vec![Flags])
+            FetchCommand::new(vec![Wildcard], vec![Flags])
         ));
         assert_eq!(fetch(b"FETCH * ALL"), Done(&b""[..],
-            Command::new(Fetch, vec![Wildcard], vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope])
+            FetchCommand::new(vec![Wildcard], vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope])
         ));
         assert_eq!(fetch(b"FETCH * FULL"), Done(&b""[..],
-            Command::new(Fetch, vec![Wildcard], vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body])
+            FetchCommand::new(vec![Wildcard], vec![Flags, InternalDate, RFC822(SizeRFC822), Envelope, Body])
         ));
         assert_eq!(fetch(b"FETCH * FAST"), Done(&b""[..],
-            Command::new(Fetch, vec![Wildcard], vec![Flags, InternalDate, RFC822(SizeRFC822)])
+            FetchCommand::new(vec![Wildcard], vec![Flags, InternalDate, RFC822(SizeRFC822)])
         ));
         assert_eq!(
             fetch(b"FETCH 4,5:3,* (FLAGS RFC822 BODY.PEEK[43.65.HEADER.FIELDS.NOT (abc \"def\" {2}\r\nde)]<4.2>)"),
             Done(&b""[..],
-                Command::new(
-                    Fetch,
+                FetchCommand::new(
                     vec![Number(4), Range(Box::new(Number(5)), Box::new(Number(3))), Wildcard],
                     vec![
                         Flags,
@@ -433,8 +430,7 @@ mod bench {
     extern crate test;
 
     use command::Attribute::{BodyPeek, Flags, RFC822};
-    use command::Command;
-    use command::CommandType::Fetch;
+    use command::FetchCommand;
     use command::RFC822Attribute::AllRFC822;
     use command::sequence_set::SequenceItem::{Number, Range, Wildcard};
     use mime::BodySectionType::PartSection;
@@ -449,8 +445,7 @@ mod bench {
 
         b.iter(|| {
             assert_eq!(fetch(FETCH_STR.as_bytes()), Done(&b""[..],
-                Command::new(
-                    Fetch,
+                FetchCommand::new(
                     vec![Number(4), Range(Box::new(Number(5)), Box::new(Number(3))), Wildcard],
                     vec![
                         Flags,

@@ -27,36 +27,18 @@ pub struct Folder {
     uid_to_seqnum: HashMap<usize, usize>
 }
 
-// Macro to open up a directory and do stuff with it after
-macro_rules! make_vec_path(
-    ($path:ident, $inp:ident, $str:expr, $next:expr) => ({
-        match fs::read_dir(&($path.join($str))) {
-            Err(_) => { None },
-            Ok(res) => {
-                let $inp = res;
-                $next
-            }
-        }
-    });
-);
-
 // Macro to handle each message in the folder
 macro_rules! handle_message(
     ($msg_path_entry:ident, $uid_map:ident, $messages:ident, $i:ident, $unseen:ident) => ({
-        match $msg_path_entry {
-            Ok(msg_path) => {
-                let message = match Message::new(msg_path.path().as_path()) {
-                    Ok(message) => message,
-                    _ => continue
-                };
+        if let Ok(msg_path) = $msg_path_entry {
+            if let Ok(message) = Message::new(msg_path.path().as_path()) {
                 if $unseen == !0usize && message.is_unseen() {
                     $unseen = $i;
                 }
                 $uid_map.insert(message.get_uid(), $i);
                 $i += 1;
                 $messages.push(message);
-            },
-            _ => { continue; }
+            }
         }
     });
 );
@@ -64,46 +46,36 @@ macro_rules! handle_message(
 // Perform a rename operation on a message
 macro_rules! rename_message(
     ($msg:ident, $curpath:expr, $new_messages:ident) => ({
-        match fs::rename($msg.get_path(), &$curpath) {
-            Ok(_) => {
-                // if the rename operation succeeded then clone the message,
-                // update its path and add the clone to our new list
-                $new_messages.push($msg.rename($curpath));
-            }
-            _ => {
-                // if the rename failed, just add the old message to our
-                // new list
-                $new_messages.push($msg.clone());
-            }
+        if fs::rename($msg.get_path(), &$curpath).is_ok() {
+            // if the rename operation succeeded then clone the message,
+            // update its path and add the clone to our new list
+            $new_messages.push($msg.rename($curpath));
+        } else {
+            // if the rename failed, just add the old message to our
+            // new list
+            $new_messages.push($msg.clone());
         }
     })
 );
 
 impl Folder {
     pub fn new(path: PathBuf, examine: bool) -> Option<Folder> {
-        // the EXAMINE command is always read-only
-        let readonly = if examine {
+        // the EXAMINE command is always read-only or we test SELECT for read-only status
+        // We use a lock file to determine write access on a folder
+        let readonly = if examine || fs::File::open(&path.join(".lock")).is_ok() {
             true
         } else {
-            // Test SELECT for read-only status
-            // We use a lock file to determine write access on a folder
-            match fs::File::open(&path.join(".lock")) {
-                Err(_) => {
-                    match fs::File::create(&path.join(".lock")) {
-                        Ok(mut file) => {
-                            // Get the compiler to STFU with this match
-                            match file.write(b"selected") { _ => {} }
-                            drop(file);
-                            false
-                        }
-                        _ => true,
-                    }
-                }
-                _ => true,
+            if let Ok(mut file) = fs::File::create(&path.join(".lock")) {
+                // Get the compiler to STFU with this match
+                let _ = file.write(b"selected");
+                false
+            } else {
+                true
             }
         };
-        make_vec_path!(path, cur, "cur",
-            make_vec_path!(path, new, "new", {
+
+        if let Ok(cur) = fs::read_dir(&(path.join("cur"))) {
+            if let Ok(new) = fs::read_dir(&(path.join("new"))) {
                 let mut messages = Vec::new();
                 let mut uid_to_seqnum: HashMap<usize, usize> = HashMap::new();
                 let mut i = 0usize;
@@ -115,14 +87,13 @@ impl Folder {
                 }
 
                 let old = i;
-
                 for msg_path in new {
                     handle_message!(msg_path, uid_to_seqnum, messages, i, unseen);
                 }
 
                 // Move the messages from folder/new to folder/cur
-                messages = move_new(&messages, path.as_path(), unseen-1);
-                Some(Folder {
+                messages = move_new(&messages, path.as_path(), unseen);
+                return Some(Folder {
                     path: path,
                     recent: i-old,
                     unseen: unseen,
@@ -130,9 +101,10 @@ impl Folder {
                     messages: messages,
                     readonly: readonly,
                     uid_to_seqnum: uid_to_seqnum,
-                })
-            })
-        )
+                });
+            }
+        }
+        None
     }
 
     /// Generate the SELECT/EXAMINE response based on data in the folder
@@ -302,7 +274,7 @@ fn move_new(messages: &[Message], path: &Path,
     // Go over the messages by index
     for (i, msg) in messages.iter().enumerate() {
         // messages before start_index are already in folder/cur/
-        if i < start_index {
+        if i+1 < start_index {
             new_messages.push(msg.clone());
             continue;
         }

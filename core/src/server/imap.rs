@@ -24,7 +24,6 @@ use command::sequence_set::SequenceItem::{
     Wildcard
 };
 use error::Error;
-use super::login::LoginData;
 use util;
 
 // Used to grab every file for removal while performing DELETE on a folder.
@@ -43,7 +42,7 @@ macro_rules! opendirlisting(
 static GREET: &'static [u8] = b"* OK Server ready.\r\n";
 
 /// Representation of a session
-pub struct Session {
+pub struct ImapSession {
     /// Shared wrapper for config and user data
     serv: Arc<Server>,
     /// Whether to logout and close the connection after interpreting the
@@ -57,9 +56,9 @@ pub struct Session {
     folder: Option<Folder>
 }
 
-impl Session {
-    pub fn new(serv: Arc<Server>) -> Session {
-        Session {
+impl ImapSession {
+    pub fn new(serv: Arc<Server>) -> ImapSession {
+        ImapSession {
             serv: serv,
             logout: false,
             maildir: None,
@@ -181,21 +180,10 @@ impl Session {
                 let password = login_args[1].trim_matches('"');
                 let mut no_res  = tag.to_string();
                 no_res.push_str(" NO invalid username or password\r\n");
-                match LoginData::new(email.to_string(),
-                                     password.to_string()) {
-                    Some(login_data) => {
-                        self.maildir = match self.serv.get_user(&login_data.email) {
-                            Some(user) => {
-                                if user.auth_data.verify_auth(login_data.password) {
-                                    Some(user.maildir.clone())
-                                } else {
-                                    None
-                                }
-                            }
-                            None => None
-                        }
-                    }
-                    None => { return no_res; }
+                if let Some(user) = self.serv.login(email.to_string(), password.to_string()) {
+                    self.maildir = Some(user.maildir.clone());
+                } else {
+                    return no_res;
                 }
                 match self.maildir {
                     Some(_) => {
