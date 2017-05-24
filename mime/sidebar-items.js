@@ -1,0 +1,1 @@
+initSidebarItems({"enum":[["BodySectionType",""],["Error","Represents errors which occur during MIME parsing."],["Msgtext",""]],"struct":[["Message",""]]});
