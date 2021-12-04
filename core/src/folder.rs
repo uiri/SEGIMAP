@@ -1,14 +1,14 @@
-use std::collections::{HashMap,HashSet};
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 
-use command::Attribute;
-use message::Message;
-use message::Flag;
+use crate::command::Attribute;
+use crate::message::Flag;
+use crate::message::Message;
 
-use command::store::StoreName;
+use crate::command::store::StoreName;
 
 /// Representation of a Folder
 #[derive(Clone, Debug)]
@@ -24,7 +24,7 @@ pub struct Folder {
     path: PathBuf,
     messages: Vec<Message>,
     // A mapping of message uids to indices in folder.messages
-    uid_to_seqnum: HashMap<usize, usize>
+    uid_to_seqnum: HashMap<usize, usize>,
 }
 
 // Macro to handle each message in the folder
@@ -95,7 +95,7 @@ impl Folder {
                 messages = move_new(&messages, path.as_path(), unseen);
                 return Some(Folder {
                     path: path,
-                    recent: i-old,
+                    recent: i - old,
                     unseen: unseen,
                     exists: i,
                     messages: messages,
@@ -160,7 +160,9 @@ impl Folder {
                 }
             }
             // Get the compiler to STFU with empty match block
-            match fs::remove_file(&self.path.join(".lock")) { _ => {} }
+            match fs::remove_file(&self.path.join(".lock")) {
+                _ => {}
+            }
         }
         result
     }
@@ -173,7 +175,7 @@ impl Folder {
     /// Return the FETCH response string to be sent back to the client
     pub fn fetch(&self, index: usize, attributes: &[Attribute]) -> String {
         let mut res = "* ".to_string();
-        res.push_str(&(index+1).to_string()[..]);
+        res.push_str(&(index + 1).to_string()[..]);
         res.push_str(" FETCH (");
         res.push_str(&self.messages[index].fetch(attributes)[..]);
         res.push_str(")\r\n");
@@ -188,9 +190,15 @@ impl Folder {
     /// Perform a STORE on the specified set of sequence numbers
     /// This modifies the flags of the specified messages
     /// Returns the String response to be sent back to the client.
-    pub fn store(&mut self, sequence_set: Vec<usize>, flag_name: &StoreName,
-                 silent: bool, flags: HashSet<Flag>, seq_uid: bool,
-                 tag: &str) -> String {
+    pub fn store(
+        &mut self,
+        sequence_set: Vec<usize>,
+        flag_name: &StoreName,
+        silent: bool,
+        flags: HashSet<Flag>,
+        seq_uid: bool,
+        tag: &str,
+    ) -> String {
         let mut responses = String::new();
         for num in &sequence_set {
             let (uid, i) = if seq_uid {
@@ -198,7 +206,7 @@ impl Folder {
                     // 0 is an invalid sequence number
                     // Return it if the UID isn't found
                     None => (*num, 0usize),
-                    Some(ind) => (*num, *ind+1)
+                    Some(ind) => (*num, *ind + 1),
                 }
             } else {
                 (0usize, *num)
@@ -210,7 +218,7 @@ impl Folder {
             }
 
             // Create the FETCH response for this STORE operation.
-            if let Some(mut message) = self.messages.get_mut(i-1) {
+            if let Some(message) = self.messages.get_mut(i - 1) {
                 responses.push_str("* ");
                 responses.push_str(&i.to_string()[..]);
                 responses.push_str(" FETCH (FLAGS ");
@@ -267,14 +275,13 @@ impl Folder {
 
 /// This moves a list of messages from folder/new/ to folder/cur/ and returns a
 /// new list of messages
-fn move_new(messages: &[Message], path: &Path,
-            start_index: usize) -> Vec<Message> {
+fn move_new(messages: &[Message], path: &Path, start_index: usize) -> Vec<Message> {
     let mut new_messages = Vec::new();
 
     // Go over the messages by index
     for (i, msg) in messages.iter().enumerate() {
         // messages before start_index are already in folder/cur/
-        if i+1 < start_index {
+        if i + 1 < start_index {
             new_messages.push(msg.clone());
             continue;
         }

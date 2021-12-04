@@ -3,14 +3,14 @@
 // on the session (or take what they do need as arguments) and/or they are
 // called by the session in multiple places.
 
+use regex::Regex;
 use std::env::current_dir;
 use std::fs;
 use std::path::Path;
 use std::path::PathBuf;
-use regex::Regex;
 use walkdir::WalkDir;
 
-use folder::Folder;
+use crate::folder::Folder;
 
 #[macro_export]
 macro_rules! path_filename_to_str(
@@ -31,17 +31,25 @@ fn make_absolute(dir: &Path) -> String {
     }
 }
 
-pub fn perform_select(maildir: &str, select_args: &[&str], examine: bool,
-                      tag: &str) -> (Option<Folder>, String) {
+pub fn perform_select(
+    maildir: &str,
+    select_args: &[&str],
+    examine: bool,
+    tag: &str,
+) -> (Option<Folder>, String) {
     let err_res = (None, "".to_string());
-    if select_args.len() < 1 { return err_res; }
+    if select_args.len() < 1 {
+        return err_res;
+    }
     let mbox_name = select_args[0].trim_matches('"').replace("INBOX", ".");
     let mut maildir_path = PathBuf::new();
     maildir_path.push(maildir);
     maildir_path.push(mbox_name);
     let folder = match Folder::new(maildir_path, examine) {
-        None => { return err_res; }
-        Some(folder) => folder.clone()
+        None => {
+            return err_res;
+        }
+        Some(folder) => folder.clone(),
     };
 
     let ok_res = folder.select_response(tag);
@@ -56,7 +64,7 @@ fn list_dir(dir: &Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
 
     // These folder names are used to hold mail. Every other folder is
     // valid.
-    if  dir_name == "cur" || dir_name == "new" || dir_name == "tmp" {
+    if dir_name == "cur" || dir_name == "new" || dir_name == "tmp" {
         return None;
     }
 
@@ -89,7 +97,9 @@ fn list_dir(dir: &Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
     // whether or not a given folder has subfolders. Mutt has issues
     // selecting folders with subfolders for reading mail, unfortunately.
     match fs::read_dir(&dir) {
-        Err(_) => { return None; }
+        Err(_) => {
+            return None;
+        }
         Ok(dir_listing) => {
             let mut children = false;
             for subdir_entry in dir_listing {
@@ -99,18 +109,16 @@ fn list_dir(dir: &Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
                     }
                     let subdir_path = subdir.path();
                     let subdir_str = path_filename_to_str!(subdir_path);
-                    if subdir_str != "cur" &&
-                        subdir_str != "new" &&
-                        subdir_str != "tmp" {
-                            if fs::read_dir(&subdir.path().join("cur")).is_err() {
-                                continue;
-                            }
-                            if fs::read_dir(&subdir.path().join("new")).is_err() {
-                                continue;
-                            }
-                            children = true;
-                            break;
+                    if subdir_str != "cur" && subdir_str != "new" && subdir_str != "tmp" {
+                        if fs::read_dir(&subdir.path().join("cur")).is_err() {
+                            continue;
                         }
+                        if fs::read_dir(&subdir.path().join("new")).is_err() {
+                            continue;
+                        }
+                        children = true;
+                        break;
+                    }
                 }
             }
             if children {
@@ -124,10 +132,11 @@ fn list_dir(dir: &Path, regex: &Regex, maildir_path: &Path) -> Option<String> {
     let re_path = make_absolute(maildir_path);
     match fs::metadata(dir) {
         Err(_) => return None,
-        Ok(md) =>
+        Ok(md) => {
             if !md.is_dir() {
                 return None;
             }
+        }
     };
 
     if !regex.is_match(&dir_string[..]) {

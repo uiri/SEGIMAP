@@ -1,9 +1,10 @@
-use error::ImapResult;
+use crate::error::ImapResult;
 use openssl::error::ErrorStack;
 use openssl::pkcs12::Pkcs12;
-use openssl::ssl::{SslAcceptor, SslAcceptorBuilder, SslMethod};
-use std::io::{Read, Error as IoError, Write};
+use openssl::ssl::{SslAcceptor, SslMethod};
+use openssl::x509::X509;
 use std::fs::File;
+use std::io::{Error as IoError, Read, Write};
 use std::path::Path;
 use std::str;
 use toml;
@@ -11,7 +12,7 @@ use toml;
 pub enum PkcsError {
     Io(IoError),
     Ssl(ErrorStack),
-    PortsDisabled
+    PortsDisabled,
 }
 
 impl From<IoError> for PkcsError {
@@ -61,15 +62,15 @@ impl Config {
                             // Use default values if parsing failed.
                             warn!("Failed to parse config.toml.\nUsing default values: {}", e);
                             Config::default()
-                        },
+                        }
                     },
                     Err(e) => {
                         // Use default values if reading failed.
                         warn!("Failed to read config.toml.\nUsing default values: {}", e);
                         Config::default()
-                    },
+                    }
                 }
-            },
+            }
             Err(e) => {
                 // Create a default config file if it doesn't exist
                 warn!("Failed to open config.toml; creating from defaults: {}", e);
@@ -78,7 +79,7 @@ impl Config {
                 let mut file = File::create(&path)?;
                 file.write_all(encoded.as_bytes())?;
                 config
-            },
+            }
         };
 
         Ok(config)
@@ -93,8 +94,13 @@ impl Config {
         file.read_to_end(&mut buf)?;
         let p = Pkcs12::from_der(&buf)?;
         let identity = p.parse(&self.pkcs_pass)?;
-        let builder = SslAcceptorBuilder::mozilla_intermediate(
-            SslMethod::tls(), &identity.pkey, &identity.cert, &identity.chain)?;
+        let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls())?;
+        builder.set_private_key(&identity.pkey)?;
+        builder.set_certificate(&identity.cert)?;
+        let chain: Vec<X509> = identity.chain.into_iter().flatten().collect();
+        for cert in chain.iter().rev() {
+            builder.add_extra_chain_cert(cert.to_owned())?;
+        }
         Ok(builder.build())
     }
 }

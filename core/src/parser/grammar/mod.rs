@@ -19,9 +19,14 @@ fn is_atom_char(chr: u8) -> bool {
 }
 
 fn is_atom_specials(chr: u8) -> bool {
-    chr == b'(' || chr == b')' || chr == b'{' || is_sp(chr) || is_ctl(chr) ||
-        is_list_wildcards(chr) || is_quoted_specials(chr) ||
-        is_resp_specials(chr)
+    chr == b'('
+        || chr == b')'
+        || chr == b'{'
+        || is_sp(chr)
+        || is_ctl(chr)
+        || is_list_wildcards(chr)
+        || is_quoted_specials(chr)
+        || is_resp_specials(chr)
 }
 
 fn is_sp(chr: u8) -> bool {
@@ -112,47 +117,37 @@ named!(literal<&[u8], &[u8]>,
 
 /* RFC 3501 Boilerplate */
 
-/// Recognizes an non-zero unsigned 32-bit integer.
+// Recognizes an non-zero unsigned 32-bit integer.
 // (0 < n < 4,294,967,296)
-named!(number<usize>, flat_map!(take_while1!(is_digit), parse_to!(usize)));
+named!(
+    number<usize>,
+    flat_map!(take_while1!(is_digit), parse_to!(usize))
+);
 
-/// Recognizes a non-zero unsigned 32-bit integer.
+// Recognizes a non-zero unsigned 32-bit integer.
 // (0 < n < 4,294,967,296)
-named!(nz_number<usize>,
+named!(
+    nz_number<usize>,
     flat_map!(
-        recognize!(
-            tuple!(
-                digit_nz,
-                many0!(one_of!(DIGITS))
-            )
-        ),
+        recognize!(tuple!(digit_nz, many0!(one_of!(DIGITS)))),
         parse_to!(usize)
     )
 );
 
-/// Recognizes exactly one non-zero numerical character: 1-9.
+// Recognizes exactly one non-zero numerical character: 1-9.
 // digit-nz = %x31-39
 //    ; 1-9
 named!(digit_nz<char>, one_of!(NZ_DIGITS));
 
-/// Recognizes exactly one ASCII whitespace.
+// Recognizes exactly one ASCII whitespace.
 named!(whitespace<char>, char!(' '));
 
 #[cfg(test)]
 mod tests {
-    use nom::ErrorKind::{Alt, Char, Count, OneOf, TakeWhile1, MapOpt, Tag};
-    use nom::Needed::Size;
+    use super::{astring, digit_nz, literal, number, nz_number, quoted, string, whitespace};
+    use nom::ErrorKind::{Alt, Char, Count, MapOpt, OneOf, Tag, TakeWhile1};
     use nom::IResult::{Done, Error, Incomplete};
-    use super::{
-        astring,
-        digit_nz,
-        literal,
-        number,
-        nz_number,
-        quoted,
-        string,
-        whitespace
-    };
+    use nom::Needed::Size;
 
     #[test]
     fn test_astring() {

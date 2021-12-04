@@ -2,6 +2,7 @@
 name = "segimap"
 version = "0.0.1"
 authors = []
+edition = "2018"
 
 [[bin]]
 
@@ -15,7 +16,7 @@ env_logger = "*"
 log = "*"
 nom = "*"
 num = "*"
-openssl = "*"
+openssl = "0.10"
 rand = "*"
 regex = "*"
 rust-crypto = "*"
@@ -23,6 +24,7 @@ segimap_mime = { path = "../mime/" }
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
+thiserror = "1.0"
 time = "*"
 toml = "*"
 walkdir = "*"
