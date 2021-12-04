@@ -1,7 +1,8 @@
 use error::ImapResult;
 use openssl::error::ErrorStack;
 use openssl::pkcs12::Pkcs12;
-use openssl::ssl::{SslAcceptor, SslAcceptorBuilder, SslMethod};
+use openssl::ssl::{SslAcceptor, SslMethod};
+use openssl::x509::X509;
 use std::io::{Read, Error as IoError, Write};
 use std::fs::File;
 use std::path::Path;
@@ -93,8 +94,13 @@ impl Config {
         file.read_to_end(&mut buf)?;
         let p = Pkcs12::from_der(&buf)?;
         let identity = p.parse(&self.pkcs_pass)?;
-        let builder = SslAcceptorBuilder::mozilla_intermediate(
-            SslMethod::tls(), &identity.pkey, &identity.cert, &identity.chain)?;
+        let mut builder = SslAcceptor::mozilla_intermediate(SslMethod::tls())?;
+        builder.set_private_key(&identity.pkey)?;
+        builder.set_certificate(&identity.cert)?;
+        let chain: Vec<X509> = identity.chain.into_iter().flatten().collect();
+        for cert in chain.iter().rev() {
+            builder.add_extra_chain_cert(cert.to_owned())?;
+        }
         Ok(builder.build())
     }
 }

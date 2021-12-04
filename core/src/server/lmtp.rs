@@ -1,4 +1,3 @@
-use std::ascii::AsciiExt;
 use std::fs::File;
 use std::io::{BufRead, Write};
 use std::io::ErrorKind::AlreadyExists;
@@ -34,7 +33,7 @@ macro_rules! delivery_ioerror(
 macro_rules! grab_email_token(
     ($arg:expr) => {
         match $arg {
-            Some(from_path) => from_path.trim_left_matches('<').trim_right_matches('>'),
+            Some(from_path) => from_path.trim_start_matches('<').trim_end_matches('>'),
             _ => { return None; }
         }
     }

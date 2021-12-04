@@ -210,7 +210,7 @@ impl Folder {
             }
 
             // Create the FETCH response for this STORE operation.
-            if let Some(mut message) = self.messages.get_mut(i-1) {
+            if let Some(message) = self.messages.get_mut(i-1) {
                 responses.push_str("* ");
                 responses.push_str(&i.to_string()[..]);
                 responses.push_str(" FETCH (FLAGS ");

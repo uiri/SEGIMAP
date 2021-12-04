@@ -1,4 +1,3 @@
-use std::ascii::AsciiExt;
 use std::fs;
 use std::io::{BufRead, Write};
 use std::net::TcpStream;

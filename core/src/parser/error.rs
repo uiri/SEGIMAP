@@ -36,12 +36,12 @@ impl StdError for Error {
         }
     }
 
-    fn cause(&self) -> Option<&StdError> {
+    fn cause(&self) -> Option<&dyn StdError> {
         use self::Error::*;
 
         match *self {
             Incomplete => None,
-            Nom(ref e) => e.cause(),
+            Nom(ref e) => e.source(),
         }
     }
 }

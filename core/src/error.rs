@@ -34,7 +34,7 @@ impl fmt::Display for Error {
         use self::Error::*;
 
         match *self {
-            InvalidImapState | MessageUidDecode | MessageBadFilename => write!(f, "{}", StdError::description(self)),
+            InvalidImapState | MessageUidDecode | MessageBadFilename => write!(f, "{}", self.to_string()),
             Io(ref e) => e.fmt(f),
             Json(ref e) => e.fmt(f),
             Mime(ref e) => e.fmt(f),
@@ -58,15 +58,15 @@ impl StdError for Error {
         }
     }
 
-    fn cause(&self) -> Option<&StdError> {
+    fn cause(&self) -> Option<&dyn StdError> {
         use self::Error::*;
 
         match *self {
             InvalidImapState | MessageUidDecode | MessageBadFilename => None,
-            Io(ref e) => e.cause(),
-            Json(ref e) => e.cause(),
-            Mime(ref e) => e.cause(),
-            Toml(ref e) => e.cause(),
+            Io(ref e) => e.source(),
+            Json(ref e) => e.source(),
+            Mime(ref e) => e.source(),
+            Toml(ref e) => e.source(),
         }
     }
 }

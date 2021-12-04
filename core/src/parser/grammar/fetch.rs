@@ -23,7 +23,6 @@ use mime::Msgtext::{
 };
 use parser::grammar::{astring, number, nz_number, whitespace};
 use parser::grammar::sequence::sequence_set;
-use std::ascii::AsciiExt;
 use std::str;
 
 named!(pub fetch<FetchCommand>,
@@ -179,7 +178,7 @@ named!(header_list<Vec<String>>,
 named!(header_fld_name<String>,
     map!(
         map_res!(astring, str::from_utf8),
-        AsciiExt::to_ascii_uppercase
+        str::to_ascii_uppercase
     )
 );
 

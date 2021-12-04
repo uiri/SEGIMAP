@@ -1,4 +1,3 @@
-use std::ascii::AsciiExt;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
@@ -82,13 +81,13 @@ impl Message {
         while let Some(line) = iterator.next() {
             if line.starts_with(' ') || line.starts_with('\t') {
                 while let Some(next) = iterator.next() {
-                    let mut trimmed_next = next.trim_left_matches(' ')
-                                            .trim_left_matches('\t').to_string();
+                    let mut trimmed_next = next.trim_start_matches(' ')
+                                            .trim_start_matches('\t').to_string();
 
                     // Add a space between the merged lines.
                     trimmed_next.push(' ');
-                    trimmed_next.push_str(line.trim_left_matches(' ')
-                                           .trim_left_matches('\t'));
+                    trimmed_next.push_str(line.trim_start_matches(' ')
+                                           .trim_start_matches('\t'));
                     if !next.starts_with(' ') && !next.starts_with('\t') {
                         let split: Vec<&str> = (&trimmed_next[..])
                                                 .splitn(2, ':').collect();

@@ -24,7 +24,7 @@ impl fmt::Display for Error {
 
         match *self {
             MissingContentType |
-                ParseMultipartBoundary => write!(f, "{}", StdError::description(self)),
+                ParseMultipartBoundary => write!(f, "{}", self.to_string()),
             Io(ref e) => e.fmt(f),
         }
     }
@@ -41,13 +41,13 @@ impl StdError for Error {
         }
     }
 
-    fn cause(&self) -> Option<&StdError> {
+    fn cause(&self) -> Option<&dyn StdError> {
         use self::Error::*;
 
         match *self {
             ParseMultipartBoundary |
                 MissingContentType => None,
-            Io(ref e) => e.cause(),
+            Io(ref e) => e.source(),
         }
     }
 }
