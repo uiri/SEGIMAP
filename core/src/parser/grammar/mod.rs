@@ -112,11 +112,11 @@ named!(literal<&[u8], &[u8]>,
 
 /* RFC 3501 Boilerplate */
 
-/// Recognizes an non-zero unsigned 32-bit integer.
+// Recognizes an non-zero unsigned 32-bit integer.
 // (0 < n < 4,294,967,296)
 named!(number<usize>, flat_map!(take_while1!(is_digit), parse_to!(usize)));
 
-/// Recognizes a non-zero unsigned 32-bit integer.
+// Recognizes a non-zero unsigned 32-bit integer.
 // (0 < n < 4,294,967,296)
 named!(nz_number<usize>,
     flat_map!(
@@ -130,12 +130,12 @@ named!(nz_number<usize>,
     )
 );
 
-/// Recognizes exactly one non-zero numerical character: 1-9.
+// Recognizes exactly one non-zero numerical character: 1-9.
 // digit-nz = %x31-39
 //    ; 1-9
 named!(digit_nz<char>, one_of!(NZ_DIGITS));
 
-/// Recognizes exactly one ASCII whitespace.
+// Recognizes exactly one ASCII whitespace.
 named!(whitespace<char>, char!(' '));
 
 #[cfg(test)]

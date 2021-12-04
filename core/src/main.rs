@@ -41,7 +41,7 @@ mod util;
 mod server;
 mod message;
 
-fn listen_generic(v: TcpListener, serv: Arc<Server>, prot: &str, serve_func: (fn(Arc<Server>, TcpStream))) {
+fn listen_generic(v: TcpListener, serv: Arc<Server>, prot: &str, serve_func: fn(Arc<Server>, TcpStream)) {
     for stream in v.incoming() {
         match stream {
             Err(e) => {
