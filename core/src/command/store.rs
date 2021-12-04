@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
-use folder::Folder;
-use message::Flag;
-use message::parse_flag;
+use crate::folder::Folder;
+use crate::message::Flag;
+use crate::message::parse_flag;
 
 use self::StoreName::{Add, Replace, Sub};
 use super::sequence_set;

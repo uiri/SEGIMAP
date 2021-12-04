@@ -1,4 +1,4 @@
-use command::Attribute::{
+use crate::command::Attribute::{
     self,
     Body,
     BodyPeek,
@@ -10,8 +10,8 @@ use command::Attribute::{
     RFC822,
     UID
 };
-use command::FetchCommand;
-use command::RFC822Attribute::{AllRFC822, HeaderRFC822, SizeRFC822, TextRFC822};
+use crate::command::FetchCommand;
+use crate::command::RFC822Attribute::{AllRFC822, HeaderRFC822, SizeRFC822, TextRFC822};
 use mime::BodySectionType::{self, AllSection, MsgtextSection, PartSection};
 use mime::Msgtext::{
     self,
@@ -21,8 +21,8 @@ use mime::Msgtext::{
     MimeMsgtext,
     TextMsgtext,
 };
-use parser::grammar::{astring, number, nz_number, whitespace};
-use parser::grammar::sequence::sequence_set;
+use crate::parser::grammar::{astring, number, nz_number, whitespace};
+use crate::parser::grammar::sequence::sequence_set;
 use std::str;
 
 named!(pub fetch<FetchCommand>,
@@ -197,7 +197,7 @@ named!(section_text<Msgtext>,
 
 #[cfg(test)]
 mod tests {
-    use command::Attribute::{
+    use crate::command::Attribute::{
         Body,
         BodyPeek,
         BodySection,
@@ -207,7 +207,7 @@ mod tests {
         InternalDate,
         RFC822,
     };
-    use command::FetchCommand;
+    use crate::command::FetchCommand;
     use mime::BodySectionType::{
         AllSection,
         MsgtextSection,
@@ -220,12 +220,12 @@ mod tests {
         MimeMsgtext,
         TextMsgtext
     };
-    use command::RFC822Attribute::{
+    use crate::command::RFC822Attribute::{
         AllRFC822,
         HeaderRFC822,
         SizeRFC822,
     };
-    use command::sequence_set::SequenceItem::{
+    use crate::command::sequence_set::SequenceItem::{
         Number,
         Range,
         Wildcard

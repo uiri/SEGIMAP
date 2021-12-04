@@ -1,4 +1,4 @@
-use error::ImapResult;
+use crate::error::ImapResult;
 use self::auth::AuthData;
 use serde_json;
 use std::collections::HashMap;

@@ -4,11 +4,11 @@ use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 
-use command::Attribute;
-use message::Message;
-use message::Flag;
+use crate::command::Attribute;
+use crate::message::Message;
+use crate::message::Flag;
 
-use command::store::StoreName;
+use crate::command::store::StoreName;
 
 /// Representation of a Folder
 #[derive(Clone, Debug)]

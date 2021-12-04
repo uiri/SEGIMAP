@@ -2,7 +2,7 @@ pub mod sequence_set;
 pub mod store;
 pub mod fetch;
 
-use command::sequence_set::SequenceItem;
+use crate::command::sequence_set::SequenceItem;
 
 use mime::BodySectionType;
 

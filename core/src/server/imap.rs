@@ -9,21 +9,21 @@ use std::sync::Arc;
 use bufstream::BufStream;
 use regex::Regex;
 
-use folder::Folder;
-use server::Server;
-use server::Stream;
+use crate::folder::Folder;
+use crate::server::Server;
+use crate::server::Stream;
 
-use command::Attribute::UID;
-use command::fetch;
-use command::store;
-use command::sequence_set;
-use command::sequence_set::SequenceItem::{
+use crate::command::Attribute::UID;
+use crate::command::fetch;
+use crate::command::store;
+use crate::command::sequence_set;
+use crate::command::sequence_set::SequenceItem::{
     Number,
     Range,
     Wildcard
 };
-use error::Error;
-use util;
+use crate::error::Error;
+use crate::util;
 
 // Used to grab every file for removal while performing DELETE on a folder.
 macro_rules! opendirlisting(

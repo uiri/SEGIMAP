@@ -2,6 +2,7 @@
 name = "segimap"
 version = "0.0.1"
 authors = []
+edition = "2018"
 
 [[bin]]
 

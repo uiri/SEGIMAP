@@ -67,7 +67,7 @@ fn gen_salt() -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use user::auth;
+    use crate::server::user::auth;
 
     #[test]
     fn test_valid_auth_data() {

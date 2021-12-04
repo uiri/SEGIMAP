@@ -7,7 +7,7 @@ use std::sync::Arc;
 use bufstream::{BufStream, IntoInnerError};
 use openssl::ssl::{SslAcceptor, SslStream};
 
-use error::ImapResult;
+use crate::error::ImapResult;
 use self::config::Config;
 use self::imap::ImapSession;
 use self::user::{load_users, Email, LoginData, User};

@@ -1,4 +1,4 @@
-use error::ImapResult;
+use crate::error::ImapResult;
 use openssl::error::ErrorStack;
 use openssl::pkcs12::Pkcs12;
 use openssl::ssl::{SslAcceptor, SslMethod};

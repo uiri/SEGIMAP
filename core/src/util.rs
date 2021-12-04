@@ -10,7 +10,7 @@ use std::path::PathBuf;
 use regex::Regex;
 use walkdir::WalkDir;
 
-use folder::Folder;
+use crate::folder::Folder;
 
 #[macro_export]
 macro_rules! path_filename_to_str(

@@ -4,8 +4,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::str;
 
-use command::Attribute;
-use command::Attribute::{
+use crate::command::Attribute;
+use crate::command::Attribute::{
     Envelope,
     Flags,
     InternalDate,
@@ -16,15 +16,15 @@ use command::Attribute::{
     BodyStructure,
     UID
 };
-use command::RFC822Attribute::{
+use crate::command::RFC822Attribute::{
     AllRFC822,
     HeaderRFC822,
     SizeRFC822,
     TextRFC822
 };
-use command::store::StoreName;
+use crate::command::store::StoreName;
 
-use error::{Error, ImapResult};
+use crate::error::{Error, ImapResult};
 
 use mime::Message as MIME_Message;
 

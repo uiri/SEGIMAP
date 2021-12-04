@@ -1,5 +1,5 @@
-use command::sequence_set::SequenceItem;
-use parser::grammar::nz_number;
+use crate::command::sequence_set::SequenceItem;
+use crate::parser::grammar::nz_number;
 
 /* Sequence item and set rules */
 
@@ -41,7 +41,7 @@ named!(seq_number<SequenceItem>,
 
 #[cfg(test)]
 mod tests {
-    use command::sequence_set::SequenceItem::{
+    use crate::command::sequence_set::SequenceItem::{
         Number,
         Range,
         Wildcard

@@ -25,7 +25,7 @@ extern crate time;
 extern crate toml;
 extern crate walkdir;
 
-use server::{lmtp_serve, imap_serve, Server};
+use crate::server::{lmtp_serve, imap_serve, Server};
 
 use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;

@@ -9,8 +9,8 @@ use bufstream::BufStream;
 use num::ToPrimitive;
 use time;
 
-use server::Server;
-use server::user::{Email, User};
+use crate::server::Server;
+use crate::server::user::{Email, User};
 
 // Just bail if there is some error.
 // Used when performing operations on a TCP Stream generally

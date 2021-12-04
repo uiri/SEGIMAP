@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
-use command::FetchCommand;
-use command::Attribute::BodySection;
-use folder::Folder;
-use parser::{self, ParserResult};
+use crate::command::FetchCommand;
+use crate::command::Attribute::BodySection;
+use crate::folder::Folder;
+use crate::parser::{self, ParserResult};
 
-use message::Flag::Seen;
+use crate::message::Flag::Seen;
 use super::store::StoreName::Add;
 
 /// Take the rest of the arguments provided by the client and parse them into a

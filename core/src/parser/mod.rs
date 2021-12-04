@@ -1,4 +1,4 @@
-use command::FetchCommand;
+use crate::command::FetchCommand;
 
 mod error;
 mod grammar;
