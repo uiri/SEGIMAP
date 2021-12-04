@@ -1,5 +1,5 @@
-use crate::error::ImapResult;
 use self::auth::AuthData;
+use crate::error::ImapResult;
 use serde_json;
 use std::collections::HashMap;
 use std::fs::File;
@@ -22,7 +22,7 @@ pub struct User {
     /// The authentication data the used to verify the user's identity.
     pub auth_data: AuthData,
     /// The root directory in which the user's mail is stored.
-    pub maildir: String
+    pub maildir: String,
 }
 
 impl User {
@@ -32,7 +32,7 @@ impl User {
         User {
             email: email,
             auth_data: AuthData::new(password),
-            maildir: maildir
+            maildir: maildir,
         }
     }
 }
@@ -47,7 +47,7 @@ pub fn load_users(path_str: &str) -> ImapResult<HashMap<Email, User>> {
             let mut file_buf: String = String::new();
             file.read_to_string(&mut file_buf)?;
             serde_json::from_str(&file_buf)?
-        },
+        }
         Err(e) => {
             warn!("Failed to open users file, creating default: {}", e);
             create_default_users(&path)?
@@ -80,12 +80,12 @@ fn create_default_users(path: &Path) -> ImapResult<Vec<User>> {
         User::new(
             Email::new("will".to_string(), "xqz.ca".to_string()),
             "54321".to_string(),
-            "./maildir".to_string()
+            "./maildir".to_string(),
         ),
         User::new(
             Email::new("nikitapekin".to_string(), "gmail.com".to_string()),
             "12345".to_string(),
-            "./maildir".to_string()
+            "./maildir".to_string(),
         ),
     ];
 

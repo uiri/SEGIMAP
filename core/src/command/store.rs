@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use crate::folder::Folder;
-use crate::message::Flag;
 use crate::message::parse_flag;
+use crate::message::Flag;
 
 use self::StoreName::{Add, Replace, Sub};
 use super::sequence_set;
@@ -10,16 +10,17 @@ use super::sequence_set;
 /// Representation of a STORE operation
 pub enum StoreName {
     Replace, // replace current flags with new flags
-    Add, // add new flags to current flags
-    Sub // remove new flags from current flags
+    Add,     // add new flags to current flags
+    Sub,     // remove new flags from current flags
 }
 
 /// Parse and perform the store operation specified by `store_args`. Returns the
 /// response to the client or None if a BAD response should be sent back to
 /// the client
-pub fn store(folder: &mut Folder, store_args: &[&str], seq_uid: bool,
-                 tag: &str) -> Option<String> {
-    if store_args.len() < 3 { return None; }
+pub fn store(folder: &mut Folder, store_args: &[&str], seq_uid: bool, tag: &str) -> Option<String> {
+    if store_args.len() < 3 {
+        return None;
+    }
 
     // Parse the sequence set argument
     let sequence_set_opt = sequence_set::parse(store_args[0].trim_matches('"'));
@@ -48,7 +49,7 @@ pub fn store(folder: &mut Folder, store_args: &[&str], seq_uid: bool,
             if part == "silent" {
                 true
             } else {
-                return None
+                return None;
             }
         }
     };
@@ -57,15 +58,19 @@ pub fn store(folder: &mut Folder, store_args: &[&str], seq_uid: bool,
     // data_value.
     let flag_name = match parse_storename(flag_part) {
         Some(storename) => storename,
-        None => return None
+        None => return None,
     };
 
     // Create the Set of flags to be STORE'd from the data_value argument.
     let mut flags: HashSet<Flag> = HashSet::new();
     for flag in data_value.trim_matches('(').trim_matches(')').split(' ') {
         match parse_flag(flag) {
-            None => { continue; }
-            Some(insert_flag) => { flags.insert(insert_flag); }
+            None => {
+                continue;
+            }
+            Some(insert_flag) => {
+                flags.insert(insert_flag);
+            }
         }
     }
 
@@ -79,8 +84,7 @@ pub fn store(folder: &mut Folder, store_args: &[&str], seq_uid: bool,
             } else {
                 sequence_set::iterator(&sequence_set, folder.message_count())
             };
-            let res = folder.store(sequence_iter, &flag_name, silent, flags,
-                                   seq_uid, tag);
+            let res = folder.store(sequence_iter, &flag_name, silent, flags, seq_uid, tag);
             Some(res)
         }
     }
@@ -93,6 +97,6 @@ fn parse_storename(storename: Option<&str>) -> Option<StoreName> {
         Some("flags") => Some(Replace),
         Some("+flags") => Some(Add),
         Some("-flags") => Some(Sub),
-        _ => None
+        _ => None,
     }
 }

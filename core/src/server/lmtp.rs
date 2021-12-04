@@ -1,6 +1,6 @@
 use std::fs::File;
-use std::io::{BufRead, Write};
 use std::io::ErrorKind::AlreadyExists;
+use std::io::{BufRead, Write};
 use std::net::TcpStream;
 use std::path::Path;
 use std::sync::Arc;
@@ -9,8 +9,8 @@ use bufstream::BufStream;
 use num::ToPrimitive;
 use time;
 
-use crate::server::Server;
 use crate::server::user::{Email, User};
+use crate::server::Server;
 
 // Just bail if there is some error.
 // Used when performing operations on a TCP Stream generally
@@ -43,7 +43,7 @@ struct Lmtp<'a> {
     rev_path: Option<Email>,
     to_path: Vec<&'a User>,
     data: String,
-    quit: bool
+    quit: bool,
 }
 
 static OK: &'static str = "250 OK\r\n";
@@ -95,27 +95,35 @@ fn grab_email(arg: Option<&str>) -> Option<Email> {
         Some(full_from_path) => {
             let mut split_arg = full_from_path.split(':');
             match split_arg.next() {
-                Some(from_str) => {
-                    match &from_str.to_ascii_lowercase()[..] {
-                        "from" | "to" => {
-                            grab_email_token!(split_arg.next())
-                        },
-                        _ => { return None; }
+                Some(from_str) => match &from_str.to_ascii_lowercase()[..] {
+                    "from" | "to" => {
+                        grab_email_token!(split_arg.next())
                     }
+                    _ => {
+                        return None;
+                    }
+                },
+                _ => {
+                    return None;
                 }
-                _ => { return None; }
             }
         }
-        _ => { return None; }
+        _ => {
+            return None;
+        }
     };
     let mut from_parts = from_path_split.split('@');
     let local_part = match from_parts.next() {
         Some(part) => part.to_string(),
-        _ => { return None; }
+        _ => {
+            return None;
+        }
     };
     let domain_part = match from_parts.next() {
         Some(part) => part.to_string(),
-        _ => { return None; }
+        _ => {
+            return None;
+        }
     };
     Some(Email::new(local_part, domain_part))
 }
@@ -125,10 +133,9 @@ pub fn serve(serv: Arc<Server>, mut stream: BufStream<TcpStream>) {
         rev_path: None,
         to_path: Vec::new(),
         data: String::new(),
-        quit: false
+        quit: false,
     };
-    return_on_err!(stream.write(format!("220 {} LMTP server ready\r\n",
-                                        *serv.host()).as_bytes()));
+    return_on_err!(stream.write(format!("220 {} LMTP server ready\r\n", *serv.host()).as_bytes()));
     return_on_err!(stream.flush());
     loop {
         let mut command = String::new();
@@ -147,14 +154,12 @@ pub fn serve(serv: Arc<Server>, mut stream: BufStream<TcpStream>) {
                     Some(cmd) => {
                         warn!("LMTP Cmd: {}", trimmed_command);
                         match &cmd.to_ascii_lowercase()[..] {
-                            "lhlo" => {
-                                match args.next() {
-                                    Some(domain) => {
-                                        format!("250 {}\r\n", domain)
-                                    }
-                                    _ => invalid
+                            "lhlo" => match args.next() {
+                                Some(domain) => {
+                                    format!("250 {}\r\n", domain)
                                 }
-                            }
+                                _ => invalid,
+                            },
                             "rset" => {
                                 l.rev_path = None;
                                 l.to_path = Vec::new();
@@ -163,40 +168,29 @@ pub fn serve(serv: Arc<Server>, mut stream: BufStream<TcpStream>) {
                             "noop" => ok_res,
                             "quit" => {
                                 l.quit = true;
-                                format!("221 {} Closing connection\r\n",
-                                        *serv.host())
+                                format!("221 {} Closing connection\r\n", *serv.host())
                             }
-                            "vrfy" => {
-                                invalid
-                            }
-                            "mail" => {
-                                match grab_email(args.next()) {
-                                    None => invalid,
-                                    s => {
-                                        l.rev_path = s;
-                                        ok_res
-                                    }
+                            "vrfy" => invalid,
+                            "mail" => match grab_email(args.next()) {
+                                None => invalid,
+                                s => {
+                                    l.rev_path = s;
+                                    ok_res
                                 }
-                            }
-                            "rcpt" => {
-                                match l.rev_path {
+                            },
+                            "rcpt" => match l.rev_path {
+                                None => invalid,
+                                _ => match grab_email(args.next()) {
                                     None => invalid,
-                                    _ => {
-                                        match grab_email(args.next()) {
-                                            None => invalid,
-                                            Some(email) => {
-                                                match serv.users.get(&email) {
-                                                    None => no_such_user,
-                                                    Some(user) => {
-                                                        l.to_path.push(user);
-                                                        ok_res
-                                                    }
-                                                }
-                                            }
+                                    Some(email) => match serv.users.get(&email) {
+                                        None => no_such_user,
+                                        Some(user) => {
+                                            l.to_path.push(user);
+                                            ok_res
                                         }
-                                    }
-                                }
-                            }
+                                    },
+                                },
+                            },
                             "data" => {
                                 return_on_err!(stream.write(data_res));
                                 return_on_err!(stream.flush());
@@ -217,15 +211,17 @@ pub fn serve(serv: Arc<Server>, mut stream: BufStream<TcpStream>) {
                                             l.data.push_str(data_cmd);
                                             l.data.push('\n');
                                         }
-                                        _ => { break; }
+                                        _ => {
+                                            break;
+                                        }
                                     }
                                 }
                                 loop_res
                             }
-                            _ => invalid
+                            _ => invalid,
                         }
                     }
-                    None => invalid
+                    None => invalid,
                 };
                 return_on_err!(stream.write(res.as_bytes()));
                 return_on_err!(stream.flush());
@@ -233,7 +229,9 @@ pub fn serve(serv: Arc<Server>, mut stream: BufStream<TcpStream>) {
                     return;
                 }
             }
-            _ => { break; }
+            _ => {
+                break;
+            }
         }
     }
 }

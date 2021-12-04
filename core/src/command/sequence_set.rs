@@ -12,7 +12,7 @@ use self::SequenceItem::{Number, Range, Wildcard};
 pub enum SequenceItem {
     Number(usize),
     Range(Box<SequenceItem>, Box<SequenceItem>),
-    Wildcard
+    Wildcard,
 }
 
 fn parse_item(item: &str) -> Option<SequenceItem> {
@@ -37,12 +37,10 @@ pub fn parse(sequence_string: &str) -> Option<Vec<SequenceItem>> {
         let mut range = sequence.split(':');
         let start = match range.next() {
             None => return None,
-            Some(seq) => {
-                match parse_item(seq) {
-                    None => return None,
-                    Some(item) => item
-                }
-            }
+            Some(seq) => match parse_item(seq) {
+                None => return None,
+                Some(item) => item,
+            },
         };
         let stop = match range.next() {
             None => {
@@ -51,12 +49,10 @@ pub fn parse(sequence_string: &str) -> Option<Vec<SequenceItem>> {
                 sequence_set.push(start);
                 continue;
             }
-            Some(seq) => {
-                match parse_item(seq) {
-                    None => return None,
-                    Some(item) => item
-                }
-            }
+            Some(seq) => match parse_item(seq) {
+                None => return None,
+                Some(item) => item,
+            },
         };
 
         // A valid range only has one colon
@@ -73,7 +69,9 @@ pub fn parse(sequence_string: &str) -> Option<Vec<SequenceItem>> {
 /// sequence items. Ideally this would handle wildcards in O(1) rather than O(n)
 pub fn iterator(sequence_set: &[SequenceItem], max_id: usize) -> Vec<usize> {
     // If the number of possible messages is 0, we return an empty vec.
-    if max_id == 0 { return Vec::new() }
+    if max_id == 0 {
+        return Vec::new();
+    }
 
     let stop = max_id + 1;
 
@@ -81,13 +79,13 @@ pub fn iterator(sequence_set: &[SequenceItem], max_id: usize) -> Vec<usize> {
     for item in sequence_set.iter() {
         match *item {
             // For a number we just need the value
-            Number(num) => { items.push(num) },
+            Number(num) => items.push(num),
             // For a range we need all the values inside it
             Range(ref a, ref b) => {
                 // Grab the start of the range
                 let a = match **a {
-                    Number(num) => { num },
-                    Wildcard => { max_id }
+                    Number(num) => num,
+                    Wildcard => max_id,
                     Range(_, _) => {
                         error!("A range of ranges is invalid.");
                         continue;
@@ -95,32 +93,32 @@ pub fn iterator(sequence_set: &[SequenceItem], max_id: usize) -> Vec<usize> {
                 };
                 // Grab the end of the range
                 let b = match **b {
-                    Number(num) => { num },
-                    Wildcard => { max_id }
+                    Number(num) => num,
+                    Wildcard => max_id,
                     Range(_, _) => {
                         error!("A range of ranges is invalid.");
                         continue;
                     }
                 };
                 // Figure out which way the range points
-                let (mut min, mut max) = if a <= b {
-                    (a, b)
-                } else {
-                    (b, a)
-                };
+                let (mut min, mut max) = if a <= b { (a, b) } else { (b, a) };
 
                 // Bounds checks
-                if min > stop { min = stop; }
-                if max > stop { max = stop; }
+                if min > stop {
+                    min = stop;
+                }
+                if max > stop {
+                    max = stop;
+                }
 
                 // Generate the list of values between the min and max
                 let seq_range: Vec<usize> = (min..max + 1).collect();
                 items.extend(seq_range.iter());
-            },
+            }
             Wildcard => {
                 // If the sequence set contains the wildcard operator, it spans
                 // the entire possible range of messages.
-                return (1..stop).collect()
+                return (1..stop).collect();
             }
         }
     }
@@ -137,37 +135,31 @@ pub fn uid_iterator(sequence_set: &[SequenceItem]) -> Vec<usize> {
     let mut items = Vec::new();
     for item in sequence_set.iter() {
         match *item {
-            Number(num) => { items.push(num) },
+            Number(num) => items.push(num),
             Range(ref a, ref b) => {
                 let a = match **a {
-                    Number(num) => { num },
-                    Wildcard => { return Vec::new() }
+                    Number(num) => num,
+                    Wildcard => return Vec::new(),
                     Range(_, _) => {
                         error!("A range of ranges is invalid.");
                         continue;
                     }
                 };
                 let b = match **b {
-                    Number(num) => { num },
-                    Wildcard => { return Vec::new() }
+                    Number(num) => num,
+                    Wildcard => return Vec::new(),
                     Range(_, _) => {
                         error!("A range of ranges is invalid.");
                         continue;
                     }
                 };
-                let (min, max) = if a <= b {
-                    (a, b)
-                } else {
-                    (b, a)
-                };
+                let (min, max) = if a <= b { (a, b) } else { (b, a) };
                 //if min > stop { min = stop; }
                 //if max > stop { max = stop; }
                 let seq_range: Vec<usize> = (min..max + 1).collect();
                 items.extend(seq_range.iter());
-            },
-            Wildcard => {
-                return Vec::new()
             }
+            Wildcard => return Vec::new(),
         }
     }
 
@@ -183,7 +175,10 @@ pub fn uid_iterator(sequence_set: &[SequenceItem]) -> Vec<usize> {
 fn test_sequence_num() {
     assert_eq!(iterator(&[Number(4324)], 5000), vec![4324]);
     assert_eq!(iterator(&[Number(23), Number(44)], 5000), vec![23, 44]);
-    assert_eq!(iterator(&[Number(6), Number(6), Number(2)], 5000), vec![2, 6]);
+    assert_eq!(
+        iterator(&[Number(6), Number(6), Number(2)], 5000),
+        vec![2, 6]
+    );
 }
 
 #[test]
@@ -198,20 +193,54 @@ fn test_sequence_past_end() {
 
 #[test]
 fn test_sequence_range() {
-    assert_eq!(iterator(&[Range(Box::new(Number(6)), Box::new(Wildcard))], 10), vec![6, 7, 8, 9, 10]);
-    assert_eq!(iterator(&[Range(Box::new(Number(1)), Box::new(Number(10)))], 4), vec![1, 2, 3, 4]);
-    assert_eq!(iterator(&[Range(Box::new(Wildcard), Box::new(Number(8))), Number(9), Number(2), Number(2)], 12), vec![2, 8, 9, 10, 11, 12]);
+    assert_eq!(
+        iterator(&[Range(Box::new(Number(6)), Box::new(Wildcard))], 10),
+        vec![6, 7, 8, 9, 10]
+    );
+    assert_eq!(
+        iterator(&[Range(Box::new(Number(1)), Box::new(Number(10)))], 4),
+        vec![1, 2, 3, 4]
+    );
+    assert_eq!(
+        iterator(
+            &[
+                Range(Box::new(Wildcard), Box::new(Number(8))),
+                Number(9),
+                Number(2),
+                Number(2)
+            ],
+            12
+        ),
+        vec![2, 8, 9, 10, 11, 12]
+    );
 }
 
 #[test]
 fn test_sequence_wildcard() {
-    assert_eq!(iterator(&[Range(Box::new(Number(10)), Box::new(Wildcard)), Wildcard], 6), vec![1, 2, 3, 4, 5, 6]);
+    assert_eq!(
+        iterator(
+            &[Range(Box::new(Number(10)), Box::new(Wildcard)), Wildcard],
+            6
+        ),
+        vec![1, 2, 3, 4, 5, 6]
+    );
     assert_eq!(iterator(&[Wildcard, Number(8)], 3), vec![1, 2, 3]);
 }
 
 #[test]
 fn test_sequence_complex() {
-    assert_eq!(iterator(
-            &[Number(1), Number(3), Range(Box::new(Number(5)), Box::new(Number(7))), Number(9), Number(12), Range(Box::new(Number(15)), Box::new(Wildcard))], 13),
-            vec![1, 3, 5, 6, 7, 9, 12, 13]);
+    assert_eq!(
+        iterator(
+            &[
+                Number(1),
+                Number(3),
+                Range(Box::new(Number(5)), Box::new(Number(7))),
+                Number(9),
+                Number(12),
+                Range(Box::new(Number(15)), Box::new(Wildcard))
+            ],
+            13
+        ),
+        vec![1, 3, 5, 6, 7, 9, 12, 13]
+    );
 }

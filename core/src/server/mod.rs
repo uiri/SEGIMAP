@@ -7,10 +7,10 @@ use std::sync::Arc;
 use bufstream::{BufStream, IntoInnerError};
 use openssl::ssl::{SslAcceptor, SslStream};
 
-use crate::error::ImapResult;
 use self::config::Config;
 use self::imap::ImapSession;
 use self::user::{load_users, Email, LoginData, User};
+use crate::error::ImapResult;
 
 mod config;
 #[macro_use]
@@ -20,21 +20,21 @@ mod user;
 
 pub enum Stream {
     Ssl(SslStream<TcpStream>),
-    Tcp(TcpStream)
+    Tcp(TcpStream),
 }
 
 impl Write for Stream {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
         match *self {
             Stream::Ssl(ref mut s) => s.write(buf),
-            Stream::Tcp(ref mut s) => s.write(buf)
+            Stream::Tcp(ref mut s) => s.write(buf),
         }
     }
 
     fn flush(&mut self) -> Result<()> {
         match *self {
             Stream::Ssl(ref mut s) => s.flush(),
-            Stream::Tcp(ref mut s) => s.flush()
+            Stream::Tcp(ref mut s) => s.flush(),
         }
     }
 }
@@ -43,7 +43,7 @@ impl Read for Stream {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         match *self {
             Stream::Ssl(ref mut s) => s.read(buf),
-            Stream::Tcp(ref mut s) => s.read(buf)
+            Stream::Tcp(ref mut s) => s.read(buf),
         }
     }
 }
@@ -123,7 +123,10 @@ impl Server {
         }
     }
 
-    pub fn starttls(&self, inner_stream: StdResult<Stream, IntoInnerError<BufStream<Stream>>>) -> Option<SslStream<TcpStream>> {
+    pub fn starttls(
+        &self,
+        inner_stream: StdResult<Stream, IntoInnerError<BufStream<Stream>>>,
+    ) -> Option<SslStream<TcpStream>> {
         if let Ok(Stream::Tcp(stream)) = inner_stream {
             if let Some(ref ssl_acceptor) = self.ssl_acceptor {
                 if let Ok(ssl_stream) = ssl_acceptor.accept(stream) {

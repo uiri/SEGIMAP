@@ -25,7 +25,7 @@ extern crate time;
 extern crate toml;
 extern crate walkdir;
 
-use crate::server::{lmtp_serve, imap_serve, Server};
+use crate::server::{imap_serve, lmtp_serve, Server};
 
 use std::net::{TcpListener, TcpStream};
 use std::sync::Arc;
@@ -41,7 +41,12 @@ mod util;
 mod server;
 mod message;
 
-fn listen_generic(v: TcpListener, serv: Arc<Server>, prot: &str, serve_func: fn(Arc<Server>, TcpStream)) {
+fn listen_generic(
+    v: TcpListener,
+    serv: Arc<Server>,
+    prot: &str,
+    serve_func: fn(Arc<Server>, TcpStream),
+) {
     for stream in v.incoming() {
         match stream {
             Err(e) => {
@@ -49,7 +54,7 @@ fn listen_generic(v: TcpListener, serv: Arc<Server>, prot: &str, serve_func: fn(
             }
             Ok(stream) => {
                 let session_serv = serv.clone();
-                spawn(move || { serve_func(session_serv, stream) });
+                spawn(move || serve_func(session_serv, stream));
             }
         }
     }
@@ -74,8 +79,8 @@ fn main() {
         Err(e) => {
             error!("Error starting server: {}", e);
             return;
-        },
-        Ok(s) => Arc::new(s)
+        }
+        Ok(s) => Arc::new(s),
     };
 
     // Spawn a separate thread for listening for LMTP connections
@@ -90,7 +95,9 @@ fn main() {
                 Some(spawn(move || listen_lmtp(v, lmtp_serv)))
             }
         }
-    } else { None };
+    } else {
+        None
+    };
 
     let lmtp_ssl_h = if let Some(lmtp_listener) = serv.lmtp_ssl_listener() {
         match lmtp_listener {
@@ -103,7 +110,9 @@ fn main() {
                 Some(spawn(move || listen_lmtp(v, lmtp_serv)))
             }
         }
-    } else { None };
+    } else {
+        None
+    };
 
     // The main thread handles listening for IMAP connections
     let imap_h = if let Some(imap_listener) = serv.imap_listener() {
@@ -117,7 +126,9 @@ fn main() {
                 Some(spawn(move || listen_imap(v, imap_serv)))
             }
         }
-    } else { None };
+    } else {
+        None
+    };
 
     let imap_ssl_h = if let Some(imap_listener) = serv.imap_ssl_listener() {
         match imap_listener {
@@ -125,11 +136,11 @@ fn main() {
                 error!("Error listening on IMAP port: {}", e);
                 None
             }
-            Ok(v) => {
-                Some(spawn(move || listen_imap(v, serv)))
-            }
+            Ok(v) => Some(spawn(move || listen_imap(v, serv))),
         }
-    } else { None };
+    } else {
+        None
+    };
 
     if let Some(lh) = lmtp_h {
         return_on_err!(lh.join());

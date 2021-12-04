@@ -4,25 +4,12 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::str;
 
+use crate::command::store::StoreName;
 use crate::command::Attribute;
 use crate::command::Attribute::{
-    Envelope,
-    Flags,
-    InternalDate,
-    RFC822,
-    Body,
-    BodyPeek,
-    BodySection,
-    BodyStructure,
-    UID
+    Body, BodyPeek, BodySection, BodyStructure, Envelope, Flags, InternalDate, RFC822, UID,
 };
-use crate::command::RFC822Attribute::{
-    AllRFC822,
-    HeaderRFC822,
-    SizeRFC822,
-    TextRFC822
-};
-use crate::command::store::StoreName;
+use crate::command::RFC822Attribute::{AllRFC822, HeaderRFC822, SizeRFC822, TextRFC822};
 
 use crate::error::{Error, ImapResult};
 
@@ -38,7 +25,7 @@ pub enum Flag {
     Draft,
     Flagged,
     Seen,
-    Deleted
+    Deleted,
 }
 
 /// Takes a flag argument and returns the corresponding enum.
@@ -49,7 +36,7 @@ pub fn parse_flag(flag: &str) -> Option<Flag> {
         "\\Draft" => Some(Flag::Draft),
         "\\Answered" => Some(Flag::Answered),
         "\\Flagged" => Some(Flag::Flagged),
-        _ => None
+        _ => None,
     }
 }
 
@@ -69,7 +56,6 @@ pub struct Message {
 
     // marks the message for deletion
     deleted: bool,
-
 }
 
 impl Message {
@@ -80,7 +66,9 @@ impl Message {
         let mut path = path_filename_to_str!(arg_path).splitn(2, ':');
         let filename = match path.next() {
             Some(fname) => fname,
-            None => { return Err(Error::MessageBadFilename); }
+            None => {
+                return Err(Error::MessageBadFilename);
+            }
         };
         let path_flags = path.next();
 
@@ -92,9 +80,10 @@ impl Message {
             // if there are no flags, create an empty set
             None => HashSet::new(),
             Some(flags) =>
-                // The uid is separated from the flag part of the filename by a
-                // colon. The flag part consists of a 2 followed by a comma and
-                // then some letters. Those letters represent the message flags
+            // The uid is separated from the flag part of the filename by a
+            // colon. The flag part consists of a 2 followed by a comma and
+            // then some letters. Those letters represent the message flags
+            {
                 match flags.splitn(2, ',').nth(1) {
                     None => HashSet::new(),
                     Some(unparsed_flags) => {
@@ -105,7 +94,7 @@ impl Message {
                                 'F' => Some(Flag::Flagged),
                                 'R' => Some(Flag::Answered),
                                 'S' => Some(Flag::Seen),
-                                _ => None
+                                _ => None,
                             };
                             if let Some(enum_flag) = parsed_flag {
                                 set_flags.insert(enum_flag);
@@ -114,6 +103,7 @@ impl Message {
                         set_flags
                     }
                 }
+            }
         };
 
         let message = Message {
@@ -121,7 +111,7 @@ impl Message {
             path: arg_path.to_path_buf(),
             mime_message: mime_message,
             flags: flags,
-            deleted: false
+            deleted: false,
         };
 
         Ok(message)
@@ -138,7 +128,7 @@ impl Message {
             path: pb,
             mime_message: self.mime_message.clone(),
             flags: self.flags.clone(),
-            deleted: self.deleted
+            deleted: self.deleted,
         }
     }
 
@@ -160,15 +150,16 @@ impl Message {
         self.uid
     }
 
-    pub fn store(&mut self, flag_name: &StoreName,
-                 new_flags: HashSet<Flag>) -> String {
+    pub fn store(&mut self, flag_name: &StoreName, new_flags: HashSet<Flag>) -> String {
         match *flag_name {
             StoreName::Sub => {
                 for flag in &new_flags {
                     self.flags.remove(flag);
                 }
             }
-            StoreName::Replace => { self.flags = new_flags; }
+            StoreName::Replace => {
+                self.flags = new_flags;
+            }
             StoreName::Add => {
                 for flag in new_flags {
                     self.flags.insert(flag);
@@ -198,11 +189,11 @@ impl Message {
                 Envelope => {
                     res.push_str("ENVELOPE ");
                     res.push_str(&self.mime_message.get_envelope()[..]);
-                },
+                }
                 Flags => {
                     res.push_str("FLAGS ");
                     res.push_str(&self.print_flags()[..]);
-                },
+                }
                 InternalDate => {
                     res.push_str("INTERNALDATE \"");
                     res.push_str(&self.date_received()[..]);
@@ -211,22 +202,23 @@ impl Message {
                 RFC822(ref attr) => {
                     res.push_str("RFC822");
                     match *attr {
-                        AllRFC822 | TextRFC822 => {},
+                        AllRFC822 | TextRFC822 => {}
                         HeaderRFC822 => {
                             res.push_str(".HEADER {");
                             res.push_str(&self.mime_message.get_header_boundary()[..]);
                             res.push_str("}\r\n");
                             res.push_str(self.mime_message.get_header());
-                        },
+                        }
                         SizeRFC822 => {
                             res.push_str(".SIZE ");
-                            res.push_str(&self.mime_message.get_size()[..]) },
+                            res.push_str(&self.mime_message.get_size()[..])
+                        }
                     };
-                },
-                Body | BodyStructure => {},
-                BodySection(ref section, ref octets) |
-                    BodyPeek(ref section, ref octets) => {
-                        res.push_str(&self.mime_message.get_body(section, octets)[..]) },
+                }
+                Body | BodyStructure => {}
+                BodySection(ref section, ref octets) | BodyPeek(ref section, ref octets) => {
+                    res.push_str(&self.mime_message.get_body(section, octets)[..])
+                }
                 /*
                 BodyStructure => {
                     let content_type: Vec<&str> = (&self.headers["CONTENT-TYPE".to_string()][..]).splitn(2, ';').take(1).collect();
@@ -283,11 +275,11 @@ impl Message {
                 res.push(' ');
             }
             let flag_str = match *flag {
-                Flag::Answered => { "\\Answered" },
-                Flag::Draft => { "\\Draft" },
-                Flag::Flagged => { "\\Flagged" },
-                Flag::Seen => { "\\Seen" }
-                Flag::Deleted => { "\\Deleted" }
+                Flag::Answered => "\\Answered",
+                Flag::Draft => "\\Draft",
+                Flag::Flagged => "\\Flagged",
+                Flag::Seen => "\\Seen",
+                Flag::Deleted => "\\Deleted",
             };
             res.push_str(flag_str);
         }
@@ -328,7 +320,10 @@ impl Message {
 
     fn date_received(&self) -> String {
         // Retrieve the date received from the UID.
-        let date_received = Timespec { sec: self.uid as i64, nsec: 0i32 };
+        let date_received = Timespec {
+            sec: self.uid as i64,
+            nsec: 0i32,
+        };
         let date_received_tm = time::at_utc(date_received);
 
         let month = match date_received_tm.tm_mon {
@@ -345,7 +340,7 @@ impl Message {
             10 => "Nov",
             11 => "Dec",
             // NOTE: this should never happen.
-            _ => panic!("Unable to determine month!")
+            _ => panic!("Unable to determine month!"),
         };
 
         format!(
@@ -355,6 +350,7 @@ impl Message {
             date_received_tm.tm_year + 1900i32,
             date_received_tm.tm_hour,
             date_received_tm.tm_min,
-            date_received_tm.tm_sec)
+            date_received_tm.tm_sec
+        )
     }
 }

@@ -3,7 +3,7 @@ use super::email::Email;
 /// Representation of an email and password login attempt.
 pub struct LoginData {
     pub email: Email,
-    pub password: String
+    pub password: String,
 }
 
 impl LoginData {
@@ -14,9 +14,9 @@ impl LoginData {
                 let login_data = LoginData {
                     email: Email {
                         local_part: local_part.to_string(),
-                        domain_part: domain_part.to_string()
+                        domain_part: domain_part.to_string(),
                     },
-                    password: password
+                    password: password,
                 };
                 return Some(login_data);
             }

@@ -1,6 +1,6 @@
+pub mod fetch;
 pub mod sequence_set;
 pub mod store;
-pub mod fetch;
 
 use crate::command::sequence_set::SequenceItem;
 
@@ -17,7 +17,7 @@ pub enum Attribute {
     Flags,
     InternalDate,
     RFC822(RFC822Attribute),
-    UID
+    UID,
 }
 
 /// Attributes defined as part of any electronic mail message
@@ -26,7 +26,7 @@ pub enum RFC822Attribute {
     AllRFC822,
     HeaderRFC822,
     SizeRFC822,
-    TextRFC822
+    TextRFC822,
 }
 
 /// This represents a Fetch command;
@@ -36,15 +36,14 @@ pub enum RFC822Attribute {
 #[derive(PartialEq, Debug)]
 pub struct FetchCommand {
     pub sequence_set: Vec<SequenceItem>,
-    pub attributes: Vec<Attribute>
+    pub attributes: Vec<Attribute>,
 }
 
 impl FetchCommand {
-    pub fn new(sequence_set: Vec<SequenceItem>, attributes: Vec<Attribute>)
-               -> FetchCommand {
+    pub fn new(sequence_set: Vec<SequenceItem>, attributes: Vec<Attribute>) -> FetchCommand {
         FetchCommand {
             sequence_set: sequence_set,
-            attributes: attributes
+            attributes: attributes,
         }
     }
 }

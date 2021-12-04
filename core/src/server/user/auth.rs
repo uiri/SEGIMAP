@@ -1,7 +1,7 @@
 // Use OsRng to ensure that the randomly generated data is cryptographically
 // secure.
-use rand::Rng;
 use rand::os::OsRng;
+use rand::Rng;
 
 // Use bcrypt for the hashing algorithm to ensure that the outputted data is
 // cryptograpically secure and difficult to crack, even if the authentication
@@ -17,7 +17,7 @@ pub struct AuthData {
     /// Added to the password before hashing
     salt: Vec<u8>,
     /// The hash of the password
-    out: Vec<u8>
+    out: Vec<u8>,
 }
 
 impl AuthData {
@@ -31,7 +31,7 @@ impl AuthData {
 
         AuthData {
             salt: salt,
-            out: out.to_vec()
+            out: out.to_vec(),
         }
     }
 
@@ -39,11 +39,7 @@ impl AuthData {
     /// matches.
     pub fn verify_auth(&self, password: String) -> bool {
         let out = &mut [0u8; 32];
-        bcrypt_pbkdf(
-                &password.into_bytes()[..],
-                &self.salt[..],
-                ROUNDS,
-                out);
+        bcrypt_pbkdf(&password.into_bytes()[..], &self.salt[..], ROUNDS, out);
         self.out == out.to_vec()
     }
 }
@@ -54,7 +50,7 @@ fn gen_salt() -> Vec<u8> {
     // Use the cryptographically secure OsRng for randomness.
     let mut rng = match OsRng::new() {
         Ok(v) => v,
-        Err(e) => panic!("Failed to create secure Rng: {}", e)
+        Err(e) => panic!("Failed to create secure Rng: {}", e),
     };
     // Generate the salt from a set of random ascii characters.
     let mut salt = String::new();

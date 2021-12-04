@@ -2,7 +2,7 @@
 pub enum BodySectionType {
     AllSection,
     MsgtextSection(Msgtext),
-    PartSection(Vec<usize>, Option<Msgtext>)
+    PartSection(Vec<usize>, Option<Msgtext>),
 }
 
 #[derive(PartialEq, Debug)]
@@ -11,5 +11,5 @@ pub enum Msgtext {
     HeaderFieldsMsgtext(Vec<String>),
     HeaderFieldsNotMsgtext(Vec<String>),
     TextMsgtext,
-    MimeMsgtext
+    MimeMsgtext,
 }
