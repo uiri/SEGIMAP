@@ -4,6 +4,7 @@ version = "0.0.1"
 authors = []
 
 [dependencies]
+thiserror = "1.0"
 
 [lib]
 name = "mime"

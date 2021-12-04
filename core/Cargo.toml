@@ -23,6 +23,7 @@ segimap_mime = { path = "../mime/" }
 serde = "*"
 serde_derive = "*"
 serde_json = "*"
+thiserror = "1.0"
 time = "*"
 toml = "*"
 walkdir = "*"
